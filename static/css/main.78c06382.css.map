@@ -1,1 +1,0 @@
-{"version":3,"file":"static/css/main.78c06382.css","mappings":"kFAEA,EACI,QAAS,CACT,SACJ","sources":["index.css"],"sourcesContent":["@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');\n\n*{\n    margin: 0;\n    padding: 0;\n}"],"names":[],"sourceRoot":""}
