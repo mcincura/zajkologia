@@ -6,7 +6,7 @@
   <link rel="icon" type="icon" href="./zajo2.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Zajkológia</title>
-  <script type="module" crossorigin src="./assets/index-DJ-aEuQD.js"></script>
+  <script type="module" crossorigin src="./assets/index-C3IIQ3Mi.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-DKFxclAD.css">
 </head>
 
@@ -29,7 +29,16 @@
       window.history.replaceState(null, '', target);
     })();
   </script>
-  <script src="./app-config.js"></script>
+  <script>
+    // Ensure app-config.js is loaded from the correct base path.
+    // Some static hosts serve index.html for deep links (e.g. /post/slug),
+    // so a relative "./app-config.js" would incorrectly resolve to /post/app-config.js.
+    (function () {
+      var repo = 'zajkologia';
+      var base = window.location.pathname.startsWith('/' + repo + '/') ? '/' + repo : '';
+      document.write('<script src="' + base + '/app-config.js"><\\/script>');
+    })();
+  </script>
 </body>
 
 </html>
