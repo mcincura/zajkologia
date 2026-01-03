@@ -6,5 +6,5 @@ window.__APP_CONFIG__ = {
   // Príklad:
   // API_BASE_URL: 'https://api.tvojadomena.sk'
   // Tip pre vývoj: nechaj prázdne pre použitie Vite proxy (`/api`).
-  API_BASE_URL: 'https://zajky.zentrobot.io'
+  API_BASE_URL: 'https://zajky.zentrobot.io:3213'
 };
