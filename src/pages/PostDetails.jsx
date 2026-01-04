@@ -1,14 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useLocation, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, mapPostFromApi } from '../api/client';
 
 const PostDetails = () => {
+    const location = useLocation();
     const { slug } = useParams();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [post, setPost] = useState(null);
+
+    const backTo = location.state?.from || '/';
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }, [slug]);
 
     useEffect(() => {
         let cancelled = false;
@@ -57,7 +65,7 @@ const PostDetails = () => {
                 <h2>Nepodarilo sa načítať článok</h2>
                 <div style={{ color: '#666', marginTop: '0.5rem' }}>{error}</div>
                 <div style={{ marginTop: '1rem' }}>
-                    <Link to="/" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Späť na hlavný blog</Link>
+                    <Link to={backTo} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Späť na hlavný blog</Link>
                 </div>
             </div>
         );
@@ -67,17 +75,19 @@ const PostDetails = () => {
         return (
             <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
                 <h2>Článok nebol nájdený 🥕</h2>
-                <Link to="/" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Späť na hlavný blog</Link>
+                <Link to={backTo} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Späť na hlavný blog</Link>
             </div>
         );
     }
 
     return (
         <div className="container">
-            <Link to="/" style={{
+            <Link to={backTo} style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                marginTop: '1.5rem',
+                marginLeft: '0.25rem',
                 marginBottom: '2rem',
                 color: '#666'
             }}>
@@ -122,10 +132,10 @@ const PostDetails = () => {
                     alt={post.title}
                     style={{
                         width: '100%',
-                        maxHeight: '400px',
                         objectFit: 'cover',
                         borderRadius: 'var(--radius)',
-                        marginBottom: '3rem'
+                        marginBottom: '3rem',
+                        aspectRatio: '4 / 3',
                     }}
                 />
 

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zajkológia</title>
+  <script>
+    // GitHub Pages / static hosting: redirect deep links to the SPA entry.
+    (function () {
+      var repo = 'zajkologia';
+      var base = window.location.pathname.startsWith('/' + repo + '/') ? '/' + repo : '';
+      var path = window.location.pathname;
+      if (base && path.startsWith(base)) path = path.slice(base.length);
+      var redirect = base + '/?p=' + encodeURIComponent(path + window.location.search + window.location.hash);
+      window.location.replace(redirect);
+    })();
+  </script>
+</head>
+
+<body>
+  <noscript>This site requires JavaScript.</noscript>
+</body>
+
+</html>

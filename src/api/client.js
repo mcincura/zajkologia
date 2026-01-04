@@ -1,7 +1,9 @@
-const runtimeBaseUrl =
-    (typeof window !== 'undefined' && window.__APP_CONFIG__ && window.__APP_CONFIG__.API_BASE_URL) || '';
-
-const baseUrl = (runtimeBaseUrl || import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+// No runtime app-config.js dependency.
+// - Production default: hardcoded backend URL.
+// - Dev default: relative "/api" (so Vite proxy can handle cookies + CORS).
+// - Override anytime via VITE_API_BASE_URL.
+const envBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+const baseUrl = envBaseUrl || (import.meta.env.DEV ? '' : 'https://zajky.zentrobot.io');
 
 export const apiUrl = (path) => {
     if (!path.startsWith('/')) path = `/${path}`;
@@ -10,13 +12,6 @@ export const apiUrl = (path) => {
 };
 
 export const apiFetch = async (path, options = {}) => {
-    if (!baseUrl && !import.meta.env.DEV) {
-        const err = new Error('missing_api_base_url');
-        err.hint =
-            'Set window.__APP_CONFIG__.API_BASE_URL in /public/app-config.js or VITE_API_BASE_URL in .env (example: https://your-backend.com)';
-        throw err;
-    }
-
     const res = await fetch(apiUrl(path), {
         ...options,
         headers: {

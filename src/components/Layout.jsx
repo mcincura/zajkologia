@@ -11,7 +11,7 @@ const Layout = () => {
             minHeight: '100vh'
         }}>
             {/* <Header /> */}
-            <main style={{ flex: 1, padding: '2rem 0' }}>
+            <main style={{ flex: 1, padding: '0rem 0' }}>
                 <Outlet />
             </main>
             <Footer />

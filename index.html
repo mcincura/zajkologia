@@ -3,14 +3,30 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="icon" type="icon" href="./zajo2.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Zajkológia</title>
 </head>
 
 <body>
   <div id="root"></div>
-  <script src="/app-config.js"></script>
+  <script>
+    // GitHub Pages / static hosting SPA fallback.
+    // If we were redirected from 404.html with ?p=..., restore the original path.
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var p = params.get('p');
+      if (!p) return;
+
+      // Support both custom-domain root and project pages under /zajkologia.
+      var repo = 'zajkologia';
+      var base = window.location.pathname.startsWith('/' + repo + '/') ? '/' + repo : '';
+
+      // p is an encoded path (may include leading '/') + optional query/hash.
+      var target = base + p;
+      window.history.replaceState(null, '', target);
+    })();
+  </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

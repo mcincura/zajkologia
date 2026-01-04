@@ -24,7 +24,15 @@ const MarkdownContent = ({ markdown }) => {
                         </h3>
                     ),
                     p: ({ children, ...props }) => (
-                        <p style={{ margin: '0 0 1rem', color: '#333' }} {...props}>
+                        <p
+                            style={{
+                                margin: '0 0 1rem',
+                                color: '#333',
+                                textAlign: 'justify',
+                                textJustify: 'inter-word',
+                            }}
+                            {...props}
+                        >
                             {children}
                         </p>
                     ),
@@ -96,9 +104,11 @@ const MarkdownContent = ({ markdown }) => {
                     img: ({ ...props }) => (
                         <img
                             style={{
+                                display: 'block',
                                 maxWidth: '100%',
+                                height: 'auto',
                                 borderRadius: 'var(--radius)',
-                                margin: '0.5rem 0 1rem',
+                                margin: '0.75rem auto 1.25rem',
                             }}
                             {...props}
                         />

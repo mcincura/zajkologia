@@ -1,17 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
+import { FaInstagram, FaFacebook, FaEnvelope } from 'react-icons/fa';
 import PostCard from '../components/PostCard';
 import { apiFetch, mapPostFromApi } from '../api/client';
 
 const Home = () => {
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || null);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [posts, setPosts] = useState([]);
     const [categories, setCategories] = useState([]);
+
+    useEffect(() => {
+      const cat = searchParams.get('category') || null;
+      setSelectedCategory((prev) => (prev === cat ? prev : cat));
+    }, [searchParams]);
+
+    const setCategory = (cat) => {
+      setSelectedCategory(cat);
+      const next = new URLSearchParams(searchParams);
+      if (cat) next.set('category', cat);
+      else next.delete('category');
+      setSearchParams(next);
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -58,8 +75,8 @@ const Home = () => {
         <section
           style={{
             backgroundColor: "var(--color-light)",
-            padding: "4rem 0",
-            marginBottom: "3rem",
+            padding: "2rem 0",
+            marginBottom: "1.5rem",
             textAlign: "center",
           }}
         >
@@ -84,10 +101,37 @@ const Home = () => {
                 color: "#555",
               }}
             >
-              Spájame lásku ku králikom s poznaním, aby mohli žiť
-              šťastný, zdravý a spokojný život.
+              Spájame lásku ku králikom s poznaním.
             </p>
             <SearchBar onSearch={setSearchTerm} />
+            <div
+              style={{
+                display: "flex",
+                gap: "1.5rem",
+                justifyContent: "center",
+                marginTop: "1rem",
+              }}
+            >
+              <a
+                href="https://www.instagram.com/zajkologia"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+              >
+                <FaInstagram size={28} color="#fff" />
+              </a>
+              <a href="mailto:kontakt@zajkologia.com" aria-label="Email">
+                <FaEnvelope size={28} color="#fff" />
+              </a>
+              <a
+                href="https://www.facebook.com/share/181hadDk7u/?mibextid=wwXIfr"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+              >
+                <FaFacebook size={28} color="#fff" />
+              </a>
+            </div>
           </div>
         </section>
 
@@ -103,7 +147,7 @@ const Home = () => {
               }}
             >
               <button
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => setCategory(null)}
                 style={{
                   padding: "0.5rem 1.5rem",
                   borderRadius: "50px",
@@ -119,7 +163,7 @@ const Home = () => {
               {categories.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat.name)}
+                  onClick={() => setCategory(cat.name)}
                   style={{
                     padding: "0.5rem 1.5rem",
                     borderRadius: "50px",
@@ -201,6 +245,7 @@ const Home = () => {
               {posts.slice(0, 3).map((post) => (
                 <Link
                   to={`/post/${post.slug}`}
+                  state={{ from: location.pathname + location.search }}
                   key={post.id}
                   style={{
                     display: "flex",
@@ -212,16 +257,30 @@ const Home = () => {
                     boxShadow: "var(--shadow)",
                   }}
                 >
-                  <img
-                    src={post.image}
-                    alt=""
+                  <div
                     style={{
-                      width: "80px",
-                      height: "80px",
-                      borderRadius: "4px",
-                      objectFit: "cover",
+                      width: '80px',
+                      aspectRatio: '4 / 3',
+                      flex: '0 0 80px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      borderRadius: '4px',
+                      background: '#fff',
                     }}
-                  />
+                  >
+                    <img
+                      src={post.image}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                      }}
+                    />
+                  </div>
                   <div>
                     <h4 style={{ fontSize: "1rem", marginBottom: "0.25rem" }}>
                       {post.title}
