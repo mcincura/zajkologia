@@ -41,6 +41,16 @@ export const apiFetch = async (path, options = {}) => {
     return data;
 };
 
+const parseFaqContent = (faqContent) => {
+    if (!faqContent) return [];
+    try {
+        const parsed = JSON.parse(faqContent);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+};
+
 export const mapPostFromApi = (p) => ({
     id: p.id,
     slug: p.slug,
@@ -52,4 +62,6 @@ export const mapPostFromApi = (p) => ({
     image: p.imageUrl || '',
     author: p.author || '',
     date: p.date || '',
+    hasFaq: Boolean(p.hasFaq),
+    faqItems: parseFaqContent(p.faqContent),
 });

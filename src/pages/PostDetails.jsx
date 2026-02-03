@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
+import FaqSection from '../components/FaqSection';
 import { apiFetch, mapPostFromApi } from '../api/client';
 
 const PostDetails = () => {
@@ -140,6 +141,10 @@ const PostDetails = () => {
                 />
 
                 <MarkdownContent markdown={post.content} />
+
+                {post.hasFaq && post.faqItems && post.faqItems.length > 0 && (
+                    <FaqSection faqItems={post.faqItems} />
+                )}
             </article>
         </div>
     );

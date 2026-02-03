@@ -34,6 +34,8 @@ const createEmptyPost = (defaultCategoryId) => ({
     date: formatToday(),
     image: '/zajo.png',
     content: '# Nadpis\n\nSem napíš obsah v Markdowne.\n',
+    hasFaq: false,
+    faqItems: [],
 });
 
 const Admin = () => {
@@ -51,6 +53,11 @@ const Admin = () => {
     const [status, setStatus] = useState('');
     const [busy, setBusy] = useState(false);
 
+    const [analytics, setAnalytics] = useState(null);
+    const [analyticsDays, setAnalyticsDays] = useState(30);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [analyticsError, setAnalyticsError] = useState('');
+
     const selectedPost = useMemo(() => posts.find(p => p.id === selectedId) || null, [posts, selectedId]);
 
     const loadAll = async () => {
@@ -63,6 +70,21 @@ const Admin = () => {
         const mapped = (ps.posts || []).map(mapPostFromApi);
         setPosts(mapped);
         setSelectedId(mapped?.[0]?.id ?? null);
+    };
+
+    const loadAnalytics = async (daysOverride) => {
+        const days = Number(daysOverride ?? analyticsDays) || 30;
+        setAnalyticsLoading(true);
+        setAnalyticsError('');
+        try {
+            const data = await apiFetch(`/api/analytics/summary?days=${days}`);
+            setAnalytics(data);
+        } catch (err) {
+            setAnalytics(null);
+            setAnalyticsError(`Analytics failed: ${err.message}`);
+        } finally {
+            setAnalyticsLoading(false);
+        }
     };
 
     const resetAdminState = () => {
@@ -80,6 +102,7 @@ const Admin = () => {
             setUsername(me?.username || fallbackUsername || '');
             if (authed) {
                 await loadAll();
+                await loadAnalytics();
             } else {
                 resetAdminState();
             }
@@ -90,6 +113,7 @@ const Admin = () => {
             if (err?.status === 404) {
                 try {
                     await loadAll();
+                    await loadAnalytics();
                     setIsAuthenticated(true);
                     setUsername(fallbackUsername || '');
                     return true;
@@ -114,6 +138,12 @@ const Admin = () => {
         checkAuth();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        loadAnalytics();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated]);
 
     const updateSelected = (patch) => {
         if (!selectedPost) return;
@@ -215,6 +245,10 @@ const Admin = () => {
             author: selectedPost.author || null,
             categoryId: selectedPost.categoryId || null,
             publishedAt: selectedPost.date || null,
+            hasFaq: selectedPost.hasFaq || false,
+            faqContent: selectedPost.hasFaq && selectedPost.faqItems?.length > 0
+                ? JSON.stringify(selectedPost.faqItems)
+                : null,
         };
 
         setBusy(true);
@@ -311,6 +345,42 @@ const Admin = () => {
                     </div>
                 ) : null}
 
+                <div style={{
+                    border: '1px solid #eee',
+                    borderRadius: '10px',
+                    padding: '0.75rem',
+                    marginBottom: '1rem',
+                    background: '#fafafa'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ fontWeight: 800 }}>Analytics</div>
+                        <button
+                            type="button"
+                            onClick={() => loadAnalytics()}
+                            disabled={analyticsLoading}
+                            style={{ background: 'var(--color-dark)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.75rem' }}
+                        >
+                            {analyticsLoading ? '…' : 'Refresh'}
+                        </button>
+                    </div>
+                    {analyticsError ? (
+                        <div style={{ fontSize: '0.8rem', color: '#a40000', marginBottom: '0.5rem' }}>{analyticsError}</div>
+                    ) : null}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Views</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{analytics?.totals?.pageviews ?? '—'}</div>
+                        </div>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Uniques</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{analytics?.totals?.uniqueVisitors ?? '—'}</div>
+                        </div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                        Last {analyticsDays} days
+                    </div>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {posts.map((p) => (
                         <button
@@ -338,6 +408,97 @@ const Admin = () => {
                 boxShadow: 'var(--shadow)',
                 padding: '1rem'
             }}>
+                <div style={{
+                    border: '1px solid #eee',
+                    borderRadius: '10px',
+                    padding: '1rem',
+                    marginBottom: '1rem',
+                    background: '#fafafa'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <h3 style={{ margin: 0 }}>Analytics</h3>
+                            <span style={{ fontSize: '0.85rem', color: '#666' }}>Last {analyticsDays} days</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <select
+                                value={analyticsDays}
+                                onChange={(e) => {
+                                    const days = Number(e.target.value);
+                                    setAnalyticsDays(days);
+                                    loadAnalytics(days);
+                                }}
+                                style={{ padding: '0.35rem 0.5rem', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.85rem' }}
+                            >
+                                <option value={7}>7 days</option>
+                                <option value={30}>30 days</option>
+                                <option value={90}>90 days</option>
+                                <option value={180}>180 days</option>
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() => loadAnalytics()}
+                                disabled={analyticsLoading}
+                                style={{ background: 'var(--color-dark)', color: 'white', padding: '0.35rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem' }}
+                            >
+                                {analyticsLoading ? 'Refreshing…' : 'Refresh'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {analyticsError ? (
+                        <div style={{ fontSize: '0.9rem', color: '#a40000' }}>{analyticsError}</div>
+                    ) : null}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>Pageviews</div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{analytics?.totals?.pageviews ?? '—'}</div>
+                        </div>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>Unique visitors</div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{analytics?.totals?.uniqueVisitors ?? '—'}</div>
+                        </div>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>Days tracked</div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{analytics?.rangeDays ?? analyticsDays}</div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                        <div>
+                            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.35rem' }}>Pageviews by day</div>
+                            <div style={{ border: '1px solid #eee', borderRadius: '8px', background: 'white', padding: '0.5rem', maxHeight: '220px', overflow: 'auto' }}>
+                                {(analytics?.perDay || []).length === 0 ? (
+                                    <div style={{ fontSize: '0.85rem', color: '#888' }}>No data.</div>
+                                ) : (
+                                    (analytics?.perDay || []).map((row) => (
+                                        <div key={row.date} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: '0.5rem', padding: '0.35rem 0', borderBottom: '1px dashed #f0f0f0' }}>
+                                            <div style={{ fontSize: '0.85rem', color: '#555' }}>{row.date}</div>
+                                            <div style={{ fontSize: '0.85rem' }}>{row.pageviews} views</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#666' }}>{row.uniqueVisitors} uniques</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.35rem' }}>Top posts</div>
+                            <div style={{ border: '1px solid #eee', borderRadius: '8px', background: 'white', padding: '0.5rem' }}>
+                                {(analytics?.topPosts || []).length === 0 ? (
+                                    <div style={{ fontSize: '0.85rem', color: '#888' }}>No data.</div>
+                                ) : (
+                                    (analytics?.topPosts || []).map((row) => (
+                                        <div key={row.postId} style={{ padding: '0.35rem 0', borderBottom: '1px dashed #f0f0f0' }}>
+                                            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{row.title || row.slug}</div>
+                                            <div style={{ fontSize: '0.8rem', color: '#666' }}>{row.pageviews} views • {row.uniqueVisitors} uniques</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {!selectedPost ? (
                     <div style={{ padding: '1rem' }}>No post selected.</div>
                 ) : (
@@ -430,7 +591,82 @@ const Admin = () => {
                                     style={{ padding: '0.6rem 0.75rem', border: '1px solid #eee', borderRadius: '8px' }}
                                 />
                             </label>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedPost.hasFaq || false}
+                                    onChange={(e) => updateSelected({ hasFaq: e.target.checked })}
+                                    style={{ width: '18px', height: '18px' }}
+                                />
+                                <span style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}>Enable FAQ section</span>
+                            </label>
                         </div>
+
+                        {selectedPost.hasFaq && (
+                            <div style={{ marginTop: '1rem', padding: '1rem', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                    <span style={{ fontSize: '0.9rem', color: '#333', fontWeight: 700 }}>FAQ Items</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const newItems = [...(selectedPost.faqItems || []), { question: '', answer: '' }];
+                                            updateSelected({ faqItems: newItems });
+                                        }}
+                                        style={{ background: 'var(--color-primary)', color: 'white', padding: '0.4rem 0.65rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem' }}
+                                    >
+                                        + Add FAQ
+                                    </button>
+                                </div>
+                                {(selectedPost.faqItems || []).length === 0 && (
+                                    <div style={{ fontSize: '0.85rem', color: '#888', fontStyle: 'italic' }}>No FAQ items yet. Click "+ Add FAQ" to add one.</div>
+                                )}
+                                {(selectedPost.faqItems || []).map((faq, index) => (
+                                    <div key={index} style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'white', borderRadius: '6px', border: '1px solid #ddd' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                            <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>FAQ #{index + 1}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const newItems = selectedPost.faqItems.filter((_, i) => i !== index);
+                                                    updateSelected({ faqItems: newItems });
+                                                }}
+                                                style={{ background: '#fff0f0', color: '#a40000', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: 600, fontSize: '0.75rem' }}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' }}>
+                                            <span style={{ fontSize: '0.8rem', color: '#666' }}>Question</span>
+                                            <input
+                                                value={faq.question}
+                                                onChange={(e) => {
+                                                    const newItems = [...selectedPost.faqItems];
+                                                    newItems[index] = { ...newItems[index], question: e.target.value };
+                                                    updateSelected({ faqItems: newItems });
+                                                }}
+                                                placeholder="Enter the question..."
+                                                style={{ padding: '0.5rem 0.65rem', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.9rem' }}
+                                            />
+                                        </label>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <span style={{ fontSize: '0.8rem', color: '#666' }}>Answer</span>
+                                            <textarea
+                                                value={faq.answer}
+                                                onChange={(e) => {
+                                                    const newItems = [...selectedPost.faqItems];
+                                                    newItems[index] = { ...newItems[index], answer: e.target.value };
+                                                    updateSelected({ faqItems: newItems });
+                                                }}
+                                                placeholder="Enter the answer..."
+                                                rows={3}
+                                                style={{ padding: '0.5rem 0.65rem', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.9rem', resize: 'vertical' }}
+                                            />
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                             <div>
