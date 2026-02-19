@@ -2,13 +2,22 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calendar, User } from 'lucide-react';
 
+const categoryColors = {
+    Zdravie: '#3C0919',
+    Strava: '#6A1E2F',
+    Starostlivosť: '#5C1F2E',
+    Správanie: '#6B2C3E',
+    Zaujímavosti: '#7A2E3A',
+};
+
 const PostCard = ({ post }) => {
     const location = useLocation();
     const from = location.pathname + location.search;
+    const categoryColor = categoryColors[post.category] || '#3C0919';
 
     return (
         <article style={{
-            backgroundColor: 'var(--color-white)',
+            backgroundColor: categoryColor,
             borderRadius: 'var(--radius)',
             overflow: 'hidden',
             boxShadow: 'var(--shadow)',
@@ -44,7 +53,7 @@ const PostCard = ({ post }) => {
                 <div style={{
                     fontSize: '0.8rem',
                     fontWeight: '600',
-                    color: 'var(--color-primary)',
+                    color: 'rgba(255, 255, 255, 0.9)',
                     marginBottom: '0.5rem',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em'
@@ -53,13 +62,13 @@ const PostCard = ({ post }) => {
                 </div>
 
                 <h3 style={{ marginBottom: '0.75rem' }}>
-                    <Link to={`/post/${post.slug}`} state={{ from }} style={{ color: 'var(--color-text)' }}>
+                    <Link to={`/post/${post.slug}`} state={{ from }} style={{ color: 'var(--color-white)' }}>
                         {post.title}
                     </Link>
                 </h3>
 
                 <p style={{
-                    color: '#666',
+                    color: 'rgba(255, 255, 255, 0.85)',
                     marginBottom: '1.5rem',
                     lineHeight: '1.6',
                     flex: 1
@@ -72,8 +81,8 @@ const PostCard = ({ post }) => {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     fontSize: '0.85rem',
-                    color: '#888',
-                    borderTop: '1px solid #eee',
+                    color: 'rgba(255, 255, 255, 0.85)',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.25)',
                     paddingTop: '1rem'
                 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
