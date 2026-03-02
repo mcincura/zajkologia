@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import PostDetails from './pages/PostDetails';
+import ProductDetails from './pages/ProductDetails';
 import Admin from './pages/Admin';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="categories" element={<div className="container">Categories Page (Placeholder)</div>} />
           <Route path="post/:slug" element={<PostDetails />} />
+          <Route path="product/:slug" element={<ProductDetails />} />
           <Route path="admin" element={<Admin />} />
           <Route path="*" element={<div className="container">404 Not Found</div>} />
         </Route>

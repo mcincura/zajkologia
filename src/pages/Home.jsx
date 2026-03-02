@@ -3,7 +3,12 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import { FaInstagram, FaFacebook, FaEnvelope } from 'react-icons/fa';
 import PostCard from '../components/PostCard';
+import ProductCard from '../components/ProductCard';
 import { apiFetch, mapPostFromApi } from '../api/client';
+import { products } from '../data/products';
+
+const PRODUCTS_CATEGORY_NAME = 'Produkty';
+const PRODUCTS_BUTTON_COLOR = '#eccfc3';
 
 const Home = () => {
   const location = useLocation();
@@ -58,16 +63,27 @@ const Home = () => {
         };
     }, []);
 
-    const filteredPosts = useMemo(() => {
-        const term = searchTerm.trim().toLowerCase();
-        return posts.filter((post) => {
-            const title = (post.title || '').toLowerCase();
-            const excerpt = (post.excerpt || '').toLowerCase();
-            const matchesSearch = !term || title.includes(term) || excerpt.includes(term);
-            const matchesCategory = selectedCategory ? post.category === selectedCategory : true;
-            return matchesSearch && matchesCategory;
-        });
-    }, [posts, searchTerm, selectedCategory]);
+  const filteredPosts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return posts.filter((post) => {
+      const title = (post.title || '').toLowerCase();
+      const excerpt = (post.excerpt || '').toLowerCase();
+      const matchesSearch = !term || title.includes(term) || excerpt.includes(term);
+      const matchesCategory = selectedCategory
+        ? post.category === selectedCategory
+        : true;
+      return matchesSearch && matchesCategory;
+    });
+  }, [posts, searchTerm, selectedCategory]);
+
+  const filteredProducts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return products.filter((product) => {
+      const title = (product.name || '').toLowerCase();
+      const excerpt = (product.shortDescription || '').toLowerCase();
+      return !term || title.includes(term) || excerpt.includes(term);
+    });
+  }, [searchTerm]);
 
     return (
       <>
@@ -160,6 +176,27 @@ const Home = () => {
               >
                 Všetko
               </button>
+              <button
+                onClick={() => setCategory(PRODUCTS_CATEGORY_NAME)}
+                style={{
+                  padding: "0.5rem 1.5rem",
+                  borderRadius: "50px",
+                  backgroundColor:
+                    selectedCategory === PRODUCTS_CATEGORY_NAME
+                      ? PRODUCTS_BUTTON_COLOR
+                      : "white",
+                  color:
+                    selectedCategory === PRODUCTS_CATEGORY_NAME
+                      ? "white"
+                      : PRODUCTS_BUTTON_COLOR,
+                  border: selectedCategory === PRODUCTS_CATEGORY_NAME ? 'none' : `2px solid ${PRODUCTS_BUTTON_COLOR}`,
+                  fontWeight: "700",
+                  transition: "all 0.2s",
+                  boxShadow: 'none',
+                }}
+              >
+                Produkty
+              </button>
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -190,7 +227,27 @@ const Home = () => {
               marginBottom: "4rem",
             }}
           >
-            {loading ? (
+            {selectedCategory === PRODUCTS_CATEGORY_NAME ? (
+              filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    accentColor={PRODUCTS_BUTTON_COLOR}
+                  />
+                ))
+              ) : (
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    textAlign: "center",
+                    padding: "3rem",
+                  }}
+                >
+                  <h3>Momentálne nemáme žiadne produkty</h3>
+                </div>
+              )
+            ) : loading ? (
               <div
                 style={{
                   gridColumn: "1 / -1",
@@ -230,74 +287,76 @@ const Home = () => {
             )}
           </div>
 
-          {/* Recommendations Section */}
-          <section style={{ marginBottom: "4rem" }}>
-            <h2 style={{ textAlign: "center", marginBottom: "2rem" }}>
-              Odporúčané
-            </h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: "1.5rem",
-              }}
-            >
-              {posts.slice(0, 3).map((post) => (
-                <Link
-                  to={`/post/${post.slug}`}
-                  state={{ from: location.pathname + location.search }}
-                  key={post.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "1rem",
-                    backgroundColor: "white",
-                    padding: "1rem",
-                    borderRadius: "var(--radius)",
-                    boxShadow: "var(--shadow)",
-                  }}
-                >
-                  <div
+          {/* Recommendations Section (hidden when viewing Products) */}
+          {selectedCategory !== PRODUCTS_CATEGORY_NAME && (
+            <section style={{ marginBottom: "4rem" }}>
+              <h2 style={{ textAlign: "center", marginBottom: "2rem" }}>
+                Odporúčané
+              </h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "1.5rem",
+                }}
+              >
+                {posts.slice(0, 3).map((post) => (
+                  <Link
+                    to={`/post/${post.slug}`}
+                    state={{ from: location.pathname + location.search }}
+                    key={post.id}
                     style={{
-                      width: '80px',
-                      aspectRatio: '4 / 3',
-                      flex: '0 0 80px',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      borderRadius: '4px',
-                      background: '#fff',
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "1rem",
+                      backgroundColor: "white",
+                      padding: "1rem",
+                      borderRadius: "var(--radius)",
+                      boxShadow: "var(--shadow)",
                     }}
                   >
-                    <img
-                      src={post.image}
-                      alt=""
+                    <div
                       style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: "1rem", marginBottom: "0.25rem" }}>
-                      {post.title}
-                    </h4>
-                    <span
-                      style={{
-                        fontSize: "0.8rem",
-                        color: "var(--color-primary)",
+                        width: '80px',
+                        aspectRatio: '4 / 3',
+                        flex: '0 0 80px',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: '4px',
+                        background: '#fff',
                       }}
                     >
-                      {post.category}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
+                      <img
+                        src={post.image}
+                        alt=""
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: "1rem", marginBottom: "0.25rem" }}>
+                        {post.title}
+                      </h4>
+                      <span
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "var(--color-primary)",
+                        }}
+                      >
+                        {post.category}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </>
     );
