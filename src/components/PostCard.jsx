@@ -41,7 +41,8 @@ const PostCard = ({ post }) => {
                             objectFit: 'cover',
                             position: 'absolute',
                             inset: 0,
-                            transition: 'transform 0.3s ease'
+                            transition: 'transform 0.3s ease',
+                            borderBottom: '4px solid #fdf6f6'
                         }}
                         onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
                         onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
