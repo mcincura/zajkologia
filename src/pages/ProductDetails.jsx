@@ -127,11 +127,31 @@ const ProductDetails = () => {
             >
               Produkt
             </span>*/}
-            <h1 style={{ marginBottom: "0.75rem", fontSize: "1.8rem" }}>{product.name}</h1>
+            <h1 style={{ marginBottom: "0.5rem", fontSize: "1.8rem" }}>
+              {product.name}
+            </h1>
+
+            <div
+              style={{
+                display: "inline-block",
+                backgroundColor: "#fdf6f6",
+                color: "#6b4c3b",
+                paddingBlock: "0.75rem",
+                borderRadius: "999px",
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                marginBottom: "0.9rem",
+              }}
+            >
+              Po zaplatení dostanete príručku vo forme PDF na email
+            </div>
+
             <p style={{ color: "#666", marginBottom: "1.5rem" }}>
               {product.description}
             </p>
-            <h2 style={{ marginBottom: "0.75rem", fontSize: "1.4rem" }}>Čo v ňom nájdeš?</h2>
+            <h2 style={{ marginBottom: "0.75rem", fontSize: "1.4rem" }}>
+              Čo v ňom nájdeš?
+            </h2>
             <ul
               style={{
                 color: "#4b2a00",

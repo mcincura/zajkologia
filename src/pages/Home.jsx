@@ -176,6 +176,24 @@ const Home = () => {
               >
                 Všetko
               </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategory(cat.name)}
+                  style={{
+                    padding: "0.5rem 1.5rem",
+                    borderRadius: "50px",
+                    backgroundColor:
+                      selectedCategory === cat.name ? "#9b6a6c" : "white",
+                    color: selectedCategory === cat.name ? "white" : "#9b6a6c",
+                    border: `1px solid #9b6a6c`,
+                    fontWeight: "600",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {cat.name}
+                </button>
+              ))}
               <button
                 onClick={() => setCategory(PRODUCTS_CATEGORY_NAME)}
                 style={{
@@ -197,24 +215,6 @@ const Home = () => {
               >
                 Produkty
               </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setCategory(cat.name)}
-                  style={{
-                    padding: "0.5rem 1.5rem",
-                    borderRadius: "50px",
-                    backgroundColor:
-                      selectedCategory === cat.name ? "#9b6a6c" : "white",
-                    color: selectedCategory === cat.name ? "white" : "#9b6a6c",
-                    border: `1px solid #9b6a6c`,
-                    fontWeight: "600",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {cat.name}
-                </button>
-              ))}
             </div>
           </div>
 
