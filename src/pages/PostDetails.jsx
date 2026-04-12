@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import FaqSection from '../components/FaqSection';
 import { apiFetch, mapPostFromApi } from '../api/client';
+import { getCategoryConfig } from '../constants/categories';
 
 const PostDetails = () => {
     const location = useLocation();
@@ -97,18 +98,28 @@ const PostDetails = () => {
 
             <article style={{ maxWidth: '800px', margin: '0 auto' }}>
                 <header style={{ marginBottom: '2rem', textAlign: 'center' }}>
-                    <span style={{
-                        backgroundColor: 'var(--color-light)',
-                        color: 'var(--color-accent)',
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '50px',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        display: 'inline-block',
-                        marginBottom: '1rem'
-                    }}>
-                        {post.category}
-                    </span>
+                    {(() => {
+                        const config = getCategoryConfig(post.category);
+                        const Icon = config.icon;
+                        return (
+                            <span style={{
+                                backgroundColor: config.bg,
+                                color: config.color,
+                                padding: '0.4rem 1rem',
+                                borderRadius: '50px',
+                                fontSize: '0.9rem',
+                                fontWeight: '700',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                marginBottom: '1.5rem',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                            }}>
+                                {Icon && <Icon size={16} />}
+                                {post.category}
+                            </span>
+                        );
+                    })()}
                     <h1 style={{ marginBottom: '1.5rem' }}>{post.title}</h1>
 
                     <div style={{
@@ -127,18 +138,6 @@ const PostDetails = () => {
                         </span>
                     </div>
                 </header>
-
-                <img
-                    src={post.image}
-                    alt={post.title}
-                    style={{
-                        width: '100%',
-                        objectFit: 'cover',
-                        borderRadius: 'var(--radius)',
-                        marginBottom: '3rem',
-                        aspectRatio: '4 / 3',
-                    }}
-                />
 
                 <MarkdownContent markdown={post.content} />
 

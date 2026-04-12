@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DisclaimerModal from './DisclaimerModal';
+import { FaInstagram, FaFacebook, FaEnvelope } from 'react-icons/fa';
 
 const Footer = () => {
     const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -13,6 +14,17 @@ const Footer = () => {
         }}
       >
         <div className="container" style={{ textAlign: "center" }}>
+          <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginBottom: '2rem' }}>
+              <a href="https://www.instagram.com/zajkologia" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                  <FaInstagram size={28} color="var(--color-secondary)" style={{ transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color = '#fff'} onMouseOut={(e) => e.target.style.color = 'var(--color-secondary)'} />
+              </a>
+              <a href="mailto:kontakt@zajkologia.com" aria-label="Email">
+                  <FaEnvelope size={28} color="var(--color-secondary)" style={{ transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color = '#fff'} onMouseOut={(e) => e.target.style.color = 'var(--color-secondary)'} />
+              </a>
+              <a href="https://www.facebook.com/share/181hadDk7u/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                  <FaFacebook size={28} color="var(--color-secondary)" style={{ transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color = '#fff'} onMouseOut={(e) => e.target.style.color = 'var(--color-secondary)'} />
+              </a>
+          </div>
           <p>
             &copy; {new Date().getFullYear()} Zajkológia Blog. Všetky práva
             vyhradené.

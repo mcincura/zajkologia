@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
-import { FaInstagram, FaFacebook, FaEnvelope } from 'react-icons/fa';
 import PostCard from '../components/PostCard';
 import ProductCard from '../components/ProductCard';
 import { apiFetch, mapPostFromApi } from '../api/client';
+import { getCategoryConfig } from '../constants/categories';
 import { products } from '../data/products';
 
 const PRODUCTS_CATEGORY_NAME = 'Produkty';
@@ -14,54 +14,54 @@ const Home = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-    const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || null);
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [posts, setPosts] = useState([]);
-    const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [posts, setPosts] = useState([]);
+  const [categories, setCategories] = useState([]);
 
-    useEffect(() => {
-      const cat = searchParams.get('category') || null;
-      setSelectedCategory((prev) => (prev === cat ? prev : cat));
-    }, [searchParams]);
+  useEffect(() => {
+    const cat = searchParams.get('category') || null;
+    setSelectedCategory((prev) => (prev === cat ? prev : cat));
+  }, [searchParams]);
 
-    const setCategory = (cat) => {
-      setSelectedCategory(cat);
-      const next = new URLSearchParams(searchParams);
-      if (cat) next.set('category', cat);
-      else next.delete('category');
-      setSearchParams(next);
+  const setCategory = (cat) => {
+    setSelectedCategory(cat);
+    const next = new URLSearchParams(searchParams);
+    if (cat) next.set('category', cat);
+    else next.delete('category');
+    setSearchParams(next);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const [catsRes, postsRes] = await Promise.all([
+          apiFetch('/api/categories'),
+          apiFetch('/api/posts'),
+        ]);
+        if (cancelled) return;
+        setCategories(catsRes?.categories || []);
+        setPosts((postsRes?.posts || []).map(mapPostFromApi));
+      } catch (err) {
+        if (cancelled) return;
+        setError(err?.message || 'Failed to load posts');
+        setCategories([]);
+        setPosts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
-
-    useEffect(() => {
-        let cancelled = false;
-        const load = async () => {
-            setLoading(true);
-            setError('');
-            try {
-                const [catsRes, postsRes] = await Promise.all([
-                    apiFetch('/api/categories'),
-                    apiFetch('/api/posts'),
-                ]);
-                if (cancelled) return;
-                setCategories(catsRes?.categories || []);
-                setPosts((postsRes?.posts || []).map(mapPostFromApi));
-            } catch (err) {
-                if (cancelled) return;
-                setError(err?.message || 'Failed to load posts');
-                setCategories([]);
-                setPosts([]);
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
-        load();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredPosts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -85,281 +85,224 @@ const Home = () => {
     });
   }, [searchTerm]);
 
-    return (
-      <>
-        {/* Hero Section */}
-        <section
+  return (
+    <>
+      {/* Hero Section */}
+      <section
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          padding: "5rem 0",
+          marginBottom: "3rem",
+          textAlign: "center",
+          color: "white"
+        }}
+      >
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: "linear-gradient(to right, rgba(138, 28, 43, 0.2), rgba(202, 139, 97, 0.1)), url('https://i.ibb.co/jPTpVxs0/IMG-9423.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: "blur(3px)",
+          transform: "scale(1.1)", // Prevent white edges from blur
+          zIndex: 0
+        }} />
+        <div
+          className="container"
           style={{
-            backgroundColor: "var(--color-light)",
-            padding: "2rem 0",
-            marginBottom: "1.5rem",
-            textAlign: "center",
+            position: "relative",
+            zIndex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1.5rem",
           }}
         >
+          <h1 style={{ fontSize: "3.5rem", color: "white", margin: 0, fontWeight: '800', textShadow: '2px 2px 10px rgba(0,0,0,0.5)' }}>
+            Vitajte na Zajkológii
+          </h1>
+          <p
+            style={{
+              fontSize: "1.25rem",
+              maxWidth: "600px",
+              margin: "0 auto",
+              color: "rgba(255, 255, 255, 0.9)",
+            }}
+          >
+            Spájame lásku ku králikom s poznaním.
+          </p>
+          <SearchBar onSearch={setSearchTerm} />
+        </div>
+      </section>
+
+      <div className="container">
+        {/* Categories */}
+        <div style={{ marginBottom: "3rem" }}>
           <div
-            className="container"
             style={{
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "1.5rem",
+              justifyContent: "center",
+              gap: "1rem",
+              flexWrap: "wrap",
             }}
           >
-            {/*<img src="/zajo.png" alt="Zajkológia logo" style={{ height: '40px', marginBottom: '1rem' }} />*/}
-            <h1 style={{ fontSize: "3rem", color: "var(--color-accent)" }}>
-              Vitajte na Zajkológii
-            </h1>
-            <p
-              style={{
-                fontSize: "1.25rem",
-                maxWidth: "600px",
-                margin: "0 auto",
-                color: "#555",
-              }}
-            >
-              Spájame lásku ku králikom s poznaním.
-            </p>
-            <SearchBar onSearch={setSearchTerm} />
-            <div
-              style={{
-                display: "flex",
-                gap: "1.5rem",
-                justifyContent: "center",
-                marginTop: "1rem",
-              }}
-            >
-              <a
-                href="https://www.instagram.com/zajkologia"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-              >
-                <FaInstagram size={28} color="#fff" />
-              </a>
-              <a href="mailto:kontakt@zajkologia.com" aria-label="Email">
-                <FaEnvelope size={28} color="#fff" />
-              </a>
-              <a
-                href="https://www.facebook.com/share/181hadDk7u/?mibextid=wwXIfr"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-              >
-                <FaFacebook size={28} color="#fff" />
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <div className="container">
-          {/* Categories */}
-          <div style={{ marginBottom: "3rem" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "1rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                onClick={() => setCategory(null)}
-                style={{
-                  padding: "0.5rem 1.5rem",
-                  borderRadius: "50px",
-                  backgroundColor: !selectedCategory ? "#9b6a6c" : "white",
-                  color: !selectedCategory ? "white" : "#9b6a6c",
-                  border: "1px solid #9b6a6c",
-                  fontWeight: "600",
-                  transition: "all 0.2s",
-                }}
-              >
-                Všetko
-              </button>
-              {categories.map((cat) => (
+            {categories.map((cat) => {
+              const config = getCategoryConfig(cat.name);
+              const Icon = config.icon;
+              const isSelected = selectedCategory === cat.name;
+              return (
                 <button
                   key={cat.id}
-                  onClick={() => setCategory(cat.name)}
+                  onClick={() => setCategory(isSelected ? null : cat.name)}
                   style={{
-                    padding: "0.5rem 1.5rem",
-                    borderRadius: "50px",
-                    backgroundColor:
-                      selectedCategory === cat.name ? "#9b6a6c" : "white",
-                    color: selectedCategory === cat.name ? "white" : "#9b6a6c",
-                    border: `1px solid #9b6a6c`,
-                    fontWeight: "600",
+                    padding: "1.2rem 1.5rem",
+                    borderRadius: "16px",
+                    backgroundColor: isSelected ? config.color : config.bg,
+                    color: isSelected ? 'var(--color-background)' : config.color,
+                    border: isSelected ? `2px solid ${config.color}` : `2px solid transparent`,
+                    fontWeight: "700",
                     transition: "all 0.2s",
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    minWidth: '120px',
+                    boxShadow: isSelected ? `0 4px 12px ${config.color}44` : '0 2px 4px rgba(0,0,0,0.05)'
                   }}
                 >
-                  {cat.name}
+                  {Icon && <Icon size={28} strokeWidth={2} />}
+                  <span>{cat.name}</span>
                 </button>
-              ))}
-              <button
-                onClick={() => setCategory(PRODUCTS_CATEGORY_NAME)}
-                style={{
-                  padding: "0.5rem 1.5rem",
-                  borderRadius: "50px",
-                  backgroundColor:
-                    selectedCategory === PRODUCTS_CATEGORY_NAME
-                      ? PRODUCTS_BUTTON_COLOR
-                      : "white",
-                  color:
-                    selectedCategory === PRODUCTS_CATEGORY_NAME
-                      ? "white"
-                      : PRODUCTS_BUTTON_COLOR,
-                  border: selectedCategory === PRODUCTS_CATEGORY_NAME ? 'none' : `2px solid ${PRODUCTS_BUTTON_COLOR}`,
-                  fontWeight: "700",
-                  transition: "all 0.2s",
-                  boxShadow: 'none',
-                }}
-              >
-                Produkty
-              </button>
-            </div>
+              );
+            })}
+            {(() => {
+              const config = getCategoryConfig(PRODUCTS_CATEGORY_NAME);
+              const Icon = config.icon;
+              const isSelected = selectedCategory === PRODUCTS_CATEGORY_NAME;
+              return (
+                <button
+                  onClick={() => setCategory(isSelected ? null : PRODUCTS_CATEGORY_NAME)}
+                  style={{
+                    padding: "1.2rem 1.5rem",
+                    borderRadius: "16px",
+                    backgroundColor: isSelected ? config.color : config.bg,
+                    color: isSelected ? 'var(--color-background)' : config.color,
+                    border: isSelected ? `2px solid ${config.color}` : `2px solid transparent`,
+                    fontWeight: "700",
+                    transition: "all 0.2s",
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    minWidth: '120px',
+                    boxShadow: isSelected ? `0 4px 12px ${config.color}44` : '0 2px 4px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  {Icon && <Icon size={28} strokeWidth={2} />}
+                  <span>{PRODUCTS_CATEGORY_NAME}</span>
+                </button>
+              );
+            })()}
           </div>
+        </div>
 
-          {/* Posts Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-              gap: "2rem",
-              marginBottom: "4rem",
-            }}
-          >
-            {selectedCategory === PRODUCTS_CATEGORY_NAME ? (
-              filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    accentColor={PRODUCTS_BUTTON_COLOR}
-                  />
+        {/* Posts Display */}
+        <div style={{ marginBottom: "4rem" }}>
+          {(!selectedCategory && !searchTerm) ? (
+            <>
+              {categories.map(cat => {
+                const catPosts = posts.filter(p => p.category === cat.name).slice(0, 3);
+                if (catPosts.length === 0) return null;
+                const config = getCategoryConfig(cat.name);
+                const Icon = config.icon;
+                return (
+                  <div key={cat.id} style={{ marginBottom: '5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+                      <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: config.color, margin: 0 }}>
+                        {Icon && <span style={{ display: 'inline-flex', padding: '0.5rem', backgroundColor: config.bg, borderRadius: '12px' }}><Icon size={24} /></span>}
+                        {cat.name}
+                      </h2>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "2rem", marginBottom: "2rem" }}>
+                      {catPosts.map(post => <PostCard key={post.id} post={post} />)}
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <button onClick={() => setCategory(cat.name)} style={{ padding: '0.8rem 2.5rem', borderRadius: '50px', backgroundColor: config.bg, color: config.color, fontWeight: '700', border: 'none', fontSize: '1rem', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                        Zobraziť viac z kategórie {cat.name}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredProducts.length > 0 && (
+                <div style={{ marginBottom: '5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: getCategoryConfig(PRODUCTS_CATEGORY_NAME).color, margin: 0 }}>
+                      {getCategoryConfig(PRODUCTS_CATEGORY_NAME).icon && <span style={{ display: 'inline-flex', padding: '0.5rem', backgroundColor: getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg, borderRadius: '12px' }}>{React.createElement(getCategoryConfig(PRODUCTS_CATEGORY_NAME).icon, { size: 24 })}</span>}
+                      Produkty
+                    </h2>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "2rem", marginBottom: "2rem" }}>
+                    {filteredProducts.slice(0, 3).map(product => <ProductCard key={product.id} product={product} accentColor={getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg} />)}
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <button onClick={() => setCategory(PRODUCTS_CATEGORY_NAME)} style={{ padding: '0.8rem 2.5rem', borderRadius: '50px', backgroundColor: getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg, color: getCategoryConfig(PRODUCTS_CATEGORY_NAME).color, fontWeight: '700', border: 'none', fontSize: '1rem', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                      Zobraziť viac z kategórie Produkty
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                gap: "2rem"
+              }}
+            >
+              {selectedCategory === PRODUCTS_CATEGORY_NAME ? (
+                filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      accentColor={getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg}
+                    />
+                  ))
+                ) : (
+                  <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem" }}>
+                    <h3>Momentálne nemáme žiadne produkty</h3>
+                  </div>
+                )
+              ) : loading ? (
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem" }}>
+                  <h3>Načítavam…</h3>
+                </div>
+              ) : error ? (
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem" }}>
+                  <h3>Nepodarilo sa načítať články</h3>
+                  <div style={{ color: "#666", marginTop: "0.5rem" }}>{error}</div>
+                </div>
+              ) : filteredPosts.length > 0 ? (
+                filteredPosts.map((post) => (
+                  <PostCard key={post.id} post={post} />
                 ))
               ) : (
-                <div
-                  style={{
-                    gridColumn: "1 / -1",
-                    textAlign: "center",
-                    padding: "3rem",
-                  }}
-                >
-                  <h3>Momentálne nemáme žiadne produkty</h3>
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem" }}>
+                  <h3>Žiadne články nespĺňajú vaše kritériá vyhľadávania</h3>
                 </div>
-              )
-            ) : loading ? (
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  textAlign: "center",
-                  padding: "3rem",
-                }}
-              >
-                <h3>Načítavam…</h3>
-              </div>
-            ) : error ? (
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  textAlign: "center",
-                  padding: "3rem",
-                }}
-              >
-                <h3>Nepodarilo sa načítať články</h3>
-                <div style={{ color: "#666", marginTop: "0.5rem" }}>
-                  {error}
-                </div>
-              </div>
-            ) : filteredPosts.length > 0 ? (
-              filteredPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))
-            ) : (
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  textAlign: "center",
-                  padding: "3rem",
-                }}
-              >
-                <h3>Žiadne články nespĺňajú vaše kritériá vyhľadávania</h3>
-              </div>
-            )}
-          </div>
-
-          {/* Recommendations Section (hidden when viewing Products) */}
-          {selectedCategory !== PRODUCTS_CATEGORY_NAME && (
-            <section style={{ marginBottom: "4rem" }}>
-              <h2 style={{ textAlign: "center", marginBottom: "2rem" }}>
-                Odporúčané
-              </h2>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                  gap: "1.5rem",
-                }}
-              >
-                {posts.slice(0, 3).map((post) => (
-                  <Link
-                    to={`/post/${post.slug}`}
-                    state={{ from: location.pathname + location.search }}
-                    key={post.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "1rem",
-                      backgroundColor: "white",
-                      padding: "1rem",
-                      borderRadius: "var(--radius)",
-                      boxShadow: "var(--shadow)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '80px',
-                        aspectRatio: '4 / 3',
-                        flex: '0 0 80px',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        borderRadius: '4px',
-                        background: '#fff',
-                      }}
-                    >
-                      <img
-                        src={post.image}
-                        alt=""
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: "1rem", marginBottom: "0.25rem" }}>
-                        {post.title}
-                      </h4>
-                      <span
-                        style={{
-                          fontSize: "0.8rem",
-                          color: "var(--color-primary)",
-                        }}
-                      >
-                        {post.category}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+              )}
+            </div>
           )}
         </div>
-      </>
-    );
+      </div>
+    </>
+  );
 };
 
 export default Home;
