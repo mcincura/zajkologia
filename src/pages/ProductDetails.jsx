@@ -165,6 +165,7 @@ const ProductDetails = () => {
               <li>• Strava</li>
               <li>• Správanie a komunikácia králika</li>
               <li>• Zdravie a veterinárna starostlivosť</li>
+              <li>• Ako naučiť králika používať toaletu</li>
             </ul>
           </div>
         </div>

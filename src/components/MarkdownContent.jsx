@@ -9,24 +9,39 @@ const MarkdownContent = ({ markdown }) => {
                 remarkPlugins={[remarkGfm]}
                 components={{
                     h1: ({ children, ...props }) => (
-                        <h1 style={{ fontSize: '2.25rem', margin: '0 0 1rem' }} {...props}>
+                        <h1 style={{ fontSize: '2.25rem', margin: '2rem 0 0.75rem' }} {...props}>
                             {children}
                         </h1>
                     ),
                     h2: ({ children, ...props }) => (
-                        <h2 style={{ fontSize: '1.9rem', margin: '1.75rem 0 1rem' }} {...props}>
+                        <h2 style={{ fontSize: '1.9rem', margin: '2rem 0 0.75rem' }} {...props}>
                             {children}
                         </h2>
                     ),
                     h3: ({ children, ...props }) => (
-                        <h3 style={{ fontSize: '1.5rem', margin: '1.5rem 0 0.75rem' }} {...props}>
+                        <h3 style={{ fontSize: '1.5rem', margin: '2rem 0 0.75rem' }} {...props}>
                             {children}
                         </h3>
+                    ),
+                    h4: ({ children, ...props }) => (
+                        <h4 style={{ margin: '2rem 0 0.75rem' }} {...props}>
+                            {children}
+                        </h4>
+                    ),
+                    h5: ({ children, ...props }) => (
+                        <h5 style={{ margin: '2rem 0 0.75rem' }} {...props}>
+                            {children}
+                        </h5>
+                    ),
+                    h6: ({ children, ...props }) => (
+                        <h6 style={{ margin: '2rem 0 0.75rem' }} {...props}>
+                            {children}
+                        </h6>
                     ),
                     p: ({ children, ...props }) => (
                         <p
                             style={{
-                                margin: '0 0 1rem',
+                                margin: '0 0 0.75rem',
                                 color: '#333',
                                 textAlign: 'justify',
                                 textJustify: 'inter-word',
