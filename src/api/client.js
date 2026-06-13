@@ -1,9 +1,13 @@
 // No runtime app-config.js dependency.
+// - Dev default: relative "/api" so Vite proxy avoids browser CORS.
 // - Production default: hardcoded backend URL.
-// - Dev default: relative "/api" (so Vite proxy can handle cookies + CORS).
-// - Override anytime via VITE_API_BASE_URL.
+// - Production override: VITE_API_BASE_URL.
+// - Dev override is intentionally opt-in to avoid stale shell env breaking local work.
 const envBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
-const baseUrl = envBaseUrl || (import.meta.env.DEV ? '' : 'https://zajky.zentrobot.io');
+const useDevApiOverride = import.meta.env.VITE_USE_API_BASE_URL_IN_DEV === 'true';
+const baseUrl = import.meta.env.DEV
+    ? (useDevApiOverride ? envBaseUrl : '')
+    : (envBaseUrl || 'https://zajky.zentrobot.io');
 
 export const apiUrl = (path) => {
     if (!path.startsWith('/')) path = `/${path}`;
@@ -39,6 +43,34 @@ export const apiFetch = async (path, options = {}) => {
     }
 
     return data;
+};
+
+export const createCheckoutSession = async (productSlug) => {
+    const data = await apiFetch('/api/stripe/checkout-session', {
+        method: 'POST',
+        body: JSON.stringify({ productSlug }),
+    });
+
+    if (!data?.checkoutUrl) {
+        throw new Error('missing_checkout_url');
+    }
+
+    return data;
+};
+
+export const loadProducts = async () => {
+    const data = await apiFetch('/api/products');
+    return data?.products || [];
+};
+
+export const loadProduct = async (slug) => {
+    const data = await apiFetch(`/api/products/${encodeURIComponent(slug)}`);
+    return data?.product || null;
+};
+
+export const loadVisitorCountry = async () => {
+    const data = await apiFetch('/api/geo');
+    return data?.countryCode || '';
 };
 
 const parseFaqContent = (faqContent) => {

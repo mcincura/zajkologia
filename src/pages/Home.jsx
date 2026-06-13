@@ -1,17 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import PostCard from '../components/PostCard';
 import ProductCard from '../components/ProductCard';
 import { apiFetch, mapPostFromApi } from '../api/client';
 import { getCategoryConfig } from '../constants/categories';
-import { products } from '../data/products';
+import { useProducts } from '../hooks/useProducts';
+import '../styles/products.css';
 
 const PRODUCTS_CATEGORY_NAME = 'Produkty';
-const PRODUCTS_BUTTON_COLOR = '#eccfc3';
+const PRODUCTS_CARD_ACCENT = '#F8E8D4';
 
 const Home = () => {
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +21,7 @@ const Home = () => {
   const [error, setError] = useState('');
   const [posts, setPosts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const { products } = useProducts();
 
   useEffect(() => {
     const cat = searchParams.get('category') || null;
@@ -80,10 +81,10 @@ const Home = () => {
     const term = searchTerm.trim().toLowerCase();
     return products.filter((product) => {
       const title = (product.name || '').toLowerCase();
-      const excerpt = (product.shortDescription || '').toLowerCase();
+      const excerpt = (product.shortDescription || product.description || '').toLowerCase();
       return !term || title.includes(term) || excerpt.includes(term);
     });
-  }, [searchTerm]);
+  }, [products, searchTerm]);
 
   return (
     <>
@@ -186,6 +187,7 @@ const Home = () => {
               return (
                 <button
                   onClick={() => setCategory(isSelected ? null : PRODUCTS_CATEGORY_NAME)}
+                  aria-pressed={isSelected}
                   style={{
                     padding: "1.2rem 1.5rem",
                     borderRadius: "16px",
@@ -240,20 +242,33 @@ const Home = () => {
               })}
               {filteredProducts.length > 0 && (
                 <div style={{ marginBottom: '5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: getCategoryConfig(PRODUCTS_CATEGORY_NAME).color, margin: 0 }}>
-                      {getCategoryConfig(PRODUCTS_CATEGORY_NAME).icon && <span style={{ display: 'inline-flex', padding: '0.5rem', backgroundColor: getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg, borderRadius: '12px' }}>{React.createElement(getCategoryConfig(PRODUCTS_CATEGORY_NAME).icon, { size: 24 })}</span>}
-                      Produkty
-                    </h2>
+                  <div className="products-grid">
+                    {filteredProducts.slice(0, 3).map(product => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        accentColor={PRODUCTS_CARD_ACCENT}
+                      />
+                    ))}
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "2rem", marginBottom: "2rem" }}>
-                    {filteredProducts.slice(0, 3).map(product => <ProductCard key={product.id} product={product} accentColor={getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg} />)}
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <button onClick={() => setCategory(PRODUCTS_CATEGORY_NAME)} style={{ padding: '0.8rem 2.5rem', borderRadius: '50px', backgroundColor: getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg, color: getCategoryConfig(PRODUCTS_CATEGORY_NAME).color, fontWeight: '700', border: 'none', fontSize: '1rem', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                      Zobraziť viac z kategórie Produkty
-                    </button>
-                  </div>
+                </div>
+              )}
+            </>
+          ) : selectedCategory === PRODUCTS_CATEGORY_NAME ? (
+            <>
+              {filteredProducts.length > 0 ? (
+                <div className="products-grid products-grid--catalog">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      accentColor={PRODUCTS_CARD_ACCENT}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="products-empty">
+                  <h3>Momentálne nemáme žiadne produkty</h3>
                 </div>
               )}
             </>
@@ -265,21 +280,7 @@ const Home = () => {
                 gap: "2rem"
               }}
             >
-              {selectedCategory === PRODUCTS_CATEGORY_NAME ? (
-                filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      accentColor={getCategoryConfig(PRODUCTS_CATEGORY_NAME).bg}
-                    />
-                  ))
-                ) : (
-                  <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem" }}>
-                    <h3>Momentálne nemáme žiadne produkty</h3>
-                  </div>
-                )
-              ) : loading ? (
+              {loading ? (
                 <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem" }}>
                   <h3>Načítavam…</h3>
                 </div>

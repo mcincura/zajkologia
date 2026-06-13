@@ -1,124 +1,106 @@
-import React from 'react';
-// Product card component — displays product image, price and buy button.
-// Clicking anywhere except the buy button navigates to the product page.
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
+import { ArrowRight, ShoppingCart } from 'lucide-react';
+import { createCheckoutSession } from '../api/client';
+import ProductLanguageBadges from './ProductLanguageBadges';
+import '../styles/products.css';
 
 const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
   const from = location.pathname + location.search;
   const destination = `/product/${product.slug}`;
+  const isPreviewProduct = Boolean(product.isMock);
 
   const handleNavigate = () => {
     navigate(destination, { state: { from } });
   };
 
   const handleKeyDown = (event) => {
+    if (event.target.closest?.('button, a')) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       handleNavigate();
     }
   };
 
+  const handleCheckout = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isPreviewProduct) return;
+    setCheckoutLoading(true);
+    setCheckoutError('');
+    try {
+      const session = await createCheckoutSession(product.slug);
+      window.location.assign(session.checkoutUrl);
+    } catch {
+      setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
+      setCheckoutLoading(false);
+    }
+  };
+
+  const description = product.shortDescription || product.description || '';
+  const price = product.price || 'Cena v pokladni';
+  const buttonLabel = isPreviewProduct
+    ? product.purchaseLabel || 'Čoskoro'
+    : checkoutLoading
+      ? 'Otváram...'
+      : 'Kúpiť';
+
   return (
     <article
+      className="product-card"
       role="link"
       tabIndex={0}
+      aria-label={`Pozrieť produkt ${product.name}`}
       onClick={handleNavigate}
       onKeyDown={handleKeyDown}
-      style={{
-  backgroundColor: accentColor,
-        borderRadius: 'var(--radius)',
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow)',
-        transition: 'transform 0.2s ease',
-        display: 'flex',
-        flexDirection: 'column',
-        cursor: 'pointer',
-      }}
+      style={{ '--product-accent': product.accentColor || accentColor }}
     >
-      <div
-        style={{
-          width: '100%',
-          aspectRatio: '4 / 4.8',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="product-card__media">
         <img
+          className="product-card__image"
           src={product.image}
           alt={product.name}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            position: 'absolute',
-            inset: 0,
-            transition: 'transform 0.3s ease',
-            borderBottom: '4px solid #eccfc3',
-          }}
-          onMouseOver={(e) => (e.target.style.transform = 'scale(1.05)')}
-          onMouseOut={(e) => (e.target.style.transform = 'scale(1)')}
         />
       </div>
 
-      <div
-        style={{
-          padding: '0.6rem 1.5rem 1rem',
-          borderTop: '1px solid #eccfc3',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.6rem',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '0.8rem',
-            fontWeight: '700',
-            color: '#6b4c3b',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-          }}
-        >
-          PRODUKT
+      <div className="product-card__content">
+        <ProductLanguageBadges languages={product.languages} />
+
+        <h3 className="product-card__title">{product.name}</h3>
+        {description && <p className="product-card__description">{description}</p>}
+
+        <div className="product-card__purchase">
+          <div className="product-card__price">
+            <span className="product-card__price-label">Cena</span>
+            <span className="product-card__price-value">{price}</span>
+          </div>
+          <button
+            className={`product-card__button${isPreviewProduct ? ' product-card__button--preview' : ''}`}
+            type="button"
+            onClick={handleCheckout}
+            disabled={checkoutLoading || isPreviewProduct}
+            aria-label={isPreviewProduct ? `Produkt zatiaľ nie je v predaji: ${product.name}` : `Kúpiť ${product.name}`}
+          >
+            <ShoppingCart size={16} />
+            {buttonLabel}
+          </button>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.75rem',
-          }}
-        >
-          <span style={{ color: '#6b4c3b', fontSize: '1.35rem', fontWeight: 700 }}>
-            {product.price}
-          </span>
-          <a
-            href={product.buyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: '#fdf6f6',
-              color: '#6b4c3b',
-              border: '2px solid #eccfc3',
-              padding: '0.6rem 1.1rem',
-              borderRadius: '999px',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            <ShoppingCart size={16} /> Kúpiť
-          </a>
-        </div>
+        <span className="product-card__hint">
+          Pozrieť detail
+          <ArrowRight size={15} strokeWidth={2.4} />
+        </span>
+
+        {checkoutError && (
+          <div className="product-card__error">{checkoutError}</div>
+        )}
       </div>
-  </article>
+    </article>
   );
-}
+};
 
 export default ProductCard;

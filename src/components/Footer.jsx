@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DisclaimerModal from './DisclaimerModal';
 import { FaInstagram, FaFacebook, FaEnvelope } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
     const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -33,6 +34,16 @@ const Footer = () => {
             Powered by hay, love and binkies.
           </p>
           <p style={{ marginTop: "1rem", fontSize: "0.9rem" }}>
+            <Link
+              to="/obchodne-podmienky"
+              style={{
+                color: "var(--color-white)",
+                textDecoration: "underline",
+                marginRight: "1rem",
+              }}
+            >
+              Obchodné podmienky
+            </Link>
             <button
               onClick={() => setShowDisclaimer(true)}
               style={{

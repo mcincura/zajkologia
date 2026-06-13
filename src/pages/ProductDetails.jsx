@@ -1,22 +1,174 @@
-import React, { useEffect, useMemo } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart } from 'lucide-react';
-import { products } from '../data/products';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  Carrot,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  CheckCircle2,
+  ClipboardList,
+  HeartPulse,
+  House,
+  Layers3,
+  Plus,
+  ScanSearch,
+  Scale,
+  ShoppingCart,
+  Stethoscope,
+} from 'lucide-react';
+import { createCheckoutSession, loadVisitorCountry } from '../api/client';
+import ProductCard from '../components/ProductCard';
+import ProductLanguageBadges from '../components/ProductLanguageBadges';
+import { useProduct, useProducts } from '../hooks/useProducts';
+import '../styles/product-details.css';
+
+const iconMap = {
+  CalendarDays,
+  Carrot,
+  CheckCircle2,
+  CircleHelp,
+  ClipboardList,
+  HeartPulse,
+  House,
+  Layers3,
+  Plus,
+  ScanSearch,
+  Scale,
+  Stethoscope,
+};
+
+const fallbackTemplate = (product) => ({
+  lead: product.shortDescription || product.description || '',
+  trustBadges: [product.deliveryNote || 'PDF doručené na email'],
+  contentTitle: `Čo všetko v produkte nájdeš?`,
+  detailSections: [],
+  closingTitle: `Zisti viac o produkte ${product.name}`,
+  closingText: product.description || '',
+  closingNote: product.deliveryNote || '',
+});
+
+const SectionIcon = ({ name }) => {
+  const Icon = iconMap[name] || CheckCircle2;
+  return <Icon size={16} strokeWidth={2.1} />;
+};
 
 const ProductDetails = () => {
   const { slug } = useParams();
   const location = useLocation();
-  const backTo = location.state?.from || '/';
-
-  const product = useMemo(
-    () => products.find((item) => item.slug === slug),
-    [slug]
-  );
+  const [searchParams] = useSearchParams();
+  const backTo = location.state?.from || '/?category=Produkty';
+  const { product } = useProduct(slug);
+  const { products } = useProducts();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [heroMediaHeight, setHeroMediaHeight] = useState(null);
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
+  const [visitorCountryCode, setVisitorCountryCode] = useState('');
+  const summaryRef = useRef(null);
+  const isPreviewProduct = Boolean(product?.isMock);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [slug]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCountry = async () => {
+      try {
+        const countryCode = await loadVisitorCountry();
+        if (!cancelled) setVisitorCountryCode(countryCode || '');
+      } catch {
+        if (!cancelled) setVisitorCountryCode('');
+      }
+    };
+
+    loadCountry();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleCheckout = async () => {
+    if (isPreviewProduct || !product) return;
+    setCheckoutLoading(true);
+    setCheckoutError('');
+    try {
+      const session = await createCheckoutSession(product.slug);
+      window.location.assign(session.checkoutUrl);
+    } catch {
+      setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
+      setCheckoutLoading(false);
+    }
+  };
+
+  const pageData = useMemo(() => {
+    if (!product) return null;
+    return {
+      ...fallbackTemplate(product),
+      ...(product.productPage || {}),
+    };
+  }, [product]);
+
+  const relatedProducts = useMemo(() => {
+    if (!product) return [];
+    return products.filter((item) => item.slug !== product.slug).slice(0, 2);
+  }, [product, products]);
+
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+
+    const normalizedCountryCode = visitorCountryCode.toUpperCase();
+    const countryImages = normalizedCountryCode
+      ? product.productPage?.galleryImagesByCountry?.[normalizedCountryCode]
+      : null;
+
+    const sourceImages = countryImages?.length
+      ? countryImages
+      : product.productPage?.galleryImages?.length
+      ? product.productPage.galleryImages
+      : [product.heroImage || product.image];
+
+    return sourceImages.filter(Boolean);
+  }, [product, visitorCountryCode]);
+
+  useEffect(() => {
+    setActiveGalleryIndex(0);
+  }, [slug, galleryImages.length]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const summaryElement = summaryRef.current;
+    if (!summaryElement) return undefined;
+
+    const syncHeroHeight = () => {
+      if (window.innerWidth <= 1040) {
+        setHeroMediaHeight((current) => (current === null ? current : null));
+        return;
+      }
+
+      const nextHeight = Math.round(summaryElement.getBoundingClientRect().height);
+      setHeroMediaHeight((current) => (current === nextHeight ? current : nextHeight));
+    };
+
+    syncHeroHeight();
+
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncHeroHeight) : null;
+
+    observer?.observe(summaryElement);
+    window.addEventListener('resize', syncHeroHeight);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', syncHeroHeight);
+    };
+  }, [slug, product?.languages?.join(','), pageData?.trustBadges?.length]);
 
   if (!product) {
     return (
@@ -32,144 +184,245 @@ const ProductDetails = () => {
     );
   }
 
+  const {
+    lead,
+    trustBadges = [],
+    languageNote,
+    contentTitle,
+    detailSections = [],
+    closingTitle,
+    closingText,
+    closingNote,
+  } = pageData;
+
+  const productAccent = product.pageTheme?.accent || product.accentColor || '#dbc29b';
+  const productAccentStrong = product.pageTheme?.accentStrong || '#8f5822';
+  const productTint = product.pageTheme?.tint || '#f7ead8';
+  const productSurface = product.pageTheme?.surface || '#fffaf3';
+  const priceLabel = product.price || 'Cena v pokladni';
+  const activeGalleryImage = galleryImages[activeGalleryIndex] || product.heroImage || product.image;
+  const ctaLabel = isPreviewProduct
+    ? (product.purchaseLabel || 'Čoskoro')
+    : checkoutLoading
+      ? 'Otváram…'
+      : 'Kúpiť';
+
+  const showGalleryControls = galleryImages.length > 1;
+  const goToPreviousGalleryImage = () => {
+    setActiveGalleryIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length);
+  };
+
+  const goToNextGalleryImage = () => {
+    setActiveGalleryIndex((current) => (current + 1) % galleryImages.length);
+  };
+
   return (
-    <div className="container">
-      <Link
-        to={backTo}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          marginTop: "1.5rem",
-          marginLeft: "0.25rem",
-          marginBottom: "2rem",
-          color: "#666",
-        }}
-      >
-        <ArrowLeft size={20} /> Späť na produkty
-      </Link>
+    <div
+      className="product-page"
+      style={{
+        '--product-page-accent': productAccent,
+        '--product-page-accent-strong': productAccentStrong,
+        '--product-page-tint': productTint,
+        '--product-page-surface': productSurface,
+      }}
+    >
+      <section className="product-page__top">
+        <div className="container product-page__container">
+          <Link to={backTo} className="product-page__back-link">
+            <ArrowLeft size={18} />
+            Späť na produkty
+          </Link>
 
-      <article style={{ maxWidth: "1100px", margin: "0 auto" }}>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "2.5rem",
-            alignItems: "flex-start",
-            marginBottom: "2.5rem",
-          }}
-        >
-          <div style={{ flex: "1 1 420px", minWidth: "280px" }}>
-            <img
-              src="https://i.ibb.co/mVF09RwP/Zajac-po-n-kr-lik-dom-ci.png"
-              alt={product.name}
-              style={{
-                width: "100%",
-                objectFit: "cover",
-                borderRadius: "var(--radius)",
-                aspectRatio: "4 / 3",
-                boxShadow: "var(--shadow)",
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "1rem",
-                marginTop: "1.25rem",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "1.6rem",
-                  fontWeight: 800,
-                  color: "#6b4c3b",
-                }}
-              >
-                {product.price}
-              </span>
-              <a
-                href={product.buyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  backgroundColor: "#fdf6f6",
-                  color: "#6b4c3b",
-                  padding: "0.85rem 1.75rem",
-                  borderRadius: "999px",
-                  fontWeight: 800,
-                  textDecoration: "none",
-                  border: "2px solid #eccfc3",
-                  boxShadow: "0 10px 18px rgba(107, 76, 59, 0.12)",
-                }}
-              >
-                <ShoppingCart size={18} /> Kúpiť
-              </a>
+          {searchParams.get('checkout') === 'cancelled' && (
+            <div className="product-page__notice">
+              Platba nebola dokončená. Produkt si môžete kúpiť kedykoľvek neskôr.
             </div>
-          </div>
+          )}
 
-          <div style={{ flex: "1 1 360px", minWidth: "260px" }}>
-            {/*<span
-              style={{
-                backgroundColor: "#fdf6f6",
-                color: "#6b4c3b",
-                padding: "0.25rem 0.75rem",
-                borderRadius: "50px",
-                fontSize: "0.9rem",
-                fontWeight: "600",
-                display: "inline-block",
-                marginBottom: "1rem",
-              }}
-            >
-              Produkt
-            </span>*/}
-            <h1 style={{ marginBottom: "0.5rem", fontSize: "1.8rem" }}>
-              {product.name}
-            </h1>
-
+          <article className="product-page__hero">
             <div
-              style={{
-                display: "inline-block",
-                backgroundColor: "#fdf6f6",
-                color: "#6b4c3b",
-                paddingBlock: "0.75rem",
-                borderRadius: "999px",
-                fontSize: "0.85rem",
-                fontWeight: 700,
-                marginBottom: "0.9rem",
-              }}
+              className="product-page__image-panel"
+              style={heroMediaHeight ? { height: `${heroMediaHeight}px` } : undefined}
             >
-              Po zaplatení dostanete príručku vo forme PDF na email
+              <div className="product-page__image-stage">
+                <img
+                  src={activeGalleryImage}
+                  alt={`${product.name} – náhľad ${activeGalleryIndex + 1}`}
+                  className="product-page__image"
+                />
+
+                {showGalleryControls && (
+                  <>
+                    <button
+                      type="button"
+                      className="product-page__gallery-arrow product-page__gallery-arrow--prev"
+                      onClick={goToPreviousGalleryImage}
+                      aria-label="Predchádzajúci náhľad produktu"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="product-page__gallery-arrow product-page__gallery-arrow--next"
+                      onClick={goToNextGalleryImage}
+                      aria-label="Ďalší náhľad produktu"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+
+                    <div className="product-page__gallery-count">
+                      {activeGalleryIndex + 1} / {galleryImages.length}
+                    </div>
+
+                    <div className="product-page__gallery-dots" aria-label="Výber náhľadu produktu">
+                      {galleryImages.map((image, index) => (
+                        <button
+                          key={image}
+                          type="button"
+                          className={`product-page__gallery-dot${index === activeGalleryIndex ? ' is-active' : ''}`}
+                          onClick={() => setActiveGalleryIndex(index)}
+                          aria-label={`Zobraziť náhľad ${index + 1}`}
+                          aria-pressed={index === activeGalleryIndex}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <p style={{ color: "#666", marginBottom: "1.5rem" }}>
-              {product.description}
-            </p>
-            <h2 style={{ marginBottom: "0.75rem", fontSize: "1.4rem" }}>
-              Čo v ňom nájdeš?
-            </h2>
-            <ul
-              style={{
-                color: "#4b2a00",
-                lineHeight: "1.8",
-                paddingLeft: "1.25rem",
-              }}
-            >
-              <li>• Je králik pre mňa vhodný?</li>
-              <li>• Povahové rozdiely medzi pohlaviami</li>
-              <li>• Bývanie a správne vybavenie</li>
-              <li>• Strava</li>
-              <li>• Správanie a komunikácia králika</li>
-              <li>• Zdravie a veterinárna starostlivosť</li>
-              <li>• Ako naučiť králika používať toaletu</li>
-            </ul>
+            <div className="product-page__summary" ref={summaryRef}>
+              <h1 className="product-page__title">{product.name}</h1>
+              <p className="product-page__lead">{lead}</p>
+
+              {trustBadges.length > 0 && (
+                <div className="product-page__meta-list">
+                  {trustBadges.map((badge) => (
+                    <span key={badge} className="product-page__meta-chip">
+                      <CheckCircle2 size={14} strokeWidth={2.4} />
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {product.languages?.length > 0 && (
+                <div className="product-page__language-row">
+                  <span className="product-page__language-label">Dostupné jazyky:</span>
+                  <ProductLanguageBadges languages={product.languages} />
+                </div>
+              )}
+
+              {languageNote && <p className="product-page__language-note">{languageNote}</p>}
+
+              <div className="product-page__buy-row">
+                <div className="product-page__price-block">
+                  <span className="product-page__label">Cena</span>
+                  <span className="product-page__price">{priceLabel}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading || isPreviewProduct}
+                  className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
+                >
+                  <ShoppingCart size={18} />
+                  {ctaLabel}
+                </button>
+              </div>
+
+              <p className="product-page__delivery">
+                {product.deliveryNote || 'Po zaplatení dostanete príručku vo forme PDF na email.'}
+              </p>
+
+              {checkoutError && (
+                <div className="product-page__error">{checkoutError}</div>
+              )}
+
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="product-page__section">
+        <div className="container product-page__container">
+          <div className="product-page__copy-block product-page__copy-block--primary">
+            <h2 className="product-page__content-title">{contentTitle}</h2>
+
+            {detailSections.length > 0 && (
+              <div className="product-page__story-list">
+                {detailSections.map((section) => (
+                  <article key={section.title} className="product-page__story">
+                    <div className="product-page__story-header">
+                      <div className="product-page__benefit-icon">
+                        <SectionIcon name={section.icon} />
+                      </div>
+                      <div className="product-page__story-heading">
+                        <h3>{section.title}</h3>
+                      </div>
+                    </div>
+
+                    {section.text && <p>{section.text}</p>}
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </article>
+      </section>
+
+      <section className="product-page__section">
+        <div className="container product-page__container">
+          <div className="product-page__closing">
+            <div className="product-page__closing-copy">
+              <h2>{closingTitle}</h2>
+              <p>{closingText}</p>
+              {closingNote && <span className="product-page__closing-note">{closingNote}</span>}
+            </div>
+
+            <div className="product-page__closing-action">
+              <span className="product-page__closing-price">{priceLabel}</span>
+              <button
+                type="button"
+                onClick={handleCheckout}
+                disabled={checkoutLoading || isPreviewProduct}
+                className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
+              >
+                <ShoppingCart size={18} />
+                {ctaLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {relatedProducts.length > 0 && (
+        <section className="product-page__section product-page__section--related">
+          <div className="container product-page__container">
+            <div className="product-page__related-header">
+              <div>
+                <h2>Ďalšie produkty</h2>
+              </div>
+              <Link to="/?category=Produkty" className="product-page__inline-link">
+                Zobraziť všetky produkty
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            <div className="products-grid products-grid--catalog">
+              {relatedProducts.map((relatedProduct) => (
+                <ProductCard
+                  key={relatedProduct.id}
+                  product={relatedProduct}
+                  accentColor={relatedProduct.pageTheme?.accent || '#F8E8D4'}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };
