@@ -4,12 +4,12 @@ export const products = [
     slug: 'zajkologia-starter-guide',
     name: 'Králik ako domáce zviera',
     shortDescription:
-      'Praktický štartovací sprievodca, ktorý zrozumiteľne vysvetlí bývanie, stravu, zdravie aj každodenné návyky.',
+      'Premýšľaš nad králikom? Alebo ho už máš doma a chceš si byť istý/istá, že robíš všetko správne? V tejto príručke nájdeš zrozumiteľne spracované základy starostlivosti o králika.',
     description:
       'Premýšľaš nad králikom? Alebo ho už máš doma a chceš si byť istý/istá, že robíš všetko správne? V tejto príručke nájdeš zrozumiteľne spracované základy starostlivosti o králika.',
     price: '',
-    image: 'https://i.ibb.co/FLd3dQ7q/klasik-ahan-page-0001.jpg',
-    heroImage: '/product-gallery/starter-guide-cover.png',
+    image: '/product-gallery/starter-guide-main-thumbnail.webp',
+    heroImage: '/product-gallery/starter-guide-main-thumbnail.webp',
     languages: ['sk'],
     deliveryNote: 'Po zaplatení dostanete príručku vo forme PDF na email.',
     featureList: [
@@ -30,13 +30,13 @@ export const products = [
     },
     productPage: {
       lead:
-        'Keď chceš mať prvé rozhodnutia okolo bývania, stravy a zdravia nastavené rozumne hneď od začiatku, táto príručka ti dá jasný základ bez zahltenia.',
+        'Premýšľaš nad králikom? Alebo ho už máš doma a chceš si byť istý/istá, že robíš všetko správne? V tejto príručke nájdeš zrozumiteľne spracované základy starostlivosti o králika.',
       galleryImages: [
-        '/product-gallery/starter-guide-cover.png',
-        '/product-gallery/starter-guide-tablet-2.png',
-        '/product-gallery/starter-guide-tablet-3.png',
-        '/product-gallery/starter-guide-tablet-1.png',
-        '/product-gallery/starter-guide-tablet-4.png',
+        '/product-gallery/starter-guide-main-thumbnail.webp',
+        '/product-gallery/starter-guide-tablet-2.webp',
+        '/product-gallery/starter-guide-tablet-3.webp',
+        '/product-gallery/starter-guide-tablet-1.webp',
+        '/product-gallery/starter-guide-tablet-4.webp',
       ],
       trustBadges: [
         'PDF doručené na email',
@@ -86,12 +86,12 @@ export const products = [
     slug: 'dennik-hmotnosti-kralika',
     name: 'Denník hmotnosti králika',
     shortDescription:
-      'Dvojjazyčný PDF denník na sledovanie váhy, kondície a dôležitých zmien v starostlivosti o králika.',
+      'Zabezpečte svojmu králikovi dlhý a zdravý život vďaka pravidelnému monitorovaniu. Táto praktická príručka a denník vám pomôžu jednoducho sledovať vývoj hmotnosti vášho ušatého spoločníka, čo je často najrýchlejší spôsob, ako odhaliť skryté zdravotné problémy.',
     description:
       'Praktická pomôcka pre majiteľov králikov, ktorí chcú mať vývoj hmotnosti, kondíciu a zmeny v starostlivosti prehľadne pod kontrolou.',
     price: '2,49 €',
-    image: '/product-gallery/weight-journal-cover.webp',
-    heroImage: '/product-gallery/weight-journal-cover.webp',
+    image: '/product-gallery/weight-journal-cover-optimized.webp',
+    heroImage: '/product-gallery/weight-journal-cover-optimized.webp',
     languages: ['sk', 'cs'],
     accentColor: '#f3d6df',
     deliveryNote:
@@ -112,12 +112,12 @@ export const products = [
     },
     productPage: {
       lead:
-        'Prehľadný PDF denník pre pravidelné váženie, sledovanie kondície a dlhodobú históriu zdravia vášho králika.',
+        'Zabezpečte svojmu králikovi dlhý a zdravý život vďaka pravidelnému monitorovaniu. Táto praktická príručka a denník vám pomôžu jednoducho sledovať vývoj hmotnosti vášho ušatého spoločníka, čo je často najrýchlejší spôsob, ako odhaliť skryté zdravotné problémy.',
       galleryImages: [
-        '/product-gallery/weight-journal-cover.webp',
-        '/product-gallery/weight-journal-1.webp',
-        '/product-gallery/weight-journal-2.webp',
-        '/product-gallery/weight-journal-3.webp',
+        '/product-gallery/weight-journal-cover-optimized.webp',
+        '/product-gallery/weight-journal-1-optimized.webp',
+        '/product-gallery/weight-journal-2-optimized.webp',
+        '/product-gallery/weight-journal-3-optimized.webp',
       ],
       galleryImagesByCountry: {
         CZ: [

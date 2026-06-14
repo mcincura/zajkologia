@@ -1,0 +1,68 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why the rebuild was requested
+        required: false
+        default: manual
+      slug:
+        description: Related post or product slug
+        required: false
+      triggered_by:
+        description: Backend/admin actor that requested the rebuild
+        required: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build static site
+        run: npm run build
+        env:
+          VITE_SEO_API_BASE_URL: ${{ vars.VITE_SEO_API_BASE_URL || 'https://zajky.zentrobot.io' }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

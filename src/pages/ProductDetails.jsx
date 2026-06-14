@@ -137,9 +137,11 @@ const ProductDetails = () => {
     return sourceImages.filter(Boolean);
   }, [product, visitorCountryCode]);
 
-  useEffect(() => {
-    setActiveGalleryIndex(0);
-  }, [slug, galleryImages.length]);
+  const normalizedActiveGalleryIndex = galleryImages.length
+    ? Math.min(activeGalleryIndex, galleryImages.length - 1)
+    : 0;
+  const productLanguagesKey = product?.languages?.join(',') || '';
+  const trustBadgeCount = pageData?.trustBadges?.length || 0;
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -168,7 +170,7 @@ const ProductDetails = () => {
       observer?.disconnect();
       window.removeEventListener('resize', syncHeroHeight);
     };
-  }, [slug, product?.languages?.join(','), pageData?.trustBadges?.length]);
+  }, [slug, productLanguagesKey, trustBadgeCount]);
 
   if (!product) {
     return (
@@ -200,7 +202,7 @@ const ProductDetails = () => {
   const productTint = product.pageTheme?.tint || '#f7ead8';
   const productSurface = product.pageTheme?.surface || '#fffaf3';
   const priceLabel = product.price || 'Cena v pokladni';
-  const activeGalleryImage = galleryImages[activeGalleryIndex] || product.heroImage || product.image;
+  const activeGalleryImage = galleryImages[normalizedActiveGalleryIndex] || product.heroImage || product.image;
   const ctaLabel = isPreviewProduct
     ? (product.purchaseLabel || 'Čoskoro')
     : checkoutLoading
@@ -247,7 +249,7 @@ const ProductDetails = () => {
               <div className="product-page__image-stage">
                 <img
                   src={activeGalleryImage}
-                  alt={`${product.name} – náhľad ${activeGalleryIndex + 1}`}
+                  alt={`${product.name} – náhľad ${normalizedActiveGalleryIndex + 1}`}
                   className="product-page__image"
                 />
 
@@ -272,7 +274,7 @@ const ProductDetails = () => {
                     </button>
 
                     <div className="product-page__gallery-count">
-                      {activeGalleryIndex + 1} / {galleryImages.length}
+                      {normalizedActiveGalleryIndex + 1} / {galleryImages.length}
                     </div>
 
                     <div className="product-page__gallery-dots" aria-label="Výber náhľadu produktu">
@@ -280,10 +282,10 @@ const ProductDetails = () => {
                         <button
                           key={image}
                           type="button"
-                          className={`product-page__gallery-dot${index === activeGalleryIndex ? ' is-active' : ''}`}
+                          className={`product-page__gallery-dot${index === normalizedActiveGalleryIndex ? ' is-active' : ''}`}
                           onClick={() => setActiveGalleryIndex(index)}
                           aria-label={`Zobraziť náhľad ${index + 1}`}
-                          aria-pressed={index === activeGalleryIndex}
+                          aria-pressed={index === normalizedActiveGalleryIndex}
                         />
                       ))}
                     </div>

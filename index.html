@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk-SK">
 
 <head>
   <meta charset="UTF-8" />
@@ -7,28 +7,33 @@
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/zajo.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zajkológia</title>
+  <meta
+    name="description"
+    content="Zajkológia prináša zrozumiteľné články a praktické digitálne príručky pre starostlivosť o králiky."
+  />
+  <link rel="canonical" href="https://zajkologia.com/" />
+  <meta property="og:locale" content="sk_SK" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Zajkológia" />
+  <meta property="og:title" content="Zajkológia | Starostlivosť o králiky zrozumiteľne" />
+  <meta
+    property="og:description"
+    content="Zrozumiteľné články a praktické digitálne príručky pre starostlivosť o králiky."
+  />
+  <meta property="og:url" content="https://zajkologia.com/" />
+  <meta property="og:image" content="https://zajkologia.com/zajo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Zajkológia | Starostlivosť o králiky zrozumiteľne" />
+  <meta
+    name="twitter:description"
+    content="Zrozumiteľné články a praktické digitálne príručky pre starostlivosť o králiky."
+  />
+  <meta name="twitter:image" content="https://zajkologia.com/zajo.png" />
+  <title>Zajkológia | Starostlivosť o králiky zrozumiteľne</title>
 </head>
 
 <body>
   <div id="root"></div>
-  <script>
-    // GitHub Pages / static hosting SPA fallback.
-    // If we were redirected from 404.html with ?p=..., restore the original path.
-    (function () {
-      var params = new URLSearchParams(window.location.search);
-      var p = params.get('p');
-      if (!p) return;
-
-      // Support both custom-domain root and project pages under /zajkologia.
-      var repo = 'zajkologia';
-      var base = window.location.pathname.startsWith('/' + repo + '/') ? '/' + repo : '';
-
-      // p is an encoded path (may include leading '/') + optional query/hash.
-      var target = base + p;
-      window.history.replaceState(null, '', target);
-    })();
-  </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

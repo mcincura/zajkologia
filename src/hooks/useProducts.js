@@ -3,22 +3,23 @@ import { loadProduct, loadProducts } from '../api/client';
 import { products as fallbackProducts } from '../data/products';
 
 const mergeProduct = (apiProduct) => {
-  const fallback = fallbackProducts.find((product) => product.slug === apiProduct.slug) || {};
+  const fallback = fallbackProducts.find((product) => product.slug === apiProduct.slug);
+  if (!fallback) return null;
+
   return {
     ...fallback,
-    ...apiProduct,
     price: apiProduct.price || fallback.price || 'Cena v pokladni',
+    amount: apiProduct.amount,
+    currency: apiProduct.currency,
+    stripePriceActive: apiProduct.stripePriceActive,
+    url: apiProduct.url,
   };
 };
 
 const mergeProductCollection = (apiProducts) => {
-  const mergedProducts = apiProducts.map(mergeProduct);
-  const knownSlugs = new Set(mergedProducts.map((product) => product.slug));
+  const pricesBySlug = new Map(apiProducts.map((product) => [product.slug, product]));
 
-  return [
-    ...mergedProducts,
-    ...fallbackProducts.filter((product) => !knownSlugs.has(product.slug)),
-  ];
+  return fallbackProducts.map((product) => mergeProduct(pricesBySlug.get(product.slug) || product));
 };
 
 export const useProducts = () => {
@@ -73,7 +74,7 @@ export const useProduct = (slug) => {
       try {
         const apiProduct = await loadProduct(slug);
         if (cancelled) return;
-        setProduct(apiProduct ? mergeProduct(apiProduct) : fallback);
+        setProduct(apiProduct ? mergeProduct(apiProduct) || fallback : fallback);
       } catch (err) {
         if (cancelled) return;
         setError(err?.message || 'product_load_failed');

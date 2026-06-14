@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /checkout
+
+Sitemap: https://zajkologia.com/sitemap.xml

@@ -241,7 +241,13 @@ const Home = () => {
                 );
               })}
               {filteredProducts.length > 0 && (
-                <div style={{ marginBottom: '5rem' }}>
+                <div id="produkty" style={{ marginBottom: '5rem', scrollMarginTop: '90px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <h2 style={{ margin: 0 }}>Digitálne produkty</h2>
+                    <Link to="/?category=Produkty" style={{ color: '#7a3f00', fontWeight: 800 }}>
+                      Zobraziť všetky produkty
+                    </Link>
+                  </div>
                   <div className="products-grid">
                     {filteredProducts.slice(0, 3).map(product => (
                       <ProductCard
@@ -257,14 +263,16 @@ const Home = () => {
           ) : selectedCategory === PRODUCTS_CATEGORY_NAME ? (
             <>
               {filteredProducts.length > 0 ? (
-                <div className="products-grid products-grid--catalog">
-                  {filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      accentColor={PRODUCTS_CARD_ACCENT}
-                    />
-                  ))}
+                <div id="produkty" style={{ scrollMarginTop: '90px' }}>
+                  <div className="products-grid products-grid--catalog">
+                    {filteredProducts.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        accentColor={PRODUCTS_CARD_ACCENT}
+                      />
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="products-empty">

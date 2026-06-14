@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Menu } from 'lucide-react';
 
 const Header = () => {
     return (
@@ -29,9 +28,9 @@ const Header = () => {
                 </Link>
 
                 <nav style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                    <Link to="/" style={{ fontWeight: '600' }}>Home</Link>
-                    <Link to="/categories" style={{ fontWeight: '600' }}>Categories</Link>
-                    <Link to="/admin" style={{ opacity: 0.7 }}>Admin</Link>
+                    <Link to="/" style={{ fontWeight: '600' }}>Domov</Link>
+                    <Link to="/#produkty" style={{ fontWeight: '600' }}>Produkty</Link>
+                    <Link to="/obchodne-podmienky" style={{ fontWeight: '600' }}>Podmienky</Link>
                 </nav>
             </div>
         </header>

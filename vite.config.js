@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const apiProxyTarget = env.VITE_DEV_API_PROXY_TARGET || 'https://zajky.zentrobot.io';
 
   return {
-    base: '',
+    base: '/',
     plugins: [react()],
     server: {
       proxy: {

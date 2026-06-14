@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, ShoppingCart } from 'lucide-react';
 import { createCheckoutSession } from '../api/client';
 import ProductLanguageBadges from './ProductLanguageBadges';
@@ -7,24 +7,11 @@ import '../styles/products.css';
 
 const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const from = location.pathname + location.search;
   const destination = `/product/${product.slug}`;
   const isPreviewProduct = Boolean(product.isMock);
-
-  const handleNavigate = () => {
-    navigate(destination, { state: { from } });
-  };
-
-  const handleKeyDown = (event) => {
-    if (event.target.closest?.('button, a')) return;
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleNavigate();
-    }
-  };
 
   const handleCheckout = async (event) => {
     event.preventDefault();
@@ -52,25 +39,33 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   return (
     <article
       className="product-card"
-      role="link"
-      tabIndex={0}
-      aria-label={`Pozrieť produkt ${product.name}`}
-      onClick={handleNavigate}
-      onKeyDown={handleKeyDown}
       style={{ '--product-accent': product.accentColor || accentColor }}
     >
+      <Link
+        className="product-card__overlay-link"
+        to={destination}
+        state={{ from }}
+        aria-label={`Pozrieť produkt ${product.name}`}
+      />
+
       <div className="product-card__media">
         <img
           className="product-card__image"
           src={product.image}
           alt={product.name}
+          loading="lazy"
+          decoding="async"
         />
       </div>
 
       <div className="product-card__content">
         <ProductLanguageBadges languages={product.languages} />
 
-        <h3 className="product-card__title">{product.name}</h3>
+        <h3 className="product-card__title">
+          <Link className="product-card__title-link" to={destination} state={{ from }}>
+            {product.name}
+          </Link>
+        </h3>
         {description && <p className="product-card__description">{description}</p>}
 
         <div className="product-card__purchase">
@@ -90,10 +85,10 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
           </button>
         </div>
 
-        <span className="product-card__hint">
+        <Link className="product-card__hint" to={destination} state={{ from }}>
           Pozrieť detail
           <ArrowRight size={15} strokeWidth={2.4} />
-        </span>
+        </Link>
 
         {checkoutError && (
           <div className="product-card__error">{checkoutError}</div>

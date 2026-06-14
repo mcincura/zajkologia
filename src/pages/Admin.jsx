@@ -52,6 +52,7 @@ const Admin = () => {
 
     const [status, setStatus] = useState('');
     const [busy, setBusy] = useState(false);
+    const [rebuildBusy, setRebuildBusy] = useState(false);
 
     const [analytics, setAnalytics] = useState(null);
     const [analyticsDays, setAnalyticsDays] = useState(30);
@@ -272,6 +273,32 @@ const Admin = () => {
         }
     };
 
+    const rebuildPublicSite = async () => {
+        setRebuildBusy(true);
+        setStatus('');
+        try {
+            const data = await apiFetch('/api/frontend-rebuild', {
+                method: 'POST',
+                body: JSON.stringify({
+                    reason: 'manual_admin_rebuild',
+                    slug: selectedPost?.slug || '',
+                }),
+            });
+
+            if (data?.rebuild?.dispatched) {
+                setStatus('Public site rebuild requested.');
+            } else if (data?.rebuild?.skipped) {
+                setStatus('Public site rebuild skipped because rebuild automation is disabled.');
+            } else {
+                setStatus('Public site rebuild request queued.');
+            }
+        } catch (err) {
+            setStatus(`Public site rebuild failed: ${err.message}`);
+        } finally {
+            setRebuildBusy(false);
+        }
+    };
+
     if (authLoading) {
         return <div className="container" style={{ padding: '2rem 0' }}>Loading…</div>;
     }
@@ -338,6 +365,24 @@ const Admin = () => {
                         Save
                     </button>
                 </div>
+
+                <button
+                    type="button"
+                    onClick={rebuildPublicSite}
+                    disabled={rebuildBusy}
+                    style={{
+                        width: '100%',
+                        background: '#fff7ed',
+                        color: '#7a3f00',
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        marginBottom: '1rem',
+                        border: '1px solid #f1d7bd',
+                    }}
+                >
+                    {rebuildBusy ? 'Requesting rebuild…' : 'Rebuild public site'}
+                </button>
 
                 {status ? (
                     <div style={{ fontSize: '0.9rem', color: '#444', background: '#fafafa', padding: '0.5rem 0.75rem', borderRadius: '6px', marginBottom: '1rem' }}>
