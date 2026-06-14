@@ -25,6 +25,8 @@ const HOME_DESCRIPTION =
 const TERMS_TITLE = 'Obchodné podmienky | Zajkológia';
 const TERMS_DESCRIPTION =
   'Obchodné podmienky pre digitálne produkty Zajkológie vrátane platby, doručenia PDF a súhlasu s okamžitým dodaním.';
+const ADMIN_TITLE = 'Admin | Zajkológia';
+const ADMIN_DESCRIPTION = 'Administrácia obsahu Zajkológie.';
 
 function normalizeBaseUrl(value) {
   return String(value || '').trim().replace(/\/+$/, '');
@@ -499,6 +501,13 @@ function termsBody() {
   </main>`;
 }
 
+function adminBody() {
+  return `<main class="seo-fallback">
+    <h1>Admin</h1>
+    <p>Načítavam administráciu Zajkológie.</p>
+  </main>`;
+}
+
 async function writeRoute(routePath, html) {
   if (routePath === '/') {
     await writeFile(path.join(distDir, 'index.html'), html, 'utf8');
@@ -690,6 +699,23 @@ async function main() {
         ],
       },
       termsBody()
+    )
+  );
+
+  await writeRoute(
+    '/admin',
+    renderPage(
+      templateHtml,
+      assetTags,
+      {
+        title: ADMIN_TITLE,
+        description: ADMIN_DESCRIPTION,
+        canonical: routeUrl('/admin'),
+        image: DEFAULT_IMAGE,
+        type: 'website',
+        extraMeta: ['<meta name="robots" content="noindex,nofollow" />'],
+      },
+      adminBody()
     )
   );
 
