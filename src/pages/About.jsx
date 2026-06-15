@@ -62,12 +62,7 @@ const About = () => {
           </div>
         </section>
 
-        <section className="about-process" aria-labelledby="about-process-title">
-          <div className="about-section-heading">
-            <p className="about-eyebrow">Ako tvorím obsah</p>
-            <h2 id="about-process-title">Odborne, zrozumiteľne a prakticky</h2>
-          </div>
-
+        <section className="about-process" aria-label="Ako tvorím obsah">
           <div className="about-process__grid">
             {aboutContent.process.map((item, index) => {
               const icons = [BookOpen, ShieldCheck, HeartHandshake];

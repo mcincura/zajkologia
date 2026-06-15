@@ -108,7 +108,6 @@
 }
 
 .about-values h2,
-.about-process h2,
 .about-credential h2 {
   font-size: clamp(1.65rem, 4vw, 2.45rem);
   margin: 0;
@@ -142,11 +141,6 @@
   color: var(--color-accent);
   font-weight: 800;
   padding: 0.75rem 1rem;
-}
-
-.about-section-heading {
-  margin-bottom: 1.35rem;
-  max-width: 760px;
 }
 
 .about-process__grid {
