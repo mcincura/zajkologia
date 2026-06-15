@@ -42,11 +42,7 @@ const About = () => {
       </section>
 
       <div className="container about-page__content">
-        <section className="about-story" aria-labelledby="about-story-title">
-          <div>
-            <p className="about-eyebrow">Prečo vznikla</p>
-            <h2 id="about-story-title">Láskavá starostlivosť bez mýtov</h2>
-          </div>
+        <section className="about-story" aria-label="Príbeh Zajkológie">
           <div className="about-story__text">
             <p>{aboutContent.mission}</p>
             <p>{aboutContent.approach}</p>
