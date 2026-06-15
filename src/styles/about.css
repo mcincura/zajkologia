@@ -100,13 +100,6 @@
   padding-bottom: clamp(4rem, 7vw, 6rem);
 }
 
-.about-values {
-  display: grid;
-  gap: clamp(1rem, 4vw, 2.5rem);
-  grid-template-columns: minmax(200px, 0.55fr) minmax(0, 1fr);
-}
-
-.about-values h2,
 .about-certificate__copy h2 {
   font-size: clamp(1.65rem, 4vw, 2.45rem);
   margin: 0;
@@ -122,22 +115,6 @@
   font-size: 1.02rem;
   line-height: 1.8;
   margin: 0 0 1rem;
-}
-
-.about-values__list {
-  align-content: start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.about-values__list span {
-  background: var(--color-white);
-  border: 1px solid rgba(155, 106, 108, 0.2);
-  border-radius: 999px;
-  color: var(--color-accent);
-  font-weight: 800;
-  padding: 0.75rem 1rem;
 }
 
 .about-process__grid {
@@ -254,7 +231,6 @@
 
 @media (max-width: 840px) {
   .about-hero__inner,
-  .about-values,
   .about-certificate {
     grid-template-columns: 1fr;
   }

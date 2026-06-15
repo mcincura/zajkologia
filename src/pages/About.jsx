@@ -49,18 +49,6 @@ const About = () => {
           </div>
         </section>
 
-        <section className="about-values" aria-labelledby="about-values-title">
-          <div>
-            <p className="about-eyebrow">Na čom mi záleží</p>
-            <h2 id="about-values-title">Hodnoty Zajkológie</h2>
-          </div>
-          <div className="about-values__list">
-            {aboutContent.values.map((value) => (
-              <span key={value}>{value}</span>
-            ))}
-          </div>
-        </section>
-
         <section className="about-process" aria-label="Ako tvorím obsah">
           <div className="about-process__grid">
             {aboutContent.process.map((item, index) => {

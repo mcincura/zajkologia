@@ -433,8 +433,6 @@ function aboutBody() {
       <p>${escapeHtml(aboutContent.intro)}</p>
       <p>${escapeHtml(aboutContent.mission)}</p>
       <p>${escapeHtml(aboutContent.approach)}</p>
-      <h2>Na čom mi záleží</h2>
-      <ul>${aboutContent.values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul>
       <h2>Ako tvorím obsah</h2>
       <div class="seo-fallback__grid">
         ${aboutContent.process

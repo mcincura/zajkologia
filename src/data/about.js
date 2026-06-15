@@ -21,7 +21,6 @@ export const aboutContent = {
   },
   closing:
     'Zajkológia pre mňa spája lásku ku králikom s poznaním, prevenciou a rešpektom k ich prirodzeným potrebám. Verím, že keď králikom lepšie rozumieme, vieme im vytvoriť bezpečnejší, spokojnejší a zdravší život.',
-  values: ['prevencia', 'rešpekt', 'bezpečie', 'welfare', 'život bez mýtov'],
   process: [
     {
       title: 'Študujem odborné zdroje',
