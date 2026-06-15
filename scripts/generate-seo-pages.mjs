@@ -446,9 +446,8 @@ function aboutBody() {
           )
           .join('\n')}
       </div>
-      <h2>Vzdelávanie</h2>
+      <h2>Vzdelávanie a certifikát</h2>
       <p>${escapeHtml(aboutContent.diploma)}</p>
-      <h2>Certifikát</h2>
       <p>${escapeHtml(aboutContent.certificate.title)} - ${escapeHtml(aboutContent.certificate.result)}, ${escapeHtml(aboutContent.certificate.issuer)}, ${escapeHtml(aboutContent.certificate.date)}.</p>
       <p><a href="${escapeAttr(aboutContent.certificate.pdfUrl)}">Zobraziť certifikát</a></p>
       <img src="${escapeAttr(aboutContent.certificate.previewImage)}" alt="${escapeAttr(`Certifikát ${aboutContent.certificate.title}`)}" loading="lazy" decoding="async" />

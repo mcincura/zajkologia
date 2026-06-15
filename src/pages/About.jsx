@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Award,
   BookOpen,
   CheckCircle2,
   ExternalLink,
@@ -78,25 +77,15 @@ const About = () => {
           </div>
         </section>
 
-        <section className="about-credential" aria-labelledby="about-credential-title">
-          <div className="about-credential__icon" aria-hidden="true">
-            <GraduationCap size={28} strokeWidth={2.1} />
-          </div>
-          <div>
-            <p className="about-eyebrow">Vzdelávanie</p>
-            <h2 id="about-credential-title">Rabbit Care, Behaviour and Welfare Diploma Course</h2>
-            <p>{aboutContent.diploma}</p>
-          </div>
-        </section>
-
         <section className="about-certificate" aria-labelledby="about-certificate-title">
           <div className="about-certificate__copy">
-            <div className="about-credential__icon" aria-hidden="true">
-              <Award size={28} strokeWidth={2.1} />
+            <div className="about-certificate__icon" aria-hidden="true">
+              <GraduationCap size={28} strokeWidth={2.1} />
             </div>
             <div>
-              <p className="about-eyebrow">Certifikát</p>
-              <h2 id="about-certificate-title">{aboutContent.certificate.title}</h2>
+              <p className="about-eyebrow">Vzdelávanie a certifikát</p>
+              <h2 id="about-certificate-title">Rabbit Care, Behaviour and Welfare Diploma Course</h2>
+              <p>{aboutContent.diploma}</p>
               <p>
                 Certifikát od {aboutContent.certificate.issuer} s hodnotením{' '}
                 <strong>{aboutContent.certificate.result}</strong>, vydaný {aboutContent.certificate.date}.
