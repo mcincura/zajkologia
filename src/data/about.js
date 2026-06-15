@@ -16,8 +16,8 @@ export const aboutContent = {
     result: 'Distinction',
     issuer: 'Centre of Excellence',
     date: '14. júna 2026',
-    previewImage: '/certificates/rabbit-care-behaviour-and-welfare-diploma-preview.png',
-    pdfUrl: '/certificates/rabbit-care-behaviour-and-welfare-diploma.pdf',
+    previewImage: '/certificates/rabbit-care-behaviour-and-welfare-diploma-redacted-preview.png',
+    pdfUrl: '/certificates/rabbit-care-behaviour-and-welfare-diploma-redacted.pdf',
   },
   closing:
     'Zajkológia pre mňa spája lásku ku králikom s poznaním, prevenciou a rešpektom k ich prirodzeným potrebám. Verím, že keď králikom lepšie rozumieme, vieme im vytvoriť bezpečnejší, spokojnejší a zdravší život.',
