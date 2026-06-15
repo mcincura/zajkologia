@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { products as frontendProducts } from '../src/data/products.js';
+import { aboutContent } from '../src/data/about.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -25,6 +26,9 @@ const HOME_DESCRIPTION =
 const TERMS_TITLE = 'Obchodné podmienky | Zajkológia';
 const TERMS_DESCRIPTION =
   'Obchodné podmienky pre digitálne produkty Zajkológie vrátane platby, doručenia PDF a súhlasu s okamžitým dodaním.';
+const ABOUT_TITLE = 'O nás | Zajkológia';
+const ABOUT_DESCRIPTION =
+  'Kto stojí za Zajkológiou: Stanka, autorka príručiek o starostlivosti o králiky, prevencii, výžive, správaní a welfare.';
 const ADMIN_TITLE = 'Admin | Zajkológia';
 const ADMIN_DESCRIPTION = 'Administrácia obsahu Zajkológie.';
 
@@ -388,6 +392,7 @@ function homeBody(posts, products) {
       <h1>Zajkológia</h1>
       <p>${escapeHtml(HOME_DESCRIPTION)}</p>
     </section>
+    <p><a href="/o-nas">Kto stojí za Zajkológiou</a></p>
     <section id="produkty">
       <h2>Digitálne produkty</h2>
       <div class="seo-fallback__grid">
@@ -415,6 +420,41 @@ function homeBody(posts, products) {
           .join('\n')}
       </div>
     </section>
+  </main>`;
+}
+
+function aboutBody() {
+  return `<main class="seo-fallback">
+    <article>
+      <nav><a href="/">Zajkológia</a> / O nás</nav>
+      <p class="seo-fallback__muted">${escapeHtml(aboutContent.eyebrow)}</p>
+      <h1>${escapeHtml(aboutContent.title)}</h1>
+      <p><strong>${escapeHtml(aboutContent.lead)}</strong></p>
+      <p>${escapeHtml(aboutContent.intro)}</p>
+      <p>${escapeHtml(aboutContent.mission)}</p>
+      <p>${escapeHtml(aboutContent.approach)}</p>
+      <h2>Na čom mi záleží</h2>
+      <ul>${aboutContent.values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul>
+      <h2>Ako tvorím obsah</h2>
+      <div class="seo-fallback__grid">
+        ${aboutContent.process
+          .map(
+            (item) => `<section class="seo-fallback__card">
+              <h3>${escapeHtml(item.title)}</h3>
+              <p>${escapeHtml(item.text)}</p>
+            </section>`
+          )
+          .join('\n')}
+      </div>
+      <h2>Vzdelávanie</h2>
+      <p>${escapeHtml(aboutContent.diploma)}</p>
+      <h2>Certifikát</h2>
+      <p>${escapeHtml(aboutContent.certificate.title)} - ${escapeHtml(aboutContent.certificate.result)}, ${escapeHtml(aboutContent.certificate.issuer)}, ${escapeHtml(aboutContent.certificate.date)}.</p>
+      <p><a href="${escapeAttr(aboutContent.certificate.pdfUrl)}">Zobraziť certifikát</a></p>
+      <img src="${escapeAttr(aboutContent.certificate.previewImage)}" alt="${escapeAttr(`Certifikát ${aboutContent.certificate.title}`)}" loading="lazy" decoding="async" />
+      <p>${escapeHtml(aboutContent.closing)}</p>
+      <p><strong>${escapeHtml(aboutContent.disclaimer)}</strong></p>
+    </article>
   </main>`;
 }
 
@@ -535,6 +575,7 @@ async function writeSitemap(posts, products) {
       loc: routeUrl(`/post/${post.slug}`),
       lastmod: toSitemapDate(post.updatedAt || post.date),
     })),
+    { loc: routeUrl('/o-nas'), lastmod: BUILD_DATE },
     { loc: routeUrl('/obchodne-podmienky'), lastmod: '2026-06-11' },
   ];
 
@@ -672,6 +713,41 @@ async function main() {
 
     await writeRoute(`/product/${product.slug}`, pageHtml);
   }
+
+  await writeRoute(
+    '/o-nas',
+    renderPage(
+      templateHtml,
+      assetTags,
+      {
+        title: ABOUT_TITLE,
+        description: ABOUT_DESCRIPTION,
+        canonical: routeUrl('/o-nas'),
+        image: DEFAULT_IMAGE,
+        type: 'profile',
+        jsonLd: [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'AboutPage',
+            name: aboutContent.title,
+            description: ABOUT_DESCRIPTION,
+            url: routeUrl('/o-nas'),
+            inLanguage: 'sk-SK',
+            mainEntity: {
+              '@type': 'Person',
+              name: 'Stanka',
+              description: aboutContent.lead,
+            },
+          },
+          breadcrumbSchema([
+            { name: 'Zajkológia', url: routeUrl('/') },
+            { name: 'O nás', url: routeUrl('/o-nas') },
+          ]),
+        ],
+      },
+      aboutBody()
+    )
+  );
 
   await writeRoute(
     '/obchodne-podmienky',

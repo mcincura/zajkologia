@@ -35,6 +35,16 @@ const Footer = () => {
           </p>
           <p style={{ marginTop: "1rem", fontSize: "0.9rem" }}>
             <Link
+              to="/o-nas"
+              style={{
+                color: "var(--color-white)",
+                textDecoration: "underline",
+                marginRight: "1rem",
+              }}
+            >
+              O nás
+            </Link>
+            <Link
               to="/obchodne-podmienky"
               style={{
                 color: "var(--color-white)",

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import PostCard from '../components/PostCard';
 import ProductCard from '../components/ProductCard';
@@ -137,6 +138,26 @@ const Home = () => {
             Spájame lásku ku králikom s poznaním.
           </p>
           <SearchBar onSearch={setSearchTerm} />
+          <Link
+            to="/o-nas"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.55rem",
+              color: "var(--color-accent)",
+              border: "2px solid rgba(255, 255, 255, 0.92)",
+              background: "var(--color-white)",
+              borderRadius: "999px",
+              padding: "0.9rem 1.35rem",
+              fontSize: "1rem",
+              fontWeight: 900,
+              boxShadow: "0 12px 30px rgba(0, 0, 0, 0.28)",
+            }}
+          >
+            Zistiť viac o Zajkológii
+            <ArrowRight size={18} strokeWidth={2.6} />
+          </Link>
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import ProductDetails from './pages/ProductDetails';
 import Admin from './pages/Admin';
 import CheckoutSuccess from './pages/CheckoutSuccess';
 import Terms from './pages/Terms';
+import About from './pages/About';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="post/:slug" element={<PostDetails />} />
           <Route path="product/:slug" element={<ProductDetails />} />
           <Route path="checkout/success" element={<CheckoutSuccess />} />
+          <Route path="o-nas" element={<About />} />
           <Route path="obchodne-podmienky" element={<Terms />} />
           <Route path="admin" element={<Admin />} />
           <Route path="*" element={<div className="container">404 Not Found</div>} />
