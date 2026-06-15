@@ -82,18 +82,10 @@
 }
 
 .about-hero__portrait {
-  align-items: center;
-  aspect-ratio: 1;
-  background: #fff;
-  border: 1px solid rgba(155, 106, 108, 0.16);
-  border-radius: 50%;
-  box-shadow: 0 20px 48px rgba(38, 12, 26, 0.1);
   display: flex;
   justify-content: center;
   justify-self: center;
-  max-width: 360px;
-  overflow: hidden;
-  padding: clamp(1.4rem, 4vw, 2.2rem);
+  max-width: 320px;
   width: 100%;
 }
 
