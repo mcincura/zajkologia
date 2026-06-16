@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, ShoppingCart } from 'lucide-react';
 import { createCheckoutSession } from '../api/client';
 import ProductLanguageBadges from './ProductLanguageBadges';
+import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 import '../styles/products.css';
 
 const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
@@ -22,8 +23,15 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
     try {
       const session = await createCheckoutSession(product.slug);
       window.location.assign(session.checkoutUrl);
-    } catch {
-      setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
+    } catch (err) {
+      if (err?.data?.error === 'welcome_discount_reserved') {
+        setCheckoutError('Uvítacia zľava je už pripravená v otvorenej pokladni. Dokončite otvorenú platbu alebo to skúste neskôr.');
+      } else if (err?.data?.error?.startsWith?.('welcome_discount_')) {
+        clearStoredWelcomeDiscountOffer();
+        setCheckoutError('Uvítacia zľava už bola použitá alebo nie je platná.');
+      } else {
+        setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
+      }
       setCheckoutLoading(false);
     }
   };

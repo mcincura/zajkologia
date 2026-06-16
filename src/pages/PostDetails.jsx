@@ -3,6 +3,7 @@ import { useLocation, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import FaqSection from '../components/FaqSection';
+import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import { apiFetch, mapPostFromApi } from '../api/client';
 import { getCategoryConfig } from '../constants/categories';
 
@@ -140,6 +141,8 @@ const PostDetails = () => {
                 </header>
 
                 <MarkdownContent markdown={post.content} />
+
+                <EmailCaptureOffer placement="article" />
 
                 {post.hasFaq && post.faqItems && post.faqItems.length > 0 && (
                     <FaqSection faqItems={post.faqItems} />

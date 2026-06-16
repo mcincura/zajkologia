@@ -20,9 +20,11 @@ import {
   Stethoscope,
 } from 'lucide-react';
 import { createCheckoutSession, loadVisitorCountry } from '../api/client';
+import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import ProductCard from '../components/ProductCard';
 import ProductLanguageBadges from '../components/ProductLanguageBadges';
 import { useProduct, useProducts } from '../hooks/useProducts';
+import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 import '../styles/product-details.css';
 
 const iconMap = {
@@ -101,8 +103,15 @@ const ProductDetails = () => {
     try {
       const session = await createCheckoutSession(product.slug);
       window.location.assign(session.checkoutUrl);
-    } catch {
-      setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
+    } catch (err) {
+      if (err?.data?.error === 'welcome_discount_reserved') {
+        setCheckoutError('Uvítacia zľava je už pripravená v otvorenej pokladni. Dokončite otvorenú platbu alebo to skúste neskôr.');
+      } else if (err?.data?.error?.startsWith?.('welcome_discount_')) {
+        clearStoredWelcomeDiscountOffer();
+        setCheckoutError('Uvítacia zľava už bola použitá alebo nie je platná. Obnovte stránku a skúste nákup bez nej.');
+      } else {
+        setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
+      }
       setCheckoutLoading(false);
     }
   };
@@ -338,6 +347,8 @@ const ProductDetails = () => {
               <p className="product-page__delivery">
                 {product.deliveryNote || 'Po zaplatení dostanete príručku vo forme PDF na email.'}
               </p>
+
+              {!isPreviewProduct && <EmailCaptureOffer placement="product" />}
 
               {checkoutError && (
                 <div className="product-page__error">{checkoutError}</div>

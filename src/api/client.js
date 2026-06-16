@@ -1,3 +1,5 @@
+import { getStoredWelcomeDiscountToken } from '../utils/welcomeDiscount';
+
 // No runtime app-config.js dependency.
 // - Dev default: relative "/api" so Vite proxy avoids browser CORS.
 // - Production default: hardcoded backend URL.
@@ -45,10 +47,14 @@ export const apiFetch = async (path, options = {}) => {
     return data;
 };
 
-export const createCheckoutSession = async (productSlug) => {
+export const createCheckoutSession = async (productSlug, options = {}) => {
+    const discountToken = options.discountToken || getStoredWelcomeDiscountToken();
     const data = await apiFetch('/api/stripe/checkout-session', {
         method: 'POST',
-        body: JSON.stringify({ productSlug }),
+        body: JSON.stringify({
+            productSlug,
+            ...(discountToken ? { discountToken } : {}),
+        }),
     });
 
     if (!data?.checkoutUrl) {
@@ -56,6 +62,13 @@ export const createCheckoutSession = async (productSlug) => {
     }
 
     return data;
+};
+
+export const signupForWelcomeDiscount = async ({ email, consentAccepted, source }) => {
+    return apiFetch('/api/newsletter/discount-signup', {
+        method: 'POST',
+        body: JSON.stringify({ email, consentAccepted, source }),
+    });
 };
 
 export const loadProducts = async () => {

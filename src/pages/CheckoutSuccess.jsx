@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Mail } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 
 const CheckoutSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -22,6 +23,7 @@ const CheckoutSuccess = () => {
         const data = await apiFetch(`/api/stripe/checkout-session/${encodeURIComponent(sessionId)}`);
         if (cancelled) return;
         setOrder(data?.order || null);
+        clearStoredWelcomeDiscountOffer();
         setStatus('loaded');
       } catch {
         if (!cancelled) setStatus('error');

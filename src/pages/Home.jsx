@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import PostCard from '../components/PostCard';
 import ProductCard from '../components/ProductCard';
+import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import { apiFetch, mapPostFromApi } from '../api/client';
 import { getCategoryConfig } from '../constants/categories';
 import { useProducts } from '../hooks/useProducts';
@@ -162,6 +163,8 @@ const Home = () => {
       </section>
 
       <div className="container">
+        <EmailCaptureOffer placement="home" />
+
         {/* Categories */}
         <div style={{ marginBottom: "3rem" }}>
           <div
