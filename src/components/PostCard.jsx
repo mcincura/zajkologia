@@ -18,62 +18,71 @@ const PostCard = ({ post }) => {
             display: 'flex',
             flexDirection: 'column'
         }}>
-            <Link to={`/post/${post.slug}`} state={{ from }} style={{ overflow: 'hidden', position: 'relative' }}>
-                <div style={{
-                    width: '100%',
-                    aspectRatio: '4 / 3',
-                    position: 'relative',
-                    overflow: 'hidden'
-                }}>
-                    <img
-                        src={post.image}
-                        alt={post.title}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            position: 'absolute',
-                            inset: 0,
-                            transition: 'transform 0.3s ease'
-                        }}
-                        onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
-                        onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-                    />
-                </div>
-                
-            </Link>
-
-            <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{
+            <Link
+                to={`/post/${post.slug}`}
+                state={{ from }}
+                aria-label={`Otvoriť článok ${post.title}`}
+                style={{
+                    color: 'inherit',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    color: config.color,
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    marginBottom: '1rem'
-                }}>
-                    {Icon && <Icon size={20} strokeWidth={2.5} />}
-                    <span style={{ paddingTop: '2px' }}>{post.category}</span>
+                    flex: 1,
+                    flexDirection: 'column',
+                    textDecoration: 'none',
+                }}
+            >
+                <div style={{ overflow: 'hidden', position: 'relative' }}>
+                    <div style={{
+                        width: '100%',
+                        aspectRatio: '4 / 3',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}>
+                        <img
+                            src={post.image}
+                            alt={post.title}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                position: 'absolute',
+                                inset: 0,
+                                transition: 'transform 0.3s ease'
+                            }}
+                            onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
+                            onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+                        />
+                    </div>
                 </div>
-                <h3 style={{ marginBottom: '0.75rem' }}>
-                    <Link to={`/post/${post.slug}`} state={{ from }} style={{ color: 'var(--color-text)' }}>
-                        {post.title}
-                    </Link>
-                </h3>
 
-                <p style={{
-                    color: '#555',
-                    marginBottom: '1rem',
-                    lineHeight: '1.6',
-                    flex: 1
-                }}>
-                    {post.excerpt}
-                </p>
-            </div>
+                <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        color: config.color,
+                        fontSize: '1rem',
+                        fontWeight: '700',
+                        marginBottom: '1rem'
+                    }}>
+                        {Icon && <Icon size={20} strokeWidth={2.5} />}
+                        <span style={{ paddingTop: '2px' }}>{post.category}</span>
+                    </div>
+                    <h3 style={{ color: 'var(--color-text)', marginBottom: '0.75rem' }}>
+                        {post.title}
+                    </h3>
+
+                    <p style={{
+                        color: '#555',
+                        marginBottom: '1rem',
+                        lineHeight: '1.6',
+                        flex: 1
+                    }}>
+                        {post.excerpt}
+                    </p>
+                </div>
+            </Link>
         </article>
     );
 };
 
 export default PostCard;
-
