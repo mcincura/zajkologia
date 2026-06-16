@@ -2,9 +2,12 @@ import { useEffect, useId, useState } from 'react';
 import { CheckCircle2, Copy, Mail, Tag, X } from 'lucide-react';
 import { signupForWelcomeDiscount } from '../api/client';
 import {
+  EMAIL_CAPTURE_VISIBILITY_CHANGED_EVENT,
   WELCOME_DISCOUNT_OFFER_CHANGED_EVENT,
   getStoredWelcomeDiscountOffer,
+  isEmailCaptureSuppressed,
   normalizeWelcomeDiscountCode,
+  suppressEmailCaptureOffers,
   storeWelcomeDiscountOffer,
 } from '../utils/welcomeDiscount';
 import '../styles/email-capture.css';
@@ -84,6 +87,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
   const [status, setStatus] = useState('idle');
   const [copied, setCopied] = useState(false);
   const [isConsentDetailsOpen, setIsConsentDetailsOpen] = useState(false);
+  const [isSuppressed, setIsSuppressed] = useState(() => isEmailCaptureSuppressed());
 
   useEffect(() => {
     const syncStoredOffer = () => {
@@ -101,6 +105,18 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
     window.addEventListener(WELCOME_DISCOUNT_OFFER_CHANGED_EVENT, syncStoredOffer);
     return () => {
       window.removeEventListener(WELCOME_DISCOUNT_OFFER_CHANGED_EVENT, syncStoredOffer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncSuppression = () => {
+      setIsSuppressed(isEmailCaptureSuppressed());
+    };
+
+    syncSuppression();
+    window.addEventListener(EMAIL_CAPTURE_VISIBILITY_CHANGED_EVENT, syncSuppression);
+    return () => {
+      window.removeEventListener(EMAIL_CAPTURE_VISIBILITY_CHANGED_EVENT, syncSuppression);
     };
   }, []);
 
@@ -154,6 +170,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
         setAwaitingEmailClick(true);
         setAlreadySubscribed(Boolean(data.alreadySubscribed));
         setStatus('success');
+        suppressEmailCaptureOffers('subscribed');
         return;
       }
 
@@ -166,6 +183,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
           setAwaitingEmailClick(false);
           setAlreadySubscribed(Boolean(data.alreadySubscribed));
           setStatus('success');
+          suppressEmailCaptureOffers('subscribed');
           return;
         }
 
@@ -183,6 +201,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
       setAwaitingEmailClick(false);
       setAlreadySubscribed(Boolean(data.alreadySubscribed));
       setStatus('success');
+      suppressEmailCaptureOffers('subscribed');
     } catch (err) {
       if (err?.data?.error === 'consent_required') {
         setError(copy.missingConsent);
@@ -223,6 +242,8 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
       ? copy.emailSent
       : unavailableMessage;
   const successTitle = hasDiscountCode && !alreadySubscribed ? copy.successTitle : '';
+
+  if (isSuppressed && status !== 'success') return null;
 
   return (
     <>

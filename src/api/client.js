@@ -1,4 +1,7 @@
-import { getStoredWelcomeDiscountToken } from '../utils/welcomeDiscount';
+import {
+    clearStoredWelcomeDiscountOffer,
+    getStoredWelcomeDiscountToken,
+} from '../utils/welcomeDiscount';
 import { getCheckoutAttribution } from '../utils/attribution';
 
 // No runtime app-config.js dependency.
@@ -49,16 +52,33 @@ export const apiFetch = async (path, options = {}) => {
 };
 
 export const createCheckoutSession = async (productSlug, options = {}) => {
-    const discountToken = options.discountToken || getStoredWelcomeDiscountToken();
+    const explicitDiscountToken = options.discountToken;
+    const storedDiscountToken = explicitDiscountToken ? '' : getStoredWelcomeDiscountToken();
+    const discountToken = explicitDiscountToken || storedDiscountToken;
     const attribution = options.attribution || getCheckoutAttribution();
-    const data = await apiFetch('/api/stripe/checkout-session', {
+    const requestCheckoutSession = (token) => apiFetch('/api/stripe/checkout-session', {
         method: 'POST',
         body: JSON.stringify({
             productSlug,
-            ...(discountToken ? { discountToken } : {}),
+            ...(token ? { discountToken: token } : {}),
             attribution,
         }),
     });
+
+    let data;
+    try {
+        data = await requestCheckoutSession(discountToken);
+    } catch (err) {
+        if (
+            storedDiscountToken &&
+            err?.data?.error?.startsWith?.('welcome_discount_')
+        ) {
+            clearStoredWelcomeDiscountOffer();
+            data = await requestCheckoutSession('');
+        } else {
+            throw err;
+        }
+    }
 
     if (!data?.checkoutUrl) {
         throw new Error('missing_checkout_url');
