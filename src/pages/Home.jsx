@@ -8,10 +8,28 @@ import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import { apiFetch, mapPostFromApi } from '../api/client';
 import { getCategoryConfig } from '../constants/categories';
 import { useProducts } from '../hooks/useProducts';
+import '../styles/home.css';
 import '../styles/products.css';
 
 const PRODUCTS_CATEGORY_NAME = 'Produkty';
 const PRODUCTS_CARD_ACCENT = '#F8E8D4';
+const CATEGORY_TILE_SIZE = '124px';
+const CATEGORY_TILE_HEIGHT = '94px';
+const CATEGORY_TILE_BASE_STYLE = {
+  width: CATEGORY_TILE_SIZE,
+  height: CATEGORY_TILE_HEIGHT,
+  flex: `0 0 ${CATEGORY_TILE_SIZE}`,
+  padding: '0.9rem 0.7rem',
+  borderRadius: '16px',
+  fontWeight: '700',
+  transition: 'all 0.2s',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '0.65rem',
+  textAlign: 'center',
+};
 
 const Home = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -163,76 +181,64 @@ const Home = () => {
       </section>
 
       <div className="container">
-        <EmailCaptureOffer placement="home" />
+        <div className="home-intro-stack">
+          <div className="home-email-offer-slot">
+            <EmailCaptureOffer placement="home" />
+          </div>
 
-        {/* Categories */}
-        <div style={{ marginBottom: "3rem" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: "1rem",
-              flexWrap: "wrap",
-            }}
-          >
-            {categories.map((cat) => {
-              const config = getCategoryConfig(cat.name);
-              const Icon = config.icon;
-              const isSelected = selectedCategory === cat.name;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setCategory(isSelected ? null : cat.name)}
-                  style={{
-                    padding: "1.2rem 1.5rem",
-                    borderRadius: "16px",
-                    backgroundColor: isSelected ? config.color : config.bg,
-                    color: isSelected ? 'var(--color-background)' : config.color,
-                    border: isSelected ? `2px solid ${config.color}` : `2px solid transparent`,
-                    fontWeight: "700",
-                    transition: "all 0.2s",
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    minWidth: '120px',
-                    boxShadow: isSelected ? `0 4px 12px ${config.color}44` : '0 2px 4px rgba(0,0,0,0.05)'
-                  }}
-                >
-                  {Icon && <Icon size={28} strokeWidth={2} />}
-                  <span>{cat.name}</span>
-                </button>
-              );
-            })}
-            {(() => {
-              const config = getCategoryConfig(PRODUCTS_CATEGORY_NAME);
-              const Icon = config.icon;
-              const isSelected = selectedCategory === PRODUCTS_CATEGORY_NAME;
-              return (
-                <button
-                  onClick={() => setCategory(isSelected ? null : PRODUCTS_CATEGORY_NAME)}
-                  aria-pressed={isSelected}
-                  style={{
-                    padding: "1.2rem 1.5rem",
-                    borderRadius: "16px",
-                    backgroundColor: isSelected ? config.color : config.bg,
-                    color: isSelected ? 'var(--color-background)' : config.color,
-                    border: isSelected ? `2px solid ${config.color}` : `2px solid transparent`,
-                    fontWeight: "700",
-                    transition: "all 0.2s",
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    minWidth: '120px',
-                    boxShadow: isSelected ? `0 4px 12px ${config.color}44` : '0 2px 4px rgba(0,0,0,0.05)'
-                  }}
-                >
-                  {Icon && <Icon size={28} strokeWidth={2} />}
-                  <span>{PRODUCTS_CATEGORY_NAME}</span>
-                </button>
-              );
-            })()}
+          {/* Categories */}
+          <div className="home-categories-slot">
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "1rem",
+                flexWrap: "wrap",
+              }}
+            >
+              {categories.map((cat) => {
+                const config = getCategoryConfig(cat.name);
+                const Icon = config.icon;
+                const isSelected = selectedCategory === cat.name;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCategory(isSelected ? null : cat.name)}
+                    style={{
+                      ...CATEGORY_TILE_BASE_STYLE,
+                      backgroundColor: isSelected ? config.color : config.bg,
+                      color: isSelected ? 'var(--color-background)' : config.color,
+                      border: isSelected ? `2px solid ${config.color}` : `2px solid transparent`,
+                      boxShadow: isSelected ? `0 4px 12px ${config.color}44` : '0 2px 4px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    {Icon && <Icon size={28} strokeWidth={2} />}
+                    <span style={{ lineHeight: 1.15 }}>{cat.name}</span>
+                  </button>
+                );
+              })}
+              {(() => {
+                const config = getCategoryConfig(PRODUCTS_CATEGORY_NAME);
+                const Icon = config.icon;
+                const isSelected = selectedCategory === PRODUCTS_CATEGORY_NAME;
+                return (
+                  <button
+                    onClick={() => setCategory(isSelected ? null : PRODUCTS_CATEGORY_NAME)}
+                    aria-pressed={isSelected}
+                    style={{
+                      ...CATEGORY_TILE_BASE_STYLE,
+                      backgroundColor: isSelected ? config.color : config.bg,
+                      color: isSelected ? 'var(--color-background)' : config.color,
+                      border: isSelected ? `2px solid ${config.color}` : `2px solid transparent`,
+                      boxShadow: isSelected ? `0 4px 12px ${config.color}44` : '0 2px 4px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    {Icon && <Icon size={28} strokeWidth={2} />}
+                    <span style={{ lineHeight: 1.15 }}>{PRODUCTS_CATEGORY_NAME}</span>
+                  </button>
+                );
+              })()}
+            </div>
           </div>
         </div>
 

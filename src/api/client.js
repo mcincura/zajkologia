@@ -1,4 +1,5 @@
 import { getStoredWelcomeDiscountToken } from '../utils/welcomeDiscount';
+import { getCheckoutAttribution } from '../utils/attribution';
 
 // No runtime app-config.js dependency.
 // - Dev default: relative "/api" so Vite proxy avoids browser CORS.
@@ -49,11 +50,13 @@ export const apiFetch = async (path, options = {}) => {
 
 export const createCheckoutSession = async (productSlug, options = {}) => {
     const discountToken = options.discountToken || getStoredWelcomeDiscountToken();
+    const attribution = options.attribution || getCheckoutAttribution();
     const data = await apiFetch('/api/stripe/checkout-session', {
         method: 'POST',
         body: JSON.stringify({
             productSlug,
             ...(discountToken ? { discountToken } : {}),
+            attribution,
         }),
     });
 

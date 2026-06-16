@@ -6,6 +6,7 @@ import FaqSection from '../components/FaqSection';
 import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import { apiFetch, mapPostFromApi } from '../api/client';
 import { getCategoryConfig } from '../constants/categories';
+import { captureAttribution } from '../utils/attribution';
 
 const PostDetails = () => {
     const location = useLocation();
@@ -53,6 +54,18 @@ const PostDetails = () => {
             cancelled = true;
         };
     }, [slug]);
+
+    useEffect(() => {
+        if (!post?.slug) return;
+
+        captureAttribution({
+            contentContext: {
+                type: 'blog_post',
+                slug: post.slug,
+                title: post.title,
+            },
+        });
+    }, [post?.slug, post?.title]);
 
     if (loading) {
         return (

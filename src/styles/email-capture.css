@@ -120,8 +120,30 @@
   accent-color: #49634d;
 }
 
-.email-offer__consent span {
+.email-offer__consent-text {
   overflow-wrap: anywhere;
+}
+
+.email-offer__consent-text label {
+  cursor: pointer;
+}
+
+.email-offer__details-button {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--email-offer-sage);
+  font: inherit;
+  font-weight: 900;
+  line-height: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.email-offer__details-button:hover,
+.email-offer__details-button:focus-visible {
+  color: #2f5034;
 }
 
 .email-offer__submit,
@@ -175,26 +197,47 @@
 }
 
 .email-offer__success {
-  padding: 0.95rem;
-  border: 1px solid rgba(73, 99, 77, 0.15);
+  gap: 0.58rem;
+  padding: 0.72rem;
+  border: 1px solid rgba(73, 99, 77, 0.11);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.email-offer__success-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  min-width: 0;
+}
+
+.email-offer__success-heading strong {
+  color: var(--email-offer-ink);
+  font-size: 0.92rem;
+  font-weight: 850;
+  line-height: 1.2;
 }
 
 .email-offer__success-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   background: rgba(73, 99, 77, 0.1);
   color: #49634d;
 }
 
+.email-offer__success p {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .email-offer__code-label {
   color: rgba(38, 12, 26, 0.62);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 900;
 }
 
@@ -207,21 +250,22 @@
 }
 
 .email-offer__code-row strong {
-  min-height: 44px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
-  padding: 0.62rem 0.78rem;
+  padding: 0.52rem 0.68rem;
   border: 1px dashed rgba(122, 63, 0, 0.35);
   border-radius: var(--radius);
   background: #fff7ed;
   color: #7c2d12;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   line-height: 1;
   overflow-wrap: anywhere;
 }
 
 .email-offer__copy-button {
-  padding: 0.62rem 0.84rem;
+  min-height: 38px;
+  padding: 0.52rem 0.78rem;
   background: rgba(73, 99, 77, 0.1);
   color: #2f5034;
 }
@@ -229,6 +273,78 @@
 .email-offer__copy-button:hover,
 .email-offer__copy-button:focus-visible {
   background: rgba(73, 99, 77, 0.16);
+}
+
+.email-offer__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(38, 12, 26, 0.42);
+}
+
+.email-offer__modal {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 520px);
+  padding: 1.25rem;
+  border: 1px solid rgba(122, 63, 0, 0.16);
+  border-radius: var(--radius);
+  background: #fffaf4;
+  box-shadow: 0 22px 60px rgba(38, 12, 26, 0.28);
+  color: var(--email-offer-ink);
+}
+
+.email-offer__modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.email-offer__modal h3 {
+  margin: 0;
+  color: var(--email-offer-ink);
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.email-offer__modal p {
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.email-offer__modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(73, 99, 77, 0.14);
+  border-radius: 999px;
+  background: rgba(73, 99, 77, 0.08);
+  color: var(--email-offer-sage);
+}
+
+.email-offer__modal-action {
+  justify-self: end;
+  min-height: 40px;
+  padding: 0.62rem 1rem;
+  border-radius: 999px;
+  background: var(--email-offer-ink);
+  color: #fff8ed;
+  font-weight: 850;
+}
+
+.email-offer__modal-close:focus-visible,
+.email-offer__modal-action:focus-visible,
+.email-offer__details-button:focus-visible {
+  outline: 3px solid rgba(73, 99, 77, 0.18);
+  outline-offset: 3px;
 }
 
 .email-offer--product {

@@ -1,6 +1,18 @@
 export const WELCOME_DISCOUNT_STORAGE_KEY = 'zajkologia.welcomeDiscountCode';
 export const WELCOME_DISCOUNT_TOKEN_STORAGE_KEY = 'zajkologia.welcomeDiscountToken';
 export const WELCOME_DISCOUNT_OFFER_CHANGED_EVENT = 'zajkologia:welcome-discount-offer-changed';
+export const WELCOME_DISCOUNT_CODE = 'ZAJKOLOGIA25';
+
+const LEGACY_WELCOME_DISCOUNT_CODES = new Set(['ZAJKOLOGIA30']);
+
+export const normalizeWelcomeDiscountCode = (discountCode) => {
+  const normalizedCode = String(discountCode || '').trim();
+  if (LEGACY_WELCOME_DISCOUNT_CODES.has(normalizedCode.toUpperCase())) {
+    return WELCOME_DISCOUNT_CODE;
+  }
+
+  return normalizedCode;
+};
 
 const notifyWelcomeDiscountOfferChanged = () => {
   if (typeof window === 'undefined') return;
@@ -11,7 +23,14 @@ export const getStoredWelcomeDiscountCode = () => {
   if (typeof window === 'undefined') return '';
 
   try {
-    return window.localStorage.getItem(WELCOME_DISCOUNT_STORAGE_KEY) || '';
+    const storedCode = window.localStorage.getItem(WELCOME_DISCOUNT_STORAGE_KEY) || '';
+    const normalizedCode = normalizeWelcomeDiscountCode(storedCode);
+
+    if (storedCode && storedCode !== normalizedCode) {
+      window.localStorage.setItem(WELCOME_DISCOUNT_STORAGE_KEY, normalizedCode);
+    }
+
+    return normalizedCode;
   } catch {
     return '';
   }
@@ -33,10 +52,11 @@ export const getStoredWelcomeDiscountOffer = () => ({
 });
 
 export const storeWelcomeDiscountOffer = ({ discountCode, discountToken }) => {
-  if (typeof window === 'undefined' || !discountCode || !discountToken) return;
+  const normalizedCode = normalizeWelcomeDiscountCode(discountCode);
+  if (typeof window === 'undefined' || !normalizedCode || !discountToken) return;
 
   try {
-    window.localStorage.setItem(WELCOME_DISCOUNT_STORAGE_KEY, discountCode);
+    window.localStorage.setItem(WELCOME_DISCOUNT_STORAGE_KEY, normalizedCode);
     window.localStorage.setItem(WELCOME_DISCOUNT_TOKEN_STORAGE_KEY, discountToken);
     notifyWelcomeDiscountOfferChanged();
   } catch {

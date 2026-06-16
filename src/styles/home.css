@@ -1,0 +1,24 @@
+.home-intro-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-email-offer-slot {
+  order: 1;
+}
+
+.home-categories-slot {
+  order: 2;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 761px) {
+  .home-categories-slot {
+    order: 1;
+    margin-bottom: 1.5rem;
+  }
+
+  .home-email-offer-slot {
+    order: 2;
+  }
+}

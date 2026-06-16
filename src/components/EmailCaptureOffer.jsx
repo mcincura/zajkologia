@@ -1,9 +1,10 @@
 import { useEffect, useId, useState } from 'react';
-import { CheckCircle2, Copy, Mail, Tag } from 'lucide-react';
+import { CheckCircle2, Copy, Mail, Tag, X } from 'lucide-react';
 import { signupForWelcomeDiscount } from '../api/client';
 import {
   WELCOME_DISCOUNT_OFFER_CHANGED_EVENT,
   getStoredWelcomeDiscountOffer,
+  normalizeWelcomeDiscountCode,
   storeWelcomeDiscountOffer,
 } from '../utils/welcomeDiscount';
 import '../styles/email-capture.css';
@@ -12,20 +13,20 @@ export const MARKETING_CONSENT_TEXT =
   'Súhlasím, aby mi Zajkológia na zadanú e-mailovú adresu posielala marketingové a newsletterové e-maily. Môžu obsahovať užitočné informácie o starostlivosti o králiky, novinky, produktové tipy a občasné ponuky. Súhlas môžem kedykoľvek odvolať.';
 
 const baseCopy = {
-  eyebrow: '30 % zľava na prvý nákup',
-  headline: 'Chceš sa cítiť istejšie v starostlivosti o králika?',
+  eyebrow: '25% zľava na prvý nákup',
+  headline: '',
   subheadline:
-    'Pridaj sa do e-mailového zoznamu Zajkológie a pošleme ti užitočné tipy k starostlivosti o králiky, novinky a občasné ponuky. Ako poďakovanie získaš 30 % zľavu na prvý nákup.',
-  benefit:
-    'Pomôžeme ti vyhnúť sa častým chybám a robiť rozhodnutia s väčším pokojom.',
+    'Chceš dostávať užitočné tipy o starostlivosti, novinky a občasné ponuky? Ako poďakovanie od nás získaš 25% zľavu na prvý nákup.',
+  benefit: '',
   emailLabel: 'E-mailová adresa',
   emailPlaceholder: 'tvoj@email.sk',
-  cta: 'Získať 30 % zľavu',
+  cta: 'Získať 25% zľavu',
+  successTitle: 'Ďakujeme',
   success:
-    'Ďakujeme, si prihlásený/prihlásená. Zľavu uplatníme automaticky pri nákupe z tohto prehliadača a kód sme poslali aj e-mailom.',
+    'Zľavový kód uplatníme automaticky pri nákupe.',
   emailSent:
     'Hotovo, poslali sme ti e-mail so zľavou. Klikni na tlačidlo v e-maile a zľavu aktivujeme pre nákup v tomto prehliadači.',
-  discountIntro: 'Tvoj uvítací kód na 30 %:',
+  discountIntro: 'Tvoj uvítací kód na 25%:',
   invalidEmail: 'Zadaj prosím platnú e-mailovú adresu.',
   missingConsent:
     'Na získanie zľavy je potrebný súhlas so zasielaním marketingových/newsletterových e-mailov.',
@@ -37,6 +38,8 @@ const baseCopy = {
     'Tento e-mail už máme v zozname a uvítacia zľava preň už bola použitá. Tipy a novinky ti budeme posielať ďalej.',
   discountReserved:
     'Uvítacia zľava je už pripravená v otvorenej pokladni. Dokonči otvorenú platbu alebo to skús neskôr.',
+  discountIpLimit:
+    'Z tejto siete už bolo vytvorených viac uvítacích zliav. Ak si myslíš, že ide o omyl, napíš nám na kontakt@zajkologia.com.',
 };
 
 const placementCopy = {
@@ -44,7 +47,7 @@ const placementCopy = {
   product: {
     ...baseCopy,
     eyebrow: 'Uvítacia zľava',
-    headline: 'Získaj 30 % zľavu na tento produkt',
+    headline: 'Získaj 25% zľavu na tento produkt',
     subheadline:
       'Ak chceš praktické rady k starostlivosti o králika aj občasné novinky zo Zajkológie, prihlás sa do e-mailového zoznamu a získaj uvítací kód.',
     benefit: 'Zľavu uplatníme automaticky pri prechode do pokladne.',
@@ -55,7 +58,7 @@ const placementCopy = {
     eyebrow: 'Pokračuj so Zajkológiou',
     headline: 'Páčia sa ti praktické rady ku králikom?',
     subheadline:
-      'Pridaj sa do e-mailového zoznamu a dostaneš ďalšie užitočné tipy, novinky a občasné ponuky. Ako poďakovanie ti pošleme 30 % zľavu na prvý nákup.',
+      'Pridaj sa do e-mailového zoznamu a dostaneš ďalšie užitočné tipy, novinky a občasné ponuky. Ako poďakovanie ti pošleme 25% zľavu na prvý nákup.',
     benefit: 'Pokojnejšia starostlivosť začína pri dobrých informáciách.',
     cta: 'Pridať sa a získať zľavu',
   },
@@ -66,6 +69,7 @@ const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim(
 const EmailCaptureOffer = ({ placement = 'home' }) => {
   const emailId = useId();
   const consentId = useId();
+  const consentDetailsTitleId = useId();
   const copy = placementCopy[placement] || baseCopy;
 
   const [email, setEmail] = useState('');
@@ -79,6 +83,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
   const [error, setError] = useState('');
   const [status, setStatus] = useState('idle');
   const [copied, setCopied] = useState(false);
+  const [isConsentDetailsOpen, setIsConsentDetailsOpen] = useState(false);
 
   useEffect(() => {
     const syncStoredOffer = () => {
@@ -98,6 +103,21 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
       window.removeEventListener(WELCOME_DISCOUNT_OFFER_CHANGED_EVENT, syncStoredOffer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isConsentDetailsOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsConsentDetailsOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isConsentDetailsOpen]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -124,9 +144,10 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
         consentAccepted,
         source: placement,
       });
+      const normalizedDiscountCode = normalizeWelcomeDiscountCode(data?.discountCode);
 
       if (data?.discountAvailable && data?.emailSent && !data?.discountToken) {
-        setDiscountCode(data.discountCode || '');
+        setDiscountCode(normalizedDiscountCode);
         setDiscountToken('');
         setDiscountAvailable(false);
         setDiscountUnavailableReason('');
@@ -136,7 +157,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
         return;
       }
 
-      if (!data?.discountCode || !data?.discountToken) {
+      if (!normalizedDiscountCode || !data?.discountToken) {
         if (data?.discountAvailable === false) {
           setDiscountCode('');
           setDiscountToken('');
@@ -152,10 +173,10 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
       }
 
       storeWelcomeDiscountOffer({
-        discountCode: data.discountCode,
+        discountCode: normalizedDiscountCode,
         discountToken: data.discountToken,
       });
-      setDiscountCode(data.discountCode);
+      setDiscountCode(normalizedDiscountCode);
       setDiscountToken(data.discountToken);
       setDiscountAvailable(Boolean(data.discountAvailable));
       setDiscountUnavailableReason('');
@@ -191,87 +212,149 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
   const hasDiscountCode = Boolean(discountCode && discountToken && discountAvailable);
   const showSuccessWithoutDiscount = status === 'success' && !hasDiscountCode;
   const unavailableMessage =
-    discountUnavailableReason === 'reserved' ? copy.discountReserved : copy.discountUsed;
+    discountUnavailableReason === 'reserved'
+      ? copy.discountReserved
+      : discountUnavailableReason?.startsWith?.('ip_')
+        ? copy.discountIpLimit
+        : copy.discountUsed;
+  const successMessage = hasDiscountCode
+    ? (alreadySubscribed ? copy.alreadySubscribed : copy.success)
+    : awaitingEmailClick
+      ? copy.emailSent
+      : unavailableMessage;
+  const successTitle = hasDiscountCode && !alreadySubscribed ? copy.successTitle : '';
 
   return (
-    <section className={`email-offer email-offer--${placement}`} aria-label={copy.eyebrow}>
-      <div className="email-offer__copy">
-        <span className="email-offer__eyebrow">
-          <Tag size={15} aria-hidden="true" />
-          {copy.eyebrow}
-        </span>
-        <h2>{copy.headline}</h2>
-        <p>{copy.subheadline}</p>
-        <p className="email-offer__benefit">
-          <CheckCircle2 size={17} aria-hidden="true" />
-          {copy.benefit}
-        </p>
-      </div>
-
-      {hasDiscountCode || awaitingEmailClick || showSuccessWithoutDiscount ? (
-        <div className="email-offer__success" aria-live="polite">
-          <div className="email-offer__success-icon">
-            <Mail size={20} aria-hidden="true" />
-          </div>
-          <p>
-            {hasDiscountCode
-              ? (alreadySubscribed ? copy.alreadySubscribed : copy.success)
-              : awaitingEmailClick
-              ? copy.emailSent
-              : unavailableMessage}
-          </p>
-          {hasDiscountCode && (
-            <>
-              <span className="email-offer__code-label">{copy.discountIntro}</span>
-              <div className="email-offer__code-row">
-                <strong>{discountCode}</strong>
-                <button type="button" onClick={copyDiscountCode} className="email-offer__copy-button">
-                  <Copy size={16} aria-hidden="true" />
-                  {copied ? 'Skopírované' : 'Skopírovať'}
-                </button>
-              </div>
-            </>
+    <>
+      <section className={`email-offer email-offer--${placement}`} aria-label={copy.eyebrow}>
+        <div className="email-offer__copy">
+          <span className="email-offer__eyebrow">
+            <Tag size={15} aria-hidden="true" />
+            {copy.eyebrow}
+          </span>
+          {copy.headline && <h2>{copy.headline}</h2>}
+          <p>{copy.subheadline}</p>
+          {copy.benefit && (
+            <p className="email-offer__benefit">
+              <CheckCircle2 size={17} aria-hidden="true" />
+              {copy.benefit}
+            </p>
           )}
         </div>
-      ) : (
-        <form className="email-offer__form" onSubmit={handleSubmit} noValidate>
-          <label className="email-offer__field" htmlFor={emailId}>
-            <span>{copy.emailLabel}</span>
-            <input
-              id={emailId}
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder={copy.emailPlaceholder}
-              autoComplete="email"
-              required
-            />
-          </label>
 
-          <label className="email-offer__consent" htmlFor={consentId}>
-            <input
-              id={consentId}
-              type="checkbox"
-              checked={consentAccepted}
-              onChange={(event) => setConsentAccepted(event.target.checked)}
-              required
-            />
-            <span>{MARKETING_CONSENT_TEXT}</span>
-          </label>
-
-          {error && (
-            <div className="email-offer__error" role="alert">
-              {error}
+        {hasDiscountCode || awaitingEmailClick || showSuccessWithoutDiscount ? (
+          <div className="email-offer__success" aria-live="polite">
+            <div className="email-offer__success-heading">
+              <div className="email-offer__success-icon">
+                <Mail size={18} aria-hidden="true" />
+              </div>
+              {successTitle && <strong>{successTitle}</strong>}
             </div>
-          )}
+            <p>{successMessage}</p>
+            {hasDiscountCode && (
+              <>
+                <span className="email-offer__code-label">{copy.discountIntro}</span>
+                <div className="email-offer__code-row">
+                  <strong>{discountCode}</strong>
+                  <button type="button" onClick={copyDiscountCode} className="email-offer__copy-button">
+                    <Copy size={16} aria-hidden="true" />
+                    {copied ? 'Skopírované' : 'Skopírovať'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <form className="email-offer__form" onSubmit={handleSubmit} noValidate>
+            <label className="email-offer__field" htmlFor={emailId}>
+              <span>{copy.emailLabel}</span>
+              <input
+                id={emailId}
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder={copy.emailPlaceholder}
+                autoComplete="email"
+                required
+              />
+            </label>
 
-          <button type="submit" className="email-offer__submit" disabled={status === 'submitting'}>
-            <Mail size={17} aria-hidden="true" />
-            {status === 'submitting' ? 'Odosielam...' : copy.cta}
-          </button>
-        </form>
+            <div className="email-offer__consent">
+              <input
+                id={consentId}
+                type="checkbox"
+                checked={consentAccepted}
+                onChange={(event) => setConsentAccepted(event.target.checked)}
+                required
+              />
+              <div className="email-offer__consent-text">
+                <label htmlFor={consentId}>
+                  Súhlasím so zasielaním newslettera a marketingových e-mailov,
+                </label>{' '}
+                <button
+                  type="button"
+                  className="email-offer__details-button"
+                  onClick={() => setIsConsentDetailsOpen(true)}
+                  aria-haspopup="dialog"
+                >
+                  viac detailov
+                </button>.
+              </div>
+            </div>
+
+            {error && (
+              <div className="email-offer__error" role="alert">
+                {error}
+              </div>
+            )}
+
+            <button type="submit" className="email-offer__submit" disabled={status === 'submitting'}>
+              <Mail size={17} aria-hidden="true" />
+              {status === 'submitting' ? 'Odosielam...' : copy.cta}
+            </button>
+          </form>
+        )}
+      </section>
+
+      {isConsentDetailsOpen && (
+        <div
+          className="email-offer__modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsConsentDetailsOpen(false);
+            }
+          }}
+        >
+          <div
+            className="email-offer__modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={consentDetailsTitleId}
+          >
+            <div className="email-offer__modal-header">
+              <h3 id={consentDetailsTitleId}>Marketingový súhlas</h3>
+              <button
+                type="button"
+                className="email-offer__modal-close"
+                onClick={() => setIsConsentDetailsOpen(false)}
+                aria-label="Zavrieť podrobnosti"
+                autoFocus
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <p>{MARKETING_CONSENT_TEXT}</p>
+            <button
+              type="button"
+              className="email-offer__modal-action"
+              onClick={() => setIsConsentDetailsOpen(false)}
+            >
+              Rozumiem
+            </button>
+          </div>
+        </div>
       )}
-    </section>
+    </>
   );
 };
 

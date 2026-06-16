@@ -23,6 +23,25 @@ const formatToday = () => {
     return `${yyyy}-${mm}-${dd}`;
 };
 
+const formatMoneyMinor = (amountMinor, currency = 'eur') => {
+    const amount = Number(amountMinor || 0) / 100;
+    const normalizedCurrency = (currency || 'eur').toUpperCase();
+
+    try {
+        return new Intl.NumberFormat('sk-SK', {
+            style: 'currency',
+            currency: normalizedCurrency,
+        }).format(amount);
+    } catch {
+        return `${amount.toFixed(2)} ${normalizedCurrency}`;
+    }
+};
+
+const formatSourceLabel = (row) => {
+    const parts = [row.source, row.medium, row.campaign].filter(Boolean);
+    return parts.length ? parts.join(' / ') : 'unknown';
+};
+
 const createEmptyPost = (defaultCategoryId) => ({
     id: null,
     slug: '',
@@ -420,6 +439,14 @@ const Admin = () => {
                             <div style={{ fontSize: '0.7rem', color: '#666' }}>Uniques</div>
                             <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{analytics?.totals?.uniqueVisitors ?? '—'}</div>
                         </div>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Sales</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{analytics?.totals?.paidOrders ?? '—'}</div>
+                        </div>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Revenue</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 800 }}>{formatMoneyMinor(analytics?.totals?.revenueMinor, analytics?.totals?.revenueCurrency)}</div>
+                        </div>
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
                         Last {analyticsDays} days
@@ -495,7 +522,7 @@ const Admin = () => {
                         <div style={{ fontSize: '0.9rem', color: '#a40000' }}>{analyticsError}</div>
                     ) : null}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
                         <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
                             <div style={{ fontSize: '0.8rem', color: '#666' }}>Pageviews</div>
                             <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{analytics?.totals?.pageviews ?? '—'}</div>
@@ -507,6 +534,14 @@ const Admin = () => {
                         <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
                             <div style={{ fontSize: '0.8rem', color: '#666' }}>Days tracked</div>
                             <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{analytics?.rangeDays ?? analyticsDays}</div>
+                        </div>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>Paid orders</div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{analytics?.totals?.paidOrders ?? '—'}</div>
+                        </div>
+                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>Revenue</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{formatMoneyMinor(analytics?.totals?.revenueMinor, analytics?.totals?.revenueCurrency)}</div>
                         </div>
                     </div>
 
@@ -537,6 +572,45 @@ const Admin = () => {
                                         <div key={row.postId} style={{ padding: '0.35rem 0', borderBottom: '1px dashed #f0f0f0' }}>
                                             <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{row.title || row.slug}</div>
                                             <div style={{ fontSize: '0.8rem', color: '#666' }}>{row.pageviews} views • {row.uniqueVisitors} uniques</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                        <div>
+                            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.35rem' }}>Sales by source</div>
+                            <div style={{ border: '1px solid #eee', borderRadius: '8px', background: 'white', padding: '0.5rem', maxHeight: '220px', overflow: 'auto' }}>
+                                {(analytics?.salesBySource || []).length === 0 ? (
+                                    <div style={{ fontSize: '0.85rem', color: '#888' }}>No paid orders yet.</div>
+                                ) : (
+                                    (analytics?.salesBySource || []).map((row) => (
+                                        <div key={`${row.source}-${row.medium}-${row.campaign}-${row.currency}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', padding: '0.35rem 0', borderBottom: '1px dashed #f0f0f0' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{formatSourceLabel(row)}</div>
+                                                <div style={{ fontSize: '0.8rem', color: '#666' }}>{row.paidOrders} paid orders</div>
+                                            </div>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>{formatMoneyMinor(row.revenueMinor, row.currency)}</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.35rem' }}>Sales from blog posts</div>
+                            <div style={{ border: '1px solid #eee', borderRadius: '8px', background: 'white', padding: '0.5rem', maxHeight: '220px', overflow: 'auto' }}>
+                                {(analytics?.salesByPost || []).length === 0 ? (
+                                    <div style={{ fontSize: '0.85rem', color: '#888' }}>No blog-attributed sales yet.</div>
+                                ) : (
+                                    (analytics?.salesByPost || []).map((row) => (
+                                        <div key={`${row.slug}-${row.currency}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', padding: '0.35rem 0', borderBottom: '1px dashed #f0f0f0' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{row.title || row.slug}</div>
+                                                <div style={{ fontSize: '0.8rem', color: '#666' }}>{row.paidOrders} paid orders</div>
+                                            </div>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>{formatMoneyMinor(row.revenueMinor, row.currency)}</div>
                                         </div>
                                     ))
                                 )}

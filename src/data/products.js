@@ -89,7 +89,7 @@ export const products = [
       'Zabezpečte svojmu králikovi dlhý a zdravý život vďaka pravidelnému monitorovaniu. Táto praktická príručka a denník vám pomôžu jednoducho sledovať vývoj hmotnosti vášho ušatého spoločníka, čo je často najrýchlejší spôsob, ako odhaliť skryté zdravotné problémy.',
     description:
       'Praktická pomôcka pre majiteľov králikov, ktorí chcú mať vývoj hmotnosti, kondíciu a zmeny v starostlivosti prehľadne pod kontrolou.',
-    price: '2,49 €',
+    price: '2,99 €',
     image: '/product-gallery/weight-journal-cover-optimized.webp',
     heroImage: '/product-gallery/weight-journal-cover-optimized.webp',
     languages: ['sk', 'cs'],
