@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
+  ArrowLeft,
   ArrowRight,
   BookOpen,
   CheckCircle2,
@@ -23,6 +24,10 @@ const About = () => {
             <p className="about-hero__lead">{aboutContent.lead}</p>
             <p>{aboutContent.intro}</p>
             <div className="about-actions">
+              <Link className="about-button about-button--ghost" to="/">
+                <ArrowLeft size={17} strokeWidth={2.4} />
+                Späť na blog
+              </Link>
               <Link className="about-button about-button--primary" to="/?category=Produkty">
                 Pozrieť príručky
                 <ArrowRight size={17} strokeWidth={2.4} />
