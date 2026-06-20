@@ -180,9 +180,9 @@ export const products = [
       'Mäkké textilné loptičky na schovávanie kúskov sušených byliniek alebo obľúbených pamlskov. Pomáhajú podporiť prirodzené hľadanie potravy.',
     description:
       'Interaktívne čuchacie loptičky, ktoré podporujú prirodzené hľadanie potravy a vedia spomaliť maškrtenie.',
-    price: '9,99 €',
-    originalPrice: '14,99 €',
-    saleLabel: '-33 %',
+    price: '7,99 €',
+    originalPrice: '12,99 €',
+    saleLabel: '-38 %',
     saleDescription: 'Predobjednávková cena',
     preorderDeal: {
       anchorLabel: 'Bežná cena po predobjednávke',
@@ -201,7 +201,7 @@ export const products = [
     deliveryNote:
       'Fyzický produkt. Doprava po Slovensku a Česku je 1 €.',
     featureList: [
-      'Predobjednávková cena 9,99 € namiesto 14,99 €',
+      'Predobjednávková cena 7,99 € namiesto 12,99 €',
       'Ručne vyrábané v malých sériách',
       'Doprava CZ/SK + 1 €',
       '12 kusov celkovo',
@@ -232,10 +232,10 @@ export const products = [
       },
       {
         code: 'cream',
-        name: 'Krémová',
+        name: 'Biela',
         available: 3,
         image: '/product-gallery/snuffle-ball/cream.jpg',
-        swatches: ['#f6f1df'],
+        swatches: ['#fbfaf4'],
       },
     ],
     pageTheme: {
@@ -253,6 +253,13 @@ export const products = [
         '/product-gallery/snuffle-ball/grey.jpg',
         '/product-gallery/snuffle-ball/black-caramel.jpg',
         '/product-gallery/snuffle-ball/cream.jpg',
+        '/product-gallery/snuffle-ball/bunny-grey-front.jpg',
+        '/product-gallery/snuffle-ball/bunny-grey-ready.jpg',
+        '/product-gallery/snuffle-ball/bunny-grey-sniff.jpg',
+        '/product-gallery/snuffle-ball/handmade-materials.jpg',
+        '/product-gallery/snuffle-ball/handmade-cutting.jpg',
+        '/product-gallery/snuffle-ball/handmade-finished.jpg',
+        '/product-gallery/snuffle-ball/handmade-label.jpg',
       ],
       trustBadges: [],
       handmadeStory: {
@@ -261,22 +268,28 @@ export const products = [
           'Každú loptičku striháme, skladáme a dokončujeme ručne. Predobjednávka preto nie je len zľava, ale aj spôsob, ako pripraviť malé množstvo kusov bez zbytočného skladu.',
         items: [
           {
-            title: 'Ručne skladané záhyby',
+            title: 'Materiál pripravený po farbách',
             text:
-              'Textilné vrstvy sa ukladajú tak, aby v nich vznikli miesta na sušené bylinky alebo obľúbený pamlsok.',
-            image: '/product-gallery/snuffle-ball/black-white.jpg',
+              'Každý kus začína nastrihanými textilnými dielmi, z ktorých postupne vzniknú záhyby na pamlsky a bylinky.',
+            image: '/product-gallery/snuffle-ball/handmade-materials.jpg',
           },
           {
-            title: 'Malé série',
+            title: 'Strihané a skladané ručne',
             text:
-              'Zatiaľ počítame s 12 kusmi celkovo, aby výroba ostala zvládnuteľná a poctivá.',
-            image: '/product-gallery/snuffle-ball/black-caramel.jpg',
+              'Jednotlivé diely sa upravujú ručne, aby loptička držala tvar a zároveň zostala mäkká pre králičí nos.',
+            image: '/product-gallery/snuffle-ball/handmade-cutting.jpg',
           },
           {
-            title: 'Každý kus je trochu iný',
+            title: 'Kontrola hotového kusu',
             text:
-              'Keďže ide o ručnú prácu, jednotlivé loptičky sa môžu jemne líšiť tvarom záhybov aj výsledným výrazom.',
-            image: '/product-gallery/snuffle-ball/cream.jpg',
+              'Hotovú loptičku kontrolujeme v rukách, aby mala dostatok záhybov a príjemnú veľkosť na každodenné používanie.',
+            image: '/product-gallery/snuffle-ball/handmade-finished.jpg',
+          },
+          {
+            title: 'Pripravené so značkou Zajkológia',
+            text:
+              'Pred odoslaním dostane každý kus finálnu kontrolu a jednoduché balenie s kartičkou.',
+            image: '/product-gallery/snuffle-ball/handmade-label.jpg',
           },
         ],
       },
@@ -286,13 +299,13 @@ export const products = [
           icon: 'Palette',
           title: 'Štyri farebné kombinácie',
           text:
-            'Vyberte si z čierno-bielej, sivej, čierno-karamelovej alebo krémovej verzie. Zatiaľ počítame s 12 dostupnými kusmi celkovo.',
+            'Vyberte si z čierno-bielej, sivej, čierno-karamelovej alebo bielej verzie. Zatiaľ počítame s 12 dostupnými kusmi celkovo.',
         },
         {
           icon: 'PackageCheck',
           title: 'Limitovaná predobjednávka',
           text:
-            'Plná cena bude 14,99 €. V predobjednávke je pripravená nižšia cena 9,99 € za kus.',
+            'Plná cena bude 12,99 €. V predobjednávke je pripravená nižšia cena 7,99 € za kus.',
         },
         {
           icon: 'Truck',
