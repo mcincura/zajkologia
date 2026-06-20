@@ -218,7 +218,7 @@ export const products = [
       },
       {
         code: 'grey',
-        name: 'Sivá',
+        name: 'Sivo-zelená',
         available: 3,
         image: '/product-gallery/snuffle-ball/grey.jpg',
         swatches: ['#9da19c'],
@@ -299,7 +299,7 @@ export const products = [
           icon: 'Palette',
           title: 'Štyri farebné kombinácie',
           text:
-            'Vyberte si z čierno-bielej, sivej, čierno-karamelovej alebo bielej verzie. Zatiaľ počítame s 12 dostupnými kusmi celkovo.',
+            'Vyberte si z čierno-bielej, sivo-zelenej, čierno-karamelovej alebo bielej verzie. Zatiaľ počítame s 12 dostupnými kusmi celkovo.',
         },
         {
           icon: 'PackageCheck',
