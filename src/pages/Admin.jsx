@@ -61,6 +61,21 @@ const parseEuroToMinor = (value) => {
     return Math.round(amount * 100);
 };
 
+const getPacketaDetailsText = (order) => {
+    const lines = [
+        `Meno: ${order.shippingName || order.customerName || ''}`,
+        `Telefón: ${order.shippingPhone || ''}`,
+        `Email: ${order.shippingEmail || order.customerEmail || ''}`,
+        `Ulica a popisné číslo: ${order.shippingAddressLine1 || ''}`,
+        order.shippingAddressLine2 ? `Doplnenie adresy: ${order.shippingAddressLine2}` : '',
+        `Obec: ${order.shippingCity || ''}`,
+        `PSČ: ${order.shippingPostalCode || ''}`,
+        `Krajina: ${order.shippingCountry || ''}`,
+    ].filter(Boolean);
+
+    return lines.join('\n');
+};
+
 const createEmptyPost = (defaultCategoryId) => ({
     id: null,
     slug: '',
@@ -435,6 +450,62 @@ const Admin = () => {
         }
     };
 
+    const copyPacketaDetails = async (order) => {
+        const text = getPacketaDetailsText(order);
+        if (!text.trim()) {
+            setStatus('No shipping details to copy.');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(text);
+            setStatus('Packeta details copied.');
+        } catch {
+            window.prompt('Copy Packeta details:', text);
+        }
+    };
+
+    const markOrderShipped = async (order) => {
+        const carrier = window.prompt('Carrier:', order.carrier || 'Packeta');
+        if (!carrier?.trim()) return;
+
+        const trackingNumber = window.prompt('Tracking number:', order.trackingNumber || '');
+        if (!trackingNumber?.trim()) return;
+
+        const trackingUrl = window.prompt('Tracking URL (optional):', order.trackingUrl || '');
+        const sendEmail = window.confirm('Send tracking email to the customer now?');
+        const confirmed = window.confirm(
+            `${order.shippedAt ? 'Update tracking' : 'Mark order as shipped'} for ${order.id}?`
+        );
+        if (!confirmed) return;
+
+        setBusy(true);
+        setStatus('');
+        try {
+            const data = await apiFetch(`/api/orders/admin/${order.id}/shipment`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    carrier,
+                    trackingNumber,
+                    trackingUrl,
+                    sendEmail,
+                }),
+            });
+            await loadOrders();
+            setStatus(
+                data?.emailError
+                    ? `Shipment saved, but tracking email failed: ${data.emailError}`
+                    : data?.emailSent
+                        ? 'Shipment saved and tracking email sent.'
+                        : 'Shipment saved.'
+            );
+        } catch (err) {
+            setStatus(`Shipment update failed: ${err.message}`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
     if (authLoading) {
         return <div className="container" style={{ padding: '2rem 0' }}>Loading…</div>;
     }
@@ -803,6 +874,42 @@ const Admin = () => {
                                                         Ship: {order.shippingAddressLine1}, {order.shippingPostalCode} {order.shippingCity}, {order.shippingCountry}
                                                     </div>
                                                 ) : null}
+                                                {order.orderType === 'physical' ? (
+                                                    <div style={{ marginTop: '0.6rem', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', padding: '0.6rem', display: 'grid', gap: '0.35rem' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center' }}>
+                                                            <strong style={{ fontSize: '0.82rem' }}>Packeta details</strong>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => copyPacketaDetails(order)}
+                                                                style={{ background: 'white', color: '#334155', border: '1px solid #cbd5e1', padding: '0.25rem 0.45rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.72rem' }}
+                                                            >
+                                                                Copy
+                                                            </button>
+                                                        </div>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.25rem 0.6rem', fontSize: '0.78rem', color: '#475569' }}>
+                                                            <span><strong>Name:</strong> {order.shippingName || order.customerName || '—'}</span>
+                                                            <span><strong>Phone:</strong> {order.shippingPhone || '—'}</span>
+                                                            <span><strong>Email:</strong> {order.shippingEmail || order.customerEmail || '—'}</span>
+                                                            <span><strong>Country:</strong> {order.shippingCountry || '—'}</span>
+                                                            <span><strong>Street:</strong> {order.shippingAddressLine1 || '—'}</span>
+                                                            <span><strong>City:</strong> {order.shippingCity || '—'}</span>
+                                                            <span><strong>ZIP:</strong> {order.shippingPostalCode || '—'}</span>
+                                                            {order.shippingAddressLine2 ? <span><strong>Line 2:</strong> {order.shippingAddressLine2}</span> : null}
+                                                        </div>
+                                                        {order.trackingNumber ? (
+                                                            <div style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 800 }}>
+                                                                Tracking: {order.carrier || 'Carrier'} · {order.trackingNumber}
+                                                                {order.trackingUrl ? (
+                                                                    <>
+                                                                        {' · '}
+                                                                        <a href={order.trackingUrl} target="_blank" rel="noreferrer" style={{ color: '#166534', textDecoration: 'underline' }}>open</a>
+                                                                    </>
+                                                                ) : null}
+                                                                {order.shippedAt ? ` · shipped ${formatDateTime(order.shippedAt)}` : ''}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                ) : null}
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
                                                 <div style={{ fontWeight: 900 }}>{formatMoneyMinor(order.amountTotal, order.currency)}</div>
@@ -906,6 +1013,16 @@ const Admin = () => {
                                                     Manual refund override
                                                 </button>
                                             )}
+                                            {order.orderType === 'physical' && ['paid', 'fulfilled'].includes(order.status) ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => markOrderShipped(order)}
+                                                    disabled={busy}
+                                                    style={{ background: '#ecfdf5', color: '#166534', border: '1px solid #bbf7d0', padding: '0.35rem 0.55rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.78rem' }}
+                                                >
+                                                    {order.shippedAt ? 'Update tracking' : 'Mark shipped / tracking'}
+                                                </button>
+                                            ) : null}
                                         </div>
                                     </article>
                                 );
