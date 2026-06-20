@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import { FileText, PackageCheck } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, mapPostFromApi } from '../api/client';
 
@@ -76,6 +78,19 @@ const getPacketaDetailsText = (order) => {
     return lines.join('\n');
 };
 
+const adminNavLinkStyle = ({ isActive }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.55rem',
+    padding: '0.65rem 0.75rem',
+    borderRadius: '8px',
+    border: `1px solid ${isActive ? '#d9bfa5' : '#eee'}`,
+    background: isActive ? '#fff7ed' : '#fff',
+    color: isActive ? '#341320' : '#55463d',
+    textDecoration: 'none',
+    fontWeight: 900,
+});
+
 const createEmptyPost = (defaultCategoryId) => ({
     id: null,
     slug: '',
@@ -91,7 +106,7 @@ const createEmptyPost = (defaultCategoryId) => ({
     faqItems: [],
 });
 
-const Admin = () => {
+const Admin = ({ section = 'orders' }) => {
     const [authLoading, setAuthLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [username, setUsername] = useState('');
@@ -116,6 +131,32 @@ const Admin = () => {
     const [ordersError, setOrdersError] = useState('');
 
     const selectedPost = useMemo(() => posts.find(p => p.id === selectedId) || null, [posts, selectedId]);
+    const isOrdersSection = section === 'orders';
+    const orderStats = useMemo(() => {
+        const paidOrders = orders.filter((order) => ['paid', 'fulfilled'].includes(order.status));
+        const physicalToShip = orders.filter((order) =>
+            order.orderType === 'physical' &&
+            ['paid', 'fulfilled'].includes(order.status) &&
+            !order.shippedAt
+        );
+        const refundRequestsToReview = orders.reduce(
+            (total, order) =>
+                total + (order.refundRequests || []).filter((request) => request.status === 'submitted').length,
+            0
+        );
+        const revenueMinor = paidOrders.reduce(
+            (total, order) => total + Number(order.amountTotal || 0) - Number(order.refundedAmount || 0),
+            0
+        );
+
+        return {
+            paidOrders: paidOrders.length,
+            revenueMinor,
+            currency: paidOrders[0]?.currency || analytics?.totals?.revenueCurrency || 'eur',
+            physicalToShip: physicalToShip.length,
+            refundRequestsToReview,
+        };
+    }, [analytics?.totals?.revenueCurrency, orders]);
 
     const loadAll = async () => {
         const [cats, ps] = await Promise.all([
@@ -556,40 +597,55 @@ const Admin = () => {
                 </div>
                 <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>Logged in as <b>{username}</b></div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                    <button
-                        onClick={createNewPost}
-                        disabled={busy}
-                        style={{ background: 'var(--color-primary)', color: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 700 }}
-                    >
-                        New
-                    </button>
-                    <button
-                        onClick={saveSelected}
-                        disabled={busy || !selectedPost}
-                        style={{ background: 'var(--color-dark)', color: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 700 }}
-                    >
-                        Save
-                    </button>
-                </div>
+                <nav style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem' }} aria-label="Admin navigation">
+                    <NavLink to="/admin/orders" style={adminNavLinkStyle}>
+                        <PackageCheck size={18} strokeWidth={2.4} />
+                        Orders
+                    </NavLink>
+                    <NavLink to="/admin/posts" style={adminNavLinkStyle}>
+                        <FileText size={18} strokeWidth={2.4} />
+                        Blog posts
+                    </NavLink>
+                </nav>
 
-                <button
-                    type="button"
-                    onClick={rebuildPublicSite}
-                    disabled={rebuildBusy}
-                    style={{
-                        width: '100%',
-                        background: '#fff7ed',
-                        color: '#7a3f00',
-                        padding: '0.55rem 0.75rem',
-                        borderRadius: '6px',
-                        fontWeight: 800,
-                        marginBottom: '1rem',
-                        border: '1px solid #f1d7bd',
-                    }}
-                >
-                    {rebuildBusy ? 'Requesting rebuild…' : 'Rebuild public site'}
-                </button>
+                {!isOrdersSection ? (
+                    <>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                            <button
+                                onClick={createNewPost}
+                                disabled={busy}
+                                style={{ background: 'var(--color-primary)', color: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 700 }}
+                            >
+                                New
+                            </button>
+                            <button
+                                onClick={saveSelected}
+                                disabled={busy || !selectedPost}
+                                style={{ background: 'var(--color-dark)', color: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 700 }}
+                            >
+                                Save
+                            </button>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={rebuildPublicSite}
+                            disabled={rebuildBusy}
+                            style={{
+                                width: '100%',
+                                background: '#fff7ed',
+                                color: '#7a3f00',
+                                padding: '0.55rem 0.75rem',
+                                borderRadius: '6px',
+                                fontWeight: 800,
+                                marginBottom: '1rem',
+                                border: '1px solid #f1d7bd',
+                            }}
+                        >
+                            {rebuildBusy ? 'Requesting rebuild…' : 'Rebuild public site'}
+                        </button>
+                    </>
+                ) : null}
 
                 {status ? (
                     <div style={{ fontSize: '0.9rem', color: '#444', background: '#fafafa', padding: '0.5rem 0.75rem', borderRadius: '6px', marginBottom: '1rem' }}>
@@ -597,69 +653,42 @@ const Admin = () => {
                     </div>
                 ) : null}
 
-                <div style={{
-                    border: '1px solid #eee',
-                    borderRadius: '10px',
-                    padding: '0.75rem',
-                    marginBottom: '1rem',
-                    background: '#fafafa'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div style={{ fontWeight: 800 }}>Analytics</div>
-                        <button
-                            type="button"
-                            onClick={() => loadAnalytics()}
-                            disabled={analyticsLoading}
-                            style={{ background: 'var(--color-dark)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.75rem' }}
-                        >
-                            {analyticsLoading ? '…' : 'Refresh'}
-                        </button>
-                    </div>
-                    {analyticsError ? (
-                        <div style={{ fontSize: '0.8rem', color: '#a40000', marginBottom: '0.5rem' }}>{analyticsError}</div>
-                    ) : null}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Views</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{analytics?.totals?.pageviews ?? '—'}</div>
-                        </div>
-                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Uniques</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{analytics?.totals?.uniqueVisitors ?? '—'}</div>
-                        </div>
-                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Sales</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{analytics?.totals?.paidOrders ?? '—'}</div>
-                        </div>
-                        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.5rem' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#666' }}>Revenue</div>
-                            <div style={{ fontSize: '1rem', fontWeight: 800 }}>{formatMoneyMinor(analytics?.totals?.revenueMinor, analytics?.totals?.revenueCurrency)}</div>
+                {isOrdersSection ? (
+                    <div style={{
+                        border: '1px solid #eee',
+                        borderRadius: '10px',
+                        padding: '0.75rem',
+                        marginBottom: '1rem',
+                        background: '#fafafa'
+                    }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.55rem' }}>Today’s queue</div>
+                        <div style={{ display: 'grid', gap: '0.45rem', fontSize: '0.86rem', color: '#55463d' }}>
+                            <div><b>{orderStats.physicalToShip}</b> physical order(s) waiting to ship</div>
+                            <div><b>{orderStats.refundRequestsToReview}</b> refund request(s) need review</div>
+                            <div><b>{formatMoneyMinor(orderStats.revenueMinor, orderStats.currency)}</b> net loaded order revenue</div>
                         </div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
-                        Last {analyticsDays} days
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {posts.map((p) => (
+                            <button
+                                key={p.id}
+                                onClick={() => setSelectedId(p.id)}
+                                style={{
+                                    textAlign: 'left',
+                                    padding: '0.6rem 0.75rem',
+                                    borderRadius: '8px',
+                                    background: p.id === selectedId ? 'var(--color-light)' : 'transparent',
+                                    color: 'var(--color-dark)',
+                                    border: '1px solid #eee'
+                                }}
+                            >
+                                <div style={{ fontWeight: 800 }}>{p.title || '(Untitled)'}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#666' }}>{p.slug || 'missing-slug'} • {p.category || '—'}</div>
+                            </button>
+                        ))}
                     </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {posts.map((p) => (
-                        <button
-                            key={p.id}
-                            onClick={() => setSelectedId(p.id)}
-                            style={{
-                                textAlign: 'left',
-                                padding: '0.6rem 0.75rem',
-                                borderRadius: '8px',
-                                background: p.id === selectedId ? 'var(--color-light)' : 'transparent',
-                                color: 'var(--color-dark)',
-                                border: '1px solid #eee'
-                            }}
-                        >
-                            <div style={{ fontWeight: 800 }}>{p.title || '(Untitled)'}</div>
-                            <div style={{ fontSize: '0.85rem', color: '#666' }}>{p.slug || 'missing-slug'} • {p.category || '—'}</div>
-                        </button>
-                    ))}
-                </div>
+                )}
             </aside>
 
             <section style={{
@@ -668,6 +697,38 @@ const Admin = () => {
                 boxShadow: 'var(--shadow)',
                 padding: '1rem'
             }}>
+                {isOrdersSection ? (
+                    <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ border: '1px solid #ead9c7', borderRadius: '10px', padding: '1rem', background: '#fffaf5' }}>
+                        <div style={{ fontSize: '0.78rem', color: '#7a5a43', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Revenue</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 950, color: '#341320', marginTop: '0.2rem' }}>
+                            {formatMoneyMinor(analytics?.totals?.revenueMinor, analytics?.totals?.revenueCurrency)}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#7a5a43', marginTop: '0.2rem' }}>Last {analyticsDays} days</div>
+                    </div>
+                    <div style={{ border: '1px solid #ead9c7', borderRadius: '10px', padding: '1rem', background: '#fff' }}>
+                        <div style={{ fontSize: '0.78rem', color: '#7a5a43', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Paid orders</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 950, color: '#341320', marginTop: '0.2rem' }}>
+                            {analytics?.totals?.paidOrders ?? '—'}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#7a5a43', marginTop: '0.2rem' }}>Stripe-paid orders</div>
+                    </div>
+                    <div style={{ border: '1px solid #dbe9df', borderRadius: '10px', padding: '1rem', background: '#f7fcf8' }}>
+                        <div style={{ fontSize: '0.78rem', color: '#276749', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>To ship</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 950, color: '#166534', marginTop: '0.2rem' }}>
+                            {orderStats.physicalToShip}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#276749', marginTop: '0.2rem' }}>Physical orders without tracking</div>
+                    </div>
+                    <div style={{ border: '1px solid #f3d4b7', borderRadius: '10px', padding: '1rem', background: '#fff7ed' }}>
+                        <div style={{ fontSize: '0.78rem', color: '#9a3412', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Refund review</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 950, color: '#9a3412', marginTop: '0.2rem' }}>
+                            {orderStats.refundRequestsToReview}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#9a3412', marginTop: '0.2rem' }}>Manual decisions pending</div>
+                    </div>
+                </div>
                 <div style={{
                     border: '1px solid #eee',
                     borderRadius: '10px',
@@ -1030,7 +1091,9 @@ const Admin = () => {
                         )}
                     </div>
                 </div>
-                {!selectedPost ? (
+                    </>
+                ) : (
+                !selectedPost ? (
                     <div style={{ padding: '1rem' }}>No post selected.</div>
                 ) : (
                     <>
@@ -1231,6 +1294,7 @@ const Admin = () => {
                             </div>
                         </div>
                     </>
+                )
                 )}
             </section>
         </div>

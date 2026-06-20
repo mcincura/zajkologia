@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import PostDetails from './pages/PostDetails';
@@ -23,7 +23,9 @@ function App() {
           <Route path="o-nas" element={<About />} />
           <Route path="obchodne-podmienky" element={<Terms />} />
           <Route path="odstupenie-od-zmluvy" element={<WithdrawalRequest />} />
-          <Route path="admin" element={<Admin />} />
+          <Route path="admin" element={<Navigate to="/admin/orders" replace />} />
+          <Route path="admin/orders" element={<Admin section="orders" />} />
+          <Route path="admin/posts" element={<Admin section="posts" />} />
           <Route path="*" element={<div className="container">404 Not Found</div>} />
         </Route>
       </Routes>
