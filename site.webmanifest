@@ -1,0 +1,19 @@
+{
+  "name": "Zajkológia",
+  "short_name": "Zajkológia",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#3c0919",
+  "background_color": "#fff7f4",
+  "display": "standalone"
+}
