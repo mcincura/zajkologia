@@ -42,6 +42,25 @@ const formatSourceLabel = (row) => {
     return parts.length ? parts.join(' / ') : 'unknown';
 };
 
+const formatDateTime = (value) => {
+    if (!value) return '—';
+    try {
+        return new Intl.DateTimeFormat('sk-SK', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        }).format(new Date(value));
+    } catch {
+        return String(value);
+    }
+};
+
+const parseEuroToMinor = (value) => {
+    const normalized = String(value || '').trim().replace(',', '.');
+    const amount = Number(normalized);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return Math.round(amount * 100);
+};
+
 const createEmptyPost = (defaultCategoryId) => ({
     id: null,
     slug: '',
@@ -77,6 +96,9 @@ const Admin = () => {
     const [analyticsDays, setAnalyticsDays] = useState(30);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [analyticsError, setAnalyticsError] = useState('');
+    const [orders, setOrders] = useState([]);
+    const [ordersLoading, setOrdersLoading] = useState(false);
+    const [ordersError, setOrdersError] = useState('');
 
     const selectedPost = useMemo(() => posts.find(p => p.id === selectedId) || null, [posts, selectedId]);
 
@@ -107,10 +129,25 @@ const Admin = () => {
         }
     };
 
+    const loadOrders = async () => {
+        setOrdersLoading(true);
+        setOrdersError('');
+        try {
+            const data = await apiFetch('/api/orders/admin');
+            setOrders(data?.orders || []);
+        } catch (err) {
+            setOrders([]);
+            setOrdersError(`Orders failed: ${err.message}`);
+        } finally {
+            setOrdersLoading(false);
+        }
+    };
+
     const resetAdminState = () => {
         setCategories([]);
         setPosts([]);
         setSelectedId(null);
+        setOrders([]);
     };
 
     const checkAuth = async ({ fallbackUsername } = {}) => {
@@ -123,6 +160,7 @@ const Admin = () => {
             if (authed) {
                 await loadAll();
                 await loadAnalytics();
+                await loadOrders();
             } else {
                 resetAdminState();
             }
@@ -134,6 +172,7 @@ const Admin = () => {
                 try {
                     await loadAll();
                     await loadAnalytics();
+                    await loadOrders();
                     setIsAuthenticated(true);
                     setUsername(fallbackUsername || '');
                     return true;
@@ -315,6 +354,84 @@ const Admin = () => {
             setStatus(`Public site rebuild failed: ${err.message}`);
         } finally {
             setRebuildBusy(false);
+        }
+    };
+
+    const reviewRefundRequest = async (request, decision) => {
+        const adminReason = window.prompt(
+            decision === 'approved'
+                ? 'Reason for approving this refund request:'
+                : 'Reason for rejecting this refund request:'
+        );
+        if (!adminReason?.trim()) return;
+
+        setBusy(true);
+        setStatus('');
+        try {
+            await apiFetch(`/api/orders/admin/refund-requests/${request.id}/review`, {
+                method: 'POST',
+                body: JSON.stringify({ decision, adminReason }),
+            });
+            await loadOrders();
+            setStatus(`Refund request ${decision}.`);
+        } catch (err) {
+            setStatus(`Refund review failed: ${err.message}`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const createAdminRefund = async (order, request = null) => {
+        const refundableMinor = Number(order.amountTotal || 0) - Number(order.refundedAmount || 0);
+        if (refundableMinor <= 0) {
+            setStatus('This order has no refundable amount left.');
+            return;
+        }
+
+        const amountInput = window.prompt(
+            `Refund amount in EUR. Max ${formatMoneyMinor(refundableMinor, order.currency)}:`,
+            (refundableMinor / 100).toFixed(2)
+        );
+        const amount = parseEuroToMinor(amountInput);
+        if (!amount) return;
+
+        const category = window.prompt(
+            'Refund category: pre_ship_cancel, withdrawal, defect_complaint, duplicate_payment, goodwill, other',
+            request?.requestType || 'pre_ship_cancel'
+        );
+        if (!category?.trim()) return;
+
+        const adminReason = window.prompt('Internal admin reason/decision note:');
+        if (!adminReason?.trim()) return;
+
+        const restock = !order.shippedAt && window.confirm('Restock/release the reserved product variant after refund succeeds?');
+        const confirmed = window.confirm(
+            `Create Stripe refund for ${formatMoneyMinor(amount, order.currency)} on order ${order.id}?`
+        );
+        if (!confirmed) return;
+
+        setBusy(true);
+        setStatus('');
+        try {
+            await apiFetch(`/api/orders/admin/${order.id}/refund`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    amount,
+                    category,
+                    adminReason,
+                    refundRequestId: request?.id || null,
+                    manualOverride: !request,
+                    restock,
+                    confirm: true,
+                }),
+            });
+            await loadOrders();
+            await loadAnalytics();
+            setStatus('Stripe refund created and saved locally.');
+        } catch (err) {
+            setStatus(`Refund failed: ${err.message}`);
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -616,6 +733,184 @@ const Admin = () => {
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+                <div style={{
+                    border: '1px solid #eee',
+                    borderRadius: '10px',
+                    padding: '1rem',
+                    marginBottom: '1rem',
+                    background: '#fafafa'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.75rem' }}>
+                        <div>
+                            <h3 style={{ margin: 0 }}>Orders</h3>
+                            <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.2rem' }}>
+                                Physical preorders, refund review, and admin-only Stripe refunds.
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={loadOrders}
+                            disabled={ordersLoading}
+                            style={{ background: 'var(--color-dark)', color: 'white', padding: '0.35rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem' }}
+                        >
+                            {ordersLoading ? 'Refreshing…' : 'Refresh'}
+                        </button>
+                    </div>
+
+                    {ordersError ? (
+                        <div style={{ fontSize: '0.9rem', color: '#a40000', marginBottom: '0.75rem' }}>{ordersError}</div>
+                    ) : null}
+
+                    <div style={{ display: 'grid', gap: '0.75rem', maxHeight: '520px', overflow: 'auto' }}>
+                        {orders.length === 0 ? (
+                            <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem', color: '#777' }}>
+                                No orders yet.
+                            </div>
+                        ) : (
+                            orders.map((order) => {
+                                const primaryItem = order.items?.[0];
+                                const refundableMinor = Number(order.amountTotal || 0) - Number(order.refundedAmount || 0);
+                                const pendingRequests = (order.refundRequests || []).filter((request) => request.status === 'submitted');
+                                const approvedRequests = (order.refundRequests || []).filter((request) => request.status === 'approved');
+
+                                return (
+                                    <article
+                                        key={order.id}
+                                        style={{
+                                            background: 'white',
+                                            border: '1px solid #eee',
+                                            borderRadius: '8px',
+                                            padding: '0.75rem',
+                                        }}
+                                    >
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr auto', gap: '0.75rem', alignItems: 'start' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 900 }}>{order.productName}</div>
+                                                <div style={{ fontSize: '0.82rem', color: '#666', marginTop: '0.15rem' }}>
+                                                    {order.id}
+                                                </div>
+                                                <div style={{ fontSize: '0.86rem', color: '#444', marginTop: '0.35rem' }}>
+                                                    {primaryItem?.variantName ? `${primaryItem.variantName} · ` : ''}
+                                                    {order.customerEmail || order.shippingEmail || 'no email'}
+                                                </div>
+                                                <div style={{ fontSize: '0.82rem', color: '#666', marginTop: '0.25rem' }}>
+                                                    Paid: {formatDateTime(order.paidAt)} · Status: {order.status} / {order.fulfillmentStatus || '—'}
+                                                </div>
+                                                {order.shippingAddressLine1 ? (
+                                                    <div style={{ fontSize: '0.82rem', color: '#666', marginTop: '0.25rem' }}>
+                                                        Ship: {order.shippingAddressLine1}, {order.shippingPostalCode} {order.shippingCity}, {order.shippingCountry}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontWeight: 900 }}>{formatMoneyMinor(order.amountTotal, order.currency)}</div>
+                                                <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                                                    Refunded: {formatMoneyMinor(order.refundedAmount, order.currency)}
+                                                </div>
+                                                <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                                                    Refund status: {order.refundStatus || 'none'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {(order.refundRequests || []).length > 0 && (
+                                            <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.5rem' }}>
+                                                {order.refundRequests.map((request) => (
+                                                    <div
+                                                        key={request.id}
+                                                        style={{
+                                                            border: '1px solid #f1d7bd',
+                                                            borderRadius: '8px',
+                                                            padding: '0.65rem',
+                                                            background: '#fff7ed',
+                                                            display: 'grid',
+                                                            gridTemplateColumns: '1fr auto',
+                                                            gap: '0.75rem',
+                                                        }}
+                                                    >
+                                                        <div>
+                                                            <div style={{ fontWeight: 800, fontSize: '0.88rem' }}>
+                                                                Refund request #{request.id} · {request.status}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.2rem' }}>
+                                                                {request.requestType} · {request.customerEmail} · {formatDateTime(request.createdAt)}
+                                                            </div>
+                                                            {request.customerReason || request.customerNotes ? (
+                                                                <div style={{ fontSize: '0.82rem', color: '#444', marginTop: '0.35rem' }}>
+                                                                    {request.customerReason || request.customerNotes}
+                                                                </div>
+                                                            ) : null}
+                                                            {request.adminReason ? (
+                                                                <div style={{ fontSize: '0.8rem', color: '#555', marginTop: '0.35rem' }}>
+                                                                    Admin: {request.adminReason}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                                            {request.status === 'submitted' && (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => reviewRefundRequest(request, 'approved')}
+                                                                        disabled={busy}
+                                                                        style={{ background: '#ecfdf5', color: '#166534', padding: '0.35rem 0.55rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.78rem' }}
+                                                                    >
+                                                                        Approve
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => reviewRefundRequest(request, 'rejected')}
+                                                                        disabled={busy}
+                                                                        style={{ background: '#fff0f0', color: '#a40000', padding: '0.35rem 0.55rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.78rem' }}
+                                                                    >
+                                                                        Reject
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                            {request.status === 'approved' && refundableMinor > 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => createAdminRefund(order, request)}
+                                                                    disabled={busy}
+                                                                    style={{ background: '#341320', color: 'white', padding: '0.35rem 0.55rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.78rem' }}
+                                                                >
+                                                                    Refund
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                                            {pendingRequests.length > 0 ? (
+                                                <span style={{ fontSize: '0.78rem', color: '#7a3f00', fontWeight: 800 }}>
+                                                    {pendingRequests.length} request(s) need review
+                                                </span>
+                                            ) : null}
+                                            {approvedRequests.length > 0 ? (
+                                                <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 800 }}>
+                                                    {approvedRequests.length} approved refund request(s)
+                                                </span>
+                                            ) : null}
+                                            {refundableMinor > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => createAdminRefund(order)}
+                                                    disabled={busy}
+                                                    style={{ background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', padding: '0.35rem 0.55rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.78rem' }}
+                                                >
+                                                    Manual refund override
+                                                </button>
+                                            )}
+                                        </div>
+                                    </article>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
                 {!selectedPost ? (

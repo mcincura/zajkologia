@@ -172,4 +172,145 @@ export const products = [
       closingNote: 'Jednorazový nákup, okamžitý prístup po zaplatení.',
     },
   },
+  {
+    id: 3,
+    slug: 'cuchacia-lopticka-pre-kraliky',
+    name: 'Čuchacie loptičky',
+    shortDescription:
+      'Mäkké textilné loptičky na schovávanie kúskov sušených byliniek alebo obľúbených pamlskov. Pomáhajú podporiť prirodzené hľadanie potravy.',
+    description:
+      'Interaktívne čuchacie loptičky, ktoré podporujú prirodzené hľadanie potravy a vedia spomaliť maškrtenie.',
+    price: '9,99 €',
+    originalPrice: '14,99 €',
+    saleLabel: '-33 %',
+    saleDescription: 'Predobjednávková cena',
+    preorderDeal: {
+      anchorLabel: 'Bežná cena po predobjednávke',
+      currentLabel: 'Predobjednávka teraz',
+    },
+    shippingNote: 'Doprava CZ/SK + 1 €',
+    stockNote: '12 ks celkovo',
+    preorderNote: 'Limitovaná predobjednávka',
+    purchaseLabel: 'Predobjednávka čoskoro',
+    isMock: true,
+    hideStatusBadges: true,
+    productType: 'physical',
+    image: '/product-gallery/snuffle-ball/black-white.jpg',
+    heroImage: '/product-gallery/snuffle-ball/black-white.jpg',
+    languages: [],
+    deliveryNote:
+      'Fyzický produkt. Doprava po Slovensku a Česku je 1 €.',
+    featureList: [
+      'Predobjednávková cena 9,99 € namiesto 14,99 €',
+      'Ručne vyrábané v malých sériách',
+      'Doprava CZ/SK + 1 €',
+      '12 kusov celkovo',
+      'Štyri farebné kombinácie',
+      'Na schovávanie byliniek alebo pamlskov',
+    ],
+    colorVariants: [
+      {
+        code: 'black_white',
+        name: 'Čierno-biela',
+        available: 3,
+        image: '/product-gallery/snuffle-ball/black-white.jpg',
+        swatches: ['#111111', '#f5f0e8'],
+      },
+      {
+        code: 'grey',
+        name: 'Sivá',
+        available: 3,
+        image: '/product-gallery/snuffle-ball/grey.jpg',
+        swatches: ['#9da19c'],
+      },
+      {
+        code: 'black_caramel',
+        name: 'Čierno-karamelová',
+        available: 3,
+        image: '/product-gallery/snuffle-ball/black-caramel.jpg',
+        swatches: ['#111111', '#b9825f'],
+      },
+      {
+        code: 'cream',
+        name: 'Krémová',
+        available: 3,
+        image: '/product-gallery/snuffle-ball/cream.jpg',
+        swatches: ['#f6f1df'],
+      },
+    ],
+    pageTheme: {
+      accent: '#b8d8ca',
+      accentStrong: '#376454',
+      tint: '#eef7f2',
+      surface: '#fffdf8',
+      glow: 'rgba(55, 100, 84, 0.16)',
+    },
+    productPage: {
+      lead:
+        'Mäkké textilné loptičky, do ktorých môžete schovať kúsky sušených byliniek alebo obľúbený pamlsok a podporiť tak prirodzené hľadanie potravy.',
+      galleryImages: [
+        '/product-gallery/snuffle-ball/black-white.jpg',
+        '/product-gallery/snuffle-ball/grey.jpg',
+        '/product-gallery/snuffle-ball/black-caramel.jpg',
+        '/product-gallery/snuffle-ball/cream.jpg',
+      ],
+      trustBadges: [],
+      handmadeStory: {
+        title: 'Ručne vyrábané po kusoch',
+        text:
+          'Každú loptičku striháme, skladáme a dokončujeme ručne. Predobjednávka preto nie je len zľava, ale aj spôsob, ako pripraviť malé množstvo kusov bez zbytočného skladu.',
+        items: [
+          {
+            title: 'Ručne skladané záhyby',
+            text:
+              'Textilné vrstvy sa ukladajú tak, aby v nich vznikli miesta na sušené bylinky alebo obľúbený pamlsok.',
+            image: '/product-gallery/snuffle-ball/black-white.jpg',
+          },
+          {
+            title: 'Malé série',
+            text:
+              'Zatiaľ počítame s 12 kusmi celkovo, aby výroba ostala zvládnuteľná a poctivá.',
+            image: '/product-gallery/snuffle-ball/black-caramel.jpg',
+          },
+          {
+            title: 'Každý kus je trochu iný',
+            text:
+              'Keďže ide o ručnú prácu, jednotlivé loptičky sa môžu jemne líšiť tvarom záhybov aj výsledným výrazom.',
+            image: '/product-gallery/snuffle-ball/cream.jpg',
+          },
+        ],
+      },
+      contentTitle: 'Prečo ich zaradiť do králičej rutiny?',
+      detailSections: [
+        {
+          icon: 'Palette',
+          title: 'Štyri farebné kombinácie',
+          text:
+            'Vyberte si z čierno-bielej, sivej, čierno-karamelovej alebo krémovej verzie. Zatiaľ počítame s 12 dostupnými kusmi celkovo.',
+        },
+        {
+          icon: 'PackageCheck',
+          title: 'Limitovaná predobjednávka',
+          text:
+            'Plná cena bude 14,99 €. V predobjednávke je pripravená nižšia cena 9,99 € za kus.',
+        },
+        {
+          icon: 'Truck',
+          title: 'Jednoduché doručenie',
+          text:
+            'Pre Slovensko a Česko počítame s dopravou za 1 €. Finálne doručovacie údaje doplníme pri spustení predobjednávky.',
+        },
+        {
+          icon: 'Tag',
+          title: 'Na pomalšie maškrtenie',
+          text:
+            'Do textilných záhybov môžete ukryť malé kúsky vhodných pamlskov alebo sušených byliniek, aby králik musel potravu hľadať nosom.',
+        },
+      ],
+      closingTitle: 'Chceš si pripraviť miesto v predobjednávke?',
+      closingText:
+        'Tento produkt je zatiaľ pripravený ako predobjednávkový návrh. Po zapnutí predaja bude možné vybrať farebnú kombináciu a dokončiť objednávku za predobjednávkovú cenu.',
+      closingNote: 'Zatiaľ zobrazujeme dostupnosť 3 ks pri každej farbe, 12 ks celkovo.',
+    },
+  },
 ];

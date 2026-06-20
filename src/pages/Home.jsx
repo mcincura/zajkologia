@@ -273,7 +273,7 @@ const Home = () => {
               {filteredProducts.length > 0 && (
                 <div id="produkty" style={{ marginBottom: '5rem', scrollMarginTop: '90px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <h2 style={{ margin: 0 }}>Digitálne produkty</h2>
+                    <h2 style={{ margin: 0 }}>Produkty</h2>
                     <Link to="/?category=Produkty" style={{ color: '#7a3f00', fontWeight: 800 }}>
                       Zobraziť všetky produkty
                     </Link>

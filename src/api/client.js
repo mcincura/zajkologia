@@ -53,13 +53,18 @@ export const apiFetch = async (path, options = {}) => {
 
 export const createCheckoutSession = async (productSlug, options = {}) => {
     const explicitDiscountToken = options.discountToken;
-    const storedDiscountToken = explicitDiscountToken ? '' : getStoredWelcomeDiscountToken();
+    const storedDiscountToken =
+        explicitDiscountToken || options.disableStoredDiscount
+            ? ''
+            : getStoredWelcomeDiscountToken();
     const discountToken = explicitDiscountToken || storedDiscountToken;
     const attribution = options.attribution || getCheckoutAttribution();
     const requestCheckoutSession = (token) => apiFetch('/api/stripe/checkout-session', {
         method: 'POST',
         body: JSON.stringify({
             productSlug,
+            ...(options.variantCode ? { variantCode: options.variantCode } : {}),
+            ...(options.quantity ? { quantity: options.quantity } : {}),
             ...(token ? { discountToken: token } : {}),
             attribution,
         }),

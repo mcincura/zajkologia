@@ -54,6 +54,16 @@ const Footer = () => {
             >
               Obchodné podmienky
             </Link>
+            <Link
+              to="/odstupenie-od-zmluvy"
+              style={{
+                color: "var(--color-white)",
+                textDecoration: "underline",
+                marginRight: "1rem",
+              }}
+            >
+              Odstúpenie od zmluvy
+            </Link>
             <button
               onClick={() => setShowDisclaimer(true)}
               style={{

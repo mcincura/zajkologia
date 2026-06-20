@@ -113,6 +113,20 @@ function schemaPrice(amount) {
   return (amount / 100).toFixed(2);
 }
 
+function parseMinorUnitsFromPrice(price) {
+  const normalized = String(price || '')
+    .replace(/\s/g, '')
+    .replace(',', '.')
+    .match(/\d+(?:\.\d{1,2})?/);
+
+  if (!normalized) return null;
+
+  const amount = Number.parseFloat(normalized[0]);
+  if (!Number.isFinite(amount)) return null;
+
+  return Math.round(amount * 100);
+}
+
 async function fetchJson(apiPath) {
   const url = `${API_BASE_URL}${apiPath}`;
   const controller = new AbortController();
@@ -162,7 +176,22 @@ function mergeProducts(apiProducts) {
   return frontendProducts.map((product) => {
     const apiProduct = apiBySlug.get(product.slug);
     if (!apiProduct) {
-      throw new Error(`Missing live product data for ${product.slug}`);
+      if (!product.isMock) {
+        throw new Error(`Missing live product data for ${product.slug}`);
+      }
+
+      const amount = parseMinorUnitsFromPrice(product.price);
+      if (typeof amount !== 'number') {
+        throw new Error(`Missing preview price data for ${product.slug}`);
+      }
+
+      return {
+        ...product,
+        amount,
+        currency: 'EUR',
+        stripePriceActive: false,
+        seoAvailability: 'https://schema.org/PreOrder',
+      };
     }
 
     if (typeof apiProduct.amount !== 'number' || !apiProduct.currency) {
@@ -378,9 +407,9 @@ function productSchema(product, canonical, image) {
       url: canonical,
       price: schemaPrice(product.amount),
       priceCurrency: product.currency,
-      availability: product.stripePriceActive
+      availability: product.seoAvailability || (product.stripePriceActive
         ? 'https://schema.org/InStock'
-        : 'https://schema.org/OutOfStock',
+        : 'https://schema.org/OutOfStock'),
       itemCondition: 'https://schema.org/NewCondition',
     },
   };
@@ -397,7 +426,7 @@ function homeBody(posts, products) {
     </section>
     <p><a href="/o-nas">Kto stojí za Zajkológiou</a></p>
     <section id="produkty">
-      <h2>Digitálne produkty</h2>
+      <h2>Produkty</h2>
       <div class="seo-fallback__grid">
         ${products
           .map(

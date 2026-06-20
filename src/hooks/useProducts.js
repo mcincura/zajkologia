@@ -2,17 +2,60 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadProduct, loadProducts } from '../api/client';
 import { products as fallbackProducts } from '../data/products';
 
+const mergeColorVariants = ({ fallback, apiProduct }) => {
+  if (!fallback.colorVariants?.length || !apiProduct.variants?.length) {
+    return fallback.colorVariants;
+  }
+
+  const variantsByCode = new Map(apiProduct.variants.map((variant) => [variant.code, variant]));
+
+  return fallback.colorVariants.map((variant) => {
+    const apiVariant = variantsByCode.get(variant.code);
+    if (!apiVariant) return variant;
+
+    return {
+      ...variant,
+      available: apiVariant.availableQuantity ?? variant.available,
+      sellableQuantity: apiVariant.sellableQuantity,
+      reservedQuantity: apiVariant.reservedQuantity,
+      soldQuantity: apiVariant.soldQuantity,
+      isActive: apiVariant.isActive,
+    };
+  });
+};
+
 const mergeProduct = (apiProduct) => {
   const fallback = fallbackProducts.find((product) => product.slug === apiProduct.slug);
   if (!fallback) return null;
+  const colorVariants = mergeColorVariants({ fallback, apiProduct });
+  const totalAvailable = colorVariants?.reduce(
+    (sum, variant) => sum + Number(variant.available || 0),
+    0
+  );
+  const hasLiveProductData =
+    apiProduct.stripePriceActive === true ||
+    Array.isArray(apiProduct.variants) ||
+    typeof apiProduct.amount === 'number';
 
   return {
     ...fallback,
+    productType: apiProduct.productType || fallback.productType,
+    fulfillmentType: apiProduct.fulfillmentType || fallback.fulfillmentType,
     price: apiProduct.price || fallback.price || 'Cena v pokladni',
+    originalPrice: apiProduct.originalPrice || fallback.originalPrice,
     amount: apiProduct.amount,
+    originalAmount: apiProduct.originalAmount,
     currency: apiProduct.currency,
+    shippingAmount: apiProduct.shippingAmount,
+    shippingPrice: apiProduct.shippingPrice,
     stripePriceActive: apiProduct.stripePriceActive,
+    isMock: fallback.productType === 'physical' ? !hasLiveProductData : fallback.isMock,
     url: apiProduct.url,
+    colorVariants,
+    stockNote:
+      fallback.productType === 'physical' && Number.isFinite(totalAvailable)
+        ? `${totalAvailable} ks celkovo`
+        : fallback.stockNote,
   };
 };
 

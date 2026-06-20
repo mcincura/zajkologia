@@ -8,6 +8,7 @@ import Admin from './pages/Admin';
 import CheckoutSuccess from './pages/CheckoutSuccess';
 import Terms from './pages/Terms';
 import About from './pages/About';
+import WithdrawalRequest from './pages/WithdrawalRequest';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="checkout/success" element={<CheckoutSuccess />} />
           <Route path="o-nas" element={<About />} />
           <Route path="obchodne-podmienky" element={<Terms />} />
+          <Route path="odstupenie-od-zmluvy" element={<WithdrawalRequest />} />
           <Route path="admin" element={<Admin />} />
           <Route path="*" element={<div className="container">404 Not Found</div>} />
         </Route>
