@@ -253,6 +253,12 @@ const ProductDetails = () => {
     trustBadges = [],
     languageNote,
     handmadeStory,
+    purchaseHighlights = [],
+    preorderMicrocopy,
+    variantsIntro,
+    usageSteps,
+    preorderInfo,
+    faqItems = [],
     contentTitle,
     detailSections = [],
     closingTitle,
@@ -293,7 +299,7 @@ const ProductDetails = () => {
       : selectedVariantUnavailable
         ? 'Vypredané'
         : product.productType === 'physical'
-          ? 'Predobjednať'
+          ? `Predobjednať za ${priceLabel}`
           : 'Kúpiť';
 
   const showGalleryControls = galleryImages.length > 1;
@@ -478,9 +484,24 @@ const ProductDetails = () => {
                 </button>
               </div>
 
+              {preorderMicrocopy && (
+                <p className="product-page__preorder-note">{preorderMicrocopy}</p>
+              )}
+
               <p className="product-page__delivery">
                 {product.deliveryNote || 'Po zaplatení dostanete príručku vo forme PDF na email.'}
               </p>
+
+              {purchaseHighlights.length > 0 && (
+                <ul className="product-page__purchase-highlights">
+                  {purchaseHighlights.map((highlight) => (
+                    <li key={highlight}>
+                      <CheckCircle2 size={15} strokeWidth={2.4} />
+                      <span>{highlight}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               {productStatusItems.length > 0 && (
                 <div className="product-page__status-list">
@@ -498,6 +519,9 @@ const ProductDetails = () => {
                   <div className="product-page__variants-header">
                     <span>Farebné kombinácie</span>
                   </div>
+                  {variantsIntro && (
+                    <p className="product-page__variants-intro">{variantsIntro}</p>
+                  )}
                   <div className="product-page__variant-grid">
                     {colorVariants.map((variant) => {
                       const isSelected = selectedVariant?.code === variant.code;
@@ -559,6 +583,59 @@ const ProductDetails = () => {
         </div>
       </section>
 
+      <section className="product-page__section">
+        <div className="container product-page__container">
+          <div className="product-page__copy-block product-page__copy-block--primary">
+            <h2 className="product-page__content-title">{contentTitle}</h2>
+
+            {detailSections.length > 0 && (
+              <div className="product-page__story-list">
+                {detailSections.map((section) => (
+                  <article key={section.title} className="product-page__story">
+                    <div className="product-page__story-header">
+                      <div className="product-page__benefit-icon">
+                        <SectionIcon name={section.icon} />
+                      </div>
+                      <div className="product-page__story-heading">
+                        <h3>{section.title}</h3>
+                      </div>
+                    </div>
+
+                    {section.text && <p>{section.text}</p>}
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {usageSteps?.items?.length > 0 && (
+        <section className="product-page__section">
+          <div className="container product-page__container">
+            <div className="product-page__copy-block product-page__copy-block--steps">
+              <div className="product-page__section-heading">
+                <span className="product-page__section-kicker">Použitie</span>
+                <h2>{usageSteps.title}</h2>
+              </div>
+
+              <div className="product-page__step-list">
+                {usageSteps.items.map((step, index) => (
+                  <article key={step} className="product-page__step">
+                    <span className="product-page__step-index">{index + 1}</span>
+                    <p>{step}</p>
+                  </article>
+                ))}
+              </div>
+
+              {usageSteps.note && (
+                <p className="product-page__step-note">{usageSteps.note}</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {handmadeStory && (
         <section className="product-page__section product-page__section--handmade">
           <div className="container product-page__container">
@@ -595,32 +672,49 @@ const ProductDetails = () => {
         </section>
       )}
 
-      <section className="product-page__section">
-        <div className="container product-page__container">
-          <div className="product-page__copy-block product-page__copy-block--primary">
-            <h2 className="product-page__content-title">{contentTitle}</h2>
+      {preorderInfo?.items?.length > 0 && (
+        <section className="product-page__section">
+          <div className="container product-page__container">
+            <div className="product-page__copy-block product-page__copy-block--info">
+              <div className="product-page__section-heading">
+                <span className="product-page__section-kicker">Predobjednávka</span>
+                <h2>{preorderInfo.title}</h2>
+              </div>
 
-            {detailSections.length > 0 && (
-              <div className="product-page__story-list">
-                {detailSections.map((section) => (
-                  <article key={section.title} className="product-page__story">
-                    <div className="product-page__story-header">
-                      <div className="product-page__benefit-icon">
-                        <SectionIcon name={section.icon} />
-                      </div>
-                      <div className="product-page__story-heading">
-                        <h3>{section.title}</h3>
-                      </div>
-                    </div>
-
-                    {section.text && <p>{section.text}</p>}
+              <div className="product-page__info-grid">
+                {preorderInfo.items.map((item) => (
+                  <article key={item.title} className="product-page__info-item">
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
                   </article>
                 ))}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {faqItems.length > 0 && (
+        <section className="product-page__section">
+          <div className="container product-page__container">
+            <div className="product-page__copy-block product-page__copy-block--faq">
+              <div className="product-page__section-heading">
+                <span className="product-page__section-kicker">FAQ</span>
+                <h2>Často kladené otázky</h2>
+              </div>
+
+              <div className="product-page__faq-list">
+                {faqItems.map((item) => (
+                  <details key={item.question} className="product-page__faq-item">
+                    <summary>{item.question}</summary>
+                    <p>{item.answer}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="product-page__section">
         <div className="container product-page__container">
@@ -643,7 +737,7 @@ const ProductDetails = () => {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={checkoutLoading || isPreviewProduct}
+                disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable}
                 className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
               >
                 <ShoppingCart size={18} />

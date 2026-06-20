@@ -177,7 +177,7 @@ export const products = [
     slug: 'cuchacia-lopticka-pre-kraliky',
     name: 'Čuchacie loptičky',
     shortDescription:
-      'Mäkké textilné loptičky na schovávanie kúskov sušených byliniek alebo obľúbených pamlskov. Pomáhajú podporiť prirodzené hľadanie potravy.',
+      'Mäkké textilné loptičky na schovávanie sušených byliniek alebo malých pamlskov. Králik ich musí hľadať nosom a maškrtenie je vďaka tomu pokojnejšie.',
     description:
       'Interaktívne čuchacie loptičky, ktoré podporujú prirodzené hľadanie potravy a vedia spomaliť maškrtenie.',
     price: '7,99 €',
@@ -189,7 +189,7 @@ export const products = [
       currentLabel: 'Predobjednávka teraz',
     },
     shippingNote: 'Doprava CZ/SK + 1 €',
-    stockNote: '12 ks celkovo',
+    stockNote: 'Limitovaná dostupnosť',
     preorderNote: 'Limitovaná predobjednávka',
     purchaseLabel: 'Predobjednávka čoskoro',
     isMock: true,
@@ -204,7 +204,7 @@ export const products = [
       'Predobjednávková cena 7,99 € namiesto 12,99 €',
       'Ručne vyrábané v malých sériách',
       'Doprava CZ/SK + 1 €',
-      '12 kusov celkovo',
+      'Limitovaná dostupnosť podľa variantov',
       'Štyri farebné kombinácie',
       'Na schovávanie byliniek alebo pamlskov',
     ],
@@ -247,30 +247,39 @@ export const products = [
     },
     productPage: {
       lead:
-        'Mäkké textilné loptičky, do ktorých môžete schovať kúsky sušených byliniek alebo obľúbený pamlsok a podporiť tak prirodzené hľadanie potravy.',
+        'Mäkké textilné loptičky, do ktorých schováš sušené bylinky alebo malé pamlsky a dopraješ tak králikovi zábavnejšie, pomalšie a prirodzenejšie hľadanie potravy.',
       galleryImages: [
         '/product-gallery/snuffle-ball/black-white.jpg',
+        '/product-gallery/snuffle-ball/bunny-grey-sniff.jpg',
+        '/product-gallery/snuffle-ball/handmade-finished.jpg',
         '/product-gallery/snuffle-ball/grey.jpg',
         '/product-gallery/snuffle-ball/black-caramel.jpg',
         '/product-gallery/snuffle-ball/cream.jpg',
         '/product-gallery/snuffle-ball/bunny-grey-front.jpg',
         '/product-gallery/snuffle-ball/bunny-grey-ready.jpg',
-        '/product-gallery/snuffle-ball/bunny-grey-sniff.jpg',
         '/product-gallery/snuffle-ball/handmade-materials.jpg',
         '/product-gallery/snuffle-ball/handmade-cutting.jpg',
-        '/product-gallery/snuffle-ball/handmade-finished.jpg',
         '/product-gallery/snuffle-ball/handmade-label.jpg',
       ],
       trustBadges: [],
+      purchaseHighlights: [
+        'Ručne vyrábané po kusoch',
+        'Doprava po Slovensku a Česku za 1 €',
+        '4 farebné kombinácie',
+        'Vhodné na sušené bylinky a malé pamlsky',
+      ],
+      preorderMicrocopy:
+        'Predobjednávka platí pre prvú malú sériu ručne vyrábaných kusov. Počet miest je obmedzený podľa aktuálnej dostupnosti farebných variantov.',
+      variantsIntro: 'Vyber si variant, ktorý sa ti páči najviac. Každý je dostupný len v malom počte kusov.',
       handmadeStory: {
-        title: 'Ručne vyrábané po kusoch',
+        title: 'Ručne vyrábané po kusoch, nie vo veľkej sérii',
         text:
-          'Každú loptičku striháme, skladáme a dokončujeme ručne. Predobjednávka preto nie je len zľava, ale aj spôsob, ako pripraviť malé množstvo kusov bez zbytočného skladu.',
+          'Každú čuchaciu loptičku striháme, skladáme a dokončujeme ručne. Vzniká tak malá séria kusov, pri ktorej si vieme postrážiť vzhľad, veľkosť aj finálnu kontrolu pred odoslaním. Predobjednávka nám umožňuje pripraviť tieto kúsky bez zbytočného skladu a pritom zachovať poctivú ručnú výrobu.',
         items: [
           {
             title: 'Materiál pripravený po farbách',
             text:
-              'Každý kus začína nastrihanými textilnými dielmi, z ktorých postupne vzniknú záhyby na pamlsky a bylinky.',
+              'Každý kus začína pripravenými textilnými dielmi, z ktorých postupne vznikajú záhyby na ukrytie byliniek a pamlskov.',
             image: '/product-gallery/snuffle-ball/handmade-materials.jpg',
           },
           {
@@ -293,37 +302,103 @@ export const products = [
           },
         ],
       },
-      contentTitle: 'Prečo ich zaradiť do králičej rutiny?',
+      contentTitle: 'Prečo si čuchacie loptičky obľúbia králiky aj ich majitelia',
       detailSections: [
         {
-          icon: 'Palette',
-          title: 'Štyri farebné kombinácie',
+          icon: 'ScanSearch',
+          title: 'Zábavnejšie hľadanie potravy',
           text:
-            'Vyberte si z čierno-bielej, sivo-zelenej, čierno-karamelovej alebo bielej verzie. Zatiaľ počítame s 12 dostupnými kusmi celkovo.',
+            'Do textilných záhybov môžeš ukryť malé kúsky sušených byliniek alebo vhodného pamlsku, takže králik musí odmenu najprv nájsť nosom.',
+        },
+        {
+          icon: 'Clock3',
+          title: 'Pomalšie maškrtenie',
+          text:
+            'Namiesto rýchleho zhltnutia dostane králik jednoduchú aktivitu, pri ktorej sa k odmene dostáva postupne.',
+        },
+        {
+          icon: 'HeartPulse',
+          title: 'Viac zvedavosti a obohatenia',
+          text:
+            'Čuchanie, hľadanie a objavovanie robí z maškrtenia zaujímavejšiu súčasť dňa a príjemné spestrenie bežnej rutiny.',
+        },
+        {
+          icon: 'Layers3',
+          title: 'Mäkké textilné prevedenie',
+          text:
+            'Loptička zostáva mäkká a príjemná na dotyk, pričom v záhyboch vytvára priestor na schovanie malých odmien.',
         },
         {
           icon: 'PackageCheck',
-          title: 'Limitovaná predobjednávka',
+          title: 'Ručná výroba v malej sérii',
           text:
-            'Plná cena bude 12,99 €. V predobjednávke je pripravená nižšia cena 7,99 € za kus.',
+            'Každý kus pripravujeme po jednom, aby sme si vedeli postrážiť vzhľad, spracovanie a finálnu kontrolu pred odoslaním.',
+        },
+      ],
+      usageSteps: {
+        title: 'Ako čuchacie loptičky používať',
+        note: 'Najlepšie funguje s menšími kúskami, ktoré sa dajú ľahko ukryť medzi textilné záhyby.',
+        items: [
+          'Do záhybov vlož malé kúsky sušených byliniek alebo vhodného pamlsku.',
+          'Polož loptičku králikovi do priestoru, kde sa cíti bezpečne a pokojne.',
+          'Nechaj ho hľadať odmenu nosom a objavovať ju vlastným tempom.',
+        ],
+      },
+      preorderInfo: {
+        title: 'Dôležité informácie k predobjednávke',
+        items: [
+          {
+            title: 'Predobjednávková cena',
+            text: 'Predobjednávková cena 7,99 € platí pre prvú malú sériu. Po jej ukončení bude bežná cena 12,99 €.',
+          },
+          {
+            title: 'Malá séria',
+            text: 'Každý farebný variant je dostupný len v obmedzenom počte kusov. Aktuálnu dostupnosť vidíš priamo pri výbere farby.',
+          },
+          {
+            title: 'Doprava',
+            text: 'Doprava po Slovensku a Česku je 1 €.',
+          },
+          {
+            title: 'Fyzický produkt',
+            text: 'Toto je fyzický produkt, ktorý bude odoslaný po spracovaní predobjednávky.',
+          },
+        ],
+      },
+      faqItems: [
+        {
+          question: 'Je to fyzický produkt?',
+          answer: 'Áno, ide o fyzickú ručne vyrábanú čuchaciu loptičku pre králiky.',
         },
         {
-          icon: 'Truck',
-          title: 'Jednoduché doručenie',
-          text:
-            'Pre Slovensko a Česko počítame s dopravou za 1 €. Finálne doručovacie údaje doplníme pri spustení predobjednávky.',
+          question: 'Čo sa do nej dá schovať?',
+          answer: 'Malé kúsky sušených byliniek alebo vhodných pamlskov, ktoré sa dajú ukryť medzi textilné záhyby.',
         },
         {
-          icon: 'Tag',
-          title: 'Na pomalšie maškrtenie',
-          text:
-            'Do textilných záhybov môžete ukryť malé kúsky vhodných pamlskov alebo sušených byliniek, aby králik musel potravu hľadať nosom.',
+          question: 'Môžem si vybrať farbu?',
+          answer: 'Áno, vyberáš si z aktuálne dostupných farebných kombinácií.',
+        },
+        {
+          question: 'Prečo je to predobjednávka?',
+          answer: 'Každý kus vyrábame ručne po jednom, preto najprv otvárame malú sériu za zvýhodnenú cenu a podľa objednávok ju pripravíme na odoslanie.',
+        },
+        {
+          question: 'Koľko kusov je dostupných?',
+          answer: 'Počet kusov pri jednotlivých farbách je limitovaný a závisí od aktuálnej dostupnosti pri konkrétnom variante.',
+        },
+        {
+          question: 'Kam doručujete?',
+          answer: 'Po Slovensku a Česku. Aktuálne je doprava za 1 €.',
+        },
+        {
+          question: 'Je každá loptička úplne rovnaká?',
+          answer: 'Keďže ide o ručnú výrobu, jednotlivé kusy sa môžu v drobných detailoch jemne líšiť. Práve to je prirodzená súčasť malej handmade série.',
         },
       ],
       closingTitle: 'Chceš si pripraviť miesto v predobjednávke?',
       closingText:
-        'Tento produkt je zatiaľ pripravený ako predobjednávkový návrh. Po zapnutí predaja bude možné vybrať farebnú kombináciu a dokončiť objednávku za predobjednávkovú cenu.',
-      closingNote: 'Zatiaľ zobrazujeme dostupnosť 3 ks pri každej farbe, 12 ks celkovo.',
+        'Predobjednávková cena 7,99 € platí len pre prvú limitovanú sériu ručne vyrábaných čuchacích loptičiek. Vyber si svoju farebnú kombináciu skôr, než sa dostupné kusy minú.',
+      closingNote: 'Fyzický produkt • Doprava SK/CZ za 1 € • Malá ručná séria',
     },
   },
 ];
