@@ -546,7 +546,9 @@ const ProductDetails = () => {
                 </div>
               )}
 
-              {!isPreviewProduct && <EmailCaptureOffer placement="product" />}
+              {!isPreviewProduct && product.productType !== 'physical' && (
+                <EmailCaptureOffer placement="product" />
+              )}
 
               {checkoutError && (
                 <div className="product-page__error">{checkoutError}</div>
