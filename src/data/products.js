@@ -247,7 +247,7 @@ export const products = [
     },
     productPage: {
       lead:
-        'Mäkké textilné loptičky, do ktorých schováš sušené bylinky alebo malé pamlsky a dopraješ tak králikovi zábavnejšie, pomalšie a prirodzenejšie hľadanie potravy.',
+        'Doprajte svojmu ušatému priateľovi aktivitu, ktorá ho nielen zabaví, ale aj mentálne unaví! Naša čuchacia loptička je navrhnutá tak, aby stimulovala prirodzené inštinkty králikov pri hľadaní potravy, podporila ich zvedavosť a zároveň im priniesla kopec zábavy pri objavovaní skrytých dobrôt.',
       galleryImages: [
         '/product-gallery/snuffle-ball/black-white.jpg',
         '/product-gallery/snuffle-ball/bunny-grey-sniff.jpg',
