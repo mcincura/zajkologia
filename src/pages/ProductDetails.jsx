@@ -77,7 +77,7 @@ const ProductDetails = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const backTo = location.state?.from || '/?category=Produkty';
-  const { product } = useProduct(slug);
+  const { product, loading: productLoading } = useProduct(slug);
   const { products } = useProducts();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
@@ -233,6 +233,14 @@ const ProductDetails = () => {
       window.removeEventListener('resize', syncHeroHeight);
     };
   }, [slug, product?.productType, productLanguagesKey, trustBadgeCount]);
+
+  if (productLoading && !product) {
+    return (
+      <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
+        <h2>Načítavam produkt…</h2>
+      </div>
+    );
+  }
 
   if (!product) {
     return (

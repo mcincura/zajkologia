@@ -2,134 +2,83 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadProduct, loadProducts } from '../api/client';
 import { products as fallbackProducts } from '../data/products';
 
-const mergeRichObject = (apiValue, fallbackValue) => {
-  if (apiValue && typeof apiValue === 'object' && !Array.isArray(apiValue)) {
-    return {
-      ...(fallbackValue && typeof fallbackValue === 'object' && !Array.isArray(fallbackValue)
-        ? fallbackValue
-        : {}),
-      ...apiValue,
-    };
-  }
+const mapColorVariants = (apiProduct) => {
+  if (!apiProduct.variants?.length) return [];
 
-  return fallbackValue;
+  return apiProduct.variants.map((variant) => ({
+    code: variant.code,
+    name: variant.name,
+    available: variant.availableQuantity ?? variant.sellableQuantity ?? 0,
+    image: variant.image,
+    swatches: variant.swatches || [],
+    sellableQuantity: variant.sellableQuantity,
+    reservedQuantity: variant.reservedQuantity,
+    soldQuantity: variant.soldQuantity,
+    isActive: variant.isActive,
+  }));
 };
 
-const mergeList = (apiValue, fallbackValue) => {
-  if (Array.isArray(apiValue) && apiValue.length > 0) return apiValue;
-  return Array.isArray(fallbackValue) ? fallbackValue : [];
-};
+const mapApiProduct = (apiProduct) => {
+  if (!apiProduct?.slug) return null;
 
-const mergeColorVariants = ({ fallback, apiProduct }) => {
-  if (!apiProduct.variants?.length) {
-    return fallback?.colorVariants || [];
-  }
-
-  if (!fallback?.colorVariants?.length) {
-    return apiProduct.variants.map((variant) => ({
-      code: variant.code,
-      name: variant.name,
-      available: variant.availableQuantity ?? variant.sellableQuantity ?? 0,
-      image: variant.image,
-      swatches: variant.swatches || [],
-      sellableQuantity: variant.sellableQuantity,
-      reservedQuantity: variant.reservedQuantity,
-      soldQuantity: variant.soldQuantity,
-      isActive: variant.isActive,
-    }));
-  }
-
-  const variantsByCode = new Map(apiProduct.variants.map((variant) => [variant.code, variant]));
-
-  return fallback.colorVariants.map((variant) => {
-    const apiVariant = variantsByCode.get(variant.code);
-    if (!apiVariant) return variant;
-
-    return {
-      ...variant,
-      available: apiVariant.availableQuantity ?? variant.available,
-      image: apiVariant.image || variant.image,
-      swatches: apiVariant.swatches?.length ? apiVariant.swatches : variant.swatches,
-      sellableQuantity: apiVariant.sellableQuantity,
-      reservedQuantity: apiVariant.reservedQuantity,
-      soldQuantity: apiVariant.soldQuantity,
-      isActive: apiVariant.isActive,
-    };
-  });
-};
-
-const mergeProduct = (apiProduct) => {
-  const fallback = fallbackProducts.find((product) => product.slug === apiProduct.slug);
-  const colorVariants = mergeColorVariants({ fallback, apiProduct });
+  const colorVariants = mapColorVariants(apiProduct);
   const totalAvailable = colorVariants?.reduce(
     (sum, variant) => sum + Number(variant.available || 0),
     0
   );
-  const hasLiveProductData =
-    apiProduct.stripePriceActive === true ||
-    Array.isArray(apiProduct.variants) ||
-    typeof apiProduct.amount === 'number';
+  const computedStockNote =
+    apiProduct.productType === 'physical' && Number.isFinite(totalAvailable)
+      ? `${totalAvailable} ks celkovo`
+      : '';
 
   return {
-    ...(fallback || {}),
-    id: apiProduct.id ?? fallback?.id,
-    slug: apiProduct.slug || fallback?.slug,
-    name: apiProduct.name || fallback?.name,
-    shortDescription: apiProduct.shortDescription || fallback?.shortDescription || '',
-    description: apiProduct.description || fallback?.description || '',
-    productType: apiProduct.productType || fallback?.productType,
-    fulfillmentType: apiProduct.fulfillmentType || fallback?.fulfillmentType,
-    price: apiProduct.price || fallback?.price || 'Cena v pokladni',
-    originalPrice: apiProduct.originalPrice || fallback?.originalPrice,
-    saleLabel: apiProduct.saleLabel || fallback?.saleLabel,
-    saleDescription: apiProduct.saleDescription || fallback?.saleDescription,
-    preorderDeal: apiProduct.preorderDeal || fallback?.preorderDeal,
+    id: apiProduct.id ?? apiProduct.slug,
+    slug: apiProduct.slug,
+    name: apiProduct.name || 'Produkt',
+    shortDescription: apiProduct.shortDescription || '',
+    description: apiProduct.description || '',
+    productType: apiProduct.productType || 'digital',
+    fulfillmentType: apiProduct.fulfillmentType || 'pdf_email',
+    status: apiProduct.status,
+    isPublished: apiProduct.isPublished,
+    price: apiProduct.price || 'Cena v pokladni',
+    originalPrice: apiProduct.originalPrice,
+    saleLabel: apiProduct.saleLabel,
+    saleDescription: apiProduct.saleDescription,
+    preorderDeal: apiProduct.preorderDeal,
     amount: apiProduct.amount,
     originalAmount: apiProduct.originalAmount,
     currency: apiProduct.currency,
     shippingAmount: apiProduct.shippingAmount,
     shippingPrice: apiProduct.shippingPrice,
-    shippingNote: apiProduct.shippingNote || fallback?.shippingNote,
-    preorderNote: apiProduct.preorderNote || fallback?.preorderNote,
-    purchaseLabel: apiProduct.purchaseLabel || fallback?.purchaseLabel,
-    deliveryNote: apiProduct.deliveryNote || fallback?.deliveryNote,
-    sortOrder: apiProduct.sortOrder ?? fallback?.sortOrder ?? 0,
-    image: apiProduct.image || fallback?.image || '/zajo.png',
-    heroImage: apiProduct.heroImage || fallback?.heroImage || apiProduct.image || fallback?.image || '/zajo.png',
-    languages: apiProduct.languages || fallback?.languages || [],
-    featureList: mergeList(apiProduct.featureList, fallback?.featureList),
-    pageTheme: mergeRichObject(apiProduct.pageTheme, fallback?.pageTheme),
-    productPage: mergeRichObject(apiProduct.productPage, fallback?.productPage),
-    hideStatusBadges: apiProduct.hideStatusBadges ?? fallback?.hideStatusBadges,
+    shippingNote: apiProduct.shippingNote,
+    preorderNote: apiProduct.preorderNote,
+    purchaseLabel: apiProduct.purchaseLabel,
+    deliveryNote: apiProduct.deliveryNote,
+    sortOrder: apiProduct.sortOrder ?? 0,
+    image: apiProduct.image || '/zajo.png',
+    heroImage: apiProduct.heroImage || apiProduct.image || '/zajo.png',
+    languages: Array.isArray(apiProduct.languages) ? apiProduct.languages : [],
+    featureList: Array.isArray(apiProduct.featureList) ? apiProduct.featureList : [],
+    pageTheme: apiProduct.pageTheme,
+    productPage: apiProduct.productPage,
+    hideStatusBadges: apiProduct.hideStatusBadges,
     stripePriceActive: apiProduct.stripePriceActive,
-    isMock: fallback?.productType === 'physical' ? !hasLiveProductData : Boolean(apiProduct.isMock || fallback?.isMock),
+    isMock: Boolean(apiProduct.isMock),
     url: apiProduct.url,
     colorVariants,
-    stockNote:
-      (apiProduct.productType || fallback?.productType) === 'physical' && Number.isFinite(totalAvailable)
-        ? `${totalAvailable} ks celkovo`
-        : apiProduct.stockNote || fallback?.stockNote,
+    stockNote: apiProduct.stockNote || computedStockNote,
   };
 };
 
-const mergeProductCollection = (apiProducts) => {
-  const pricesBySlug = new Map(apiProducts.map((product) => [product.slug, product]));
-  const fallbackSlugs = new Set(fallbackProducts.map((product) => product.slug));
-  const mergedFallbackProducts = fallbackProducts
-    .map((product) => mergeProduct(pricesBySlug.get(product.slug) || product))
-    .filter(Boolean);
-  const cmsOnlyProducts = apiProducts
-    .filter((product) => !fallbackSlugs.has(product.slug))
-    .map(mergeProduct)
-    .filter(Boolean);
-
-  return [...mergedFallbackProducts, ...cmsOnlyProducts].sort(
+const mapProductCollection = (apiProducts) => {
+  return apiProducts.map(mapApiProduct).filter(Boolean).sort(
     (a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
   );
 };
 
 export const useProducts = () => {
-  const [products, setProducts] = useState(fallbackProducts);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -142,7 +91,7 @@ export const useProducts = () => {
       try {
         const apiProducts = await loadProducts();
         if (cancelled) return;
-        setProducts(mergeProductCollection(apiProducts));
+        setProducts(mapProductCollection(apiProducts));
       } catch (err) {
         if (cancelled) return;
         setError(err?.message || 'products_load_failed');
@@ -166,7 +115,7 @@ export const useProduct = (slug) => {
     () => fallbackProducts.find((product) => product.slug === slug) || null,
     [slug]
   );
-  const [product, setProduct] = useState(fallback);
+  const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -180,11 +129,11 @@ export const useProduct = (slug) => {
       try {
         const apiProduct = await loadProduct(slug);
         if (cancelled) return;
-        setProduct(apiProduct ? mergeProduct(apiProduct) || fallback : fallback);
+        setProduct(apiProduct ? mapApiProduct(apiProduct) : null);
       } catch (err) {
         if (cancelled) return;
         setError(err?.message || 'product_load_failed');
-        setProduct(fallback);
+        setProduct(err?.status === 404 ? null : fallback);
       } finally {
         if (!cancelled) setLoading(false);
       }

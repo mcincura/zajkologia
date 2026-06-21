@@ -41,7 +41,7 @@ const Home = () => {
   const [error, setError] = useState('');
   const [posts, setPosts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const { products } = useProducts();
+  const { products, loading: productsLoading } = useProducts();
 
   useEffect(() => {
     const cat = searchParams.get('category') || null;
@@ -292,7 +292,11 @@ const Home = () => {
             </>
           ) : selectedCategory === PRODUCTS_CATEGORY_NAME ? (
             <>
-              {filteredProducts.length > 0 ? (
+              {productsLoading ? (
+                <div className="products-empty">
+                  <h3>Načítavam produkty…</h3>
+                </div>
+              ) : filteredProducts.length > 0 ? (
                 <div id="produkty" style={{ scrollMarginTop: '90px' }}>
                   <div className="products-grid products-grid--catalog">
                     {filteredProducts.map((product) => (
