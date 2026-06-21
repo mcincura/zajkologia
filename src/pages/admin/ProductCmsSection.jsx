@@ -166,6 +166,7 @@ const ProductCmsSection = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [status, setStatus] = useState('');
 
@@ -272,6 +273,54 @@ const ProductCmsSection = () => {
     setStatus('New product draft. Save it to create it in the CMS.');
   };
 
+  const buildProductPayload = (product) => {
+    const richContent = normalizeRichProductContent(product);
+    const payload = {
+      ...product,
+      slug: product.slug || slugify(product.name),
+      featureList: richContent.featureList,
+      pageTheme: richContent.pageTheme,
+      productPage: richContent.productPage,
+      shippingCountries: product.productType === 'physical'
+        ? product.shippingCountries || []
+        : [],
+      preorderDeal: normalizePreorderDeal(product.preorderDeal),
+      fulfillmentType:
+        product.productType === 'physical'
+          ? product.fulfillmentType || 'physical_preorder'
+          : product.fulfillmentType || 'pdf_email',
+      variants: product.productType === 'physical'
+        ? (product.variants || []).map((variant) => ({
+            ...variant,
+            swatches: normalizeSwatches(variant.swatches),
+          }))
+        : [],
+    };
+
+    return payload;
+  };
+
+  const persistProduct = async (product) => {
+    const payload = buildProductPayload(product);
+    const saved = product.id < 0
+      ? await apiFetch('/api/products/admin', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+      : await apiFetch(`/api/products/admin/${product.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+
+    const savedProduct = saved.product;
+    setProducts((current) => [
+      savedProduct,
+      ...current.filter((item) => item.id !== product.id && item.id !== savedProduct.id),
+    ]);
+    setSelectedId(savedProduct.id);
+    return savedProduct;
+  };
+
   const saveProduct = async () => {
     if (!selectedProduct) return;
     if (!selectedProduct.name?.trim()) {
@@ -279,48 +328,10 @@ const ProductCmsSection = () => {
       return;
     }
 
-    const richContent = normalizeRichProductContent(selectedProduct);
-    const payload = {
-      ...selectedProduct,
-      slug: selectedProduct.slug || slugify(selectedProduct.name),
-      featureList: richContent.featureList,
-      pageTheme: richContent.pageTheme,
-      productPage: richContent.productPage,
-      shippingCountries: selectedProduct.productType === 'physical'
-        ? selectedProduct.shippingCountries || []
-        : [],
-      preorderDeal: normalizePreorderDeal(selectedProduct.preorderDeal),
-      fulfillmentType:
-        selectedProduct.productType === 'physical'
-          ? selectedProduct.fulfillmentType || 'physical_preorder'
-          : selectedProduct.fulfillmentType || 'pdf_email',
-      variants: selectedProduct.productType === 'physical'
-        ? (selectedProduct.variants || []).map((variant) => ({
-            ...variant,
-            swatches: normalizeSwatches(variant.swatches),
-          }))
-        : [],
-    };
-
     setBusy(true);
     setStatus('');
     try {
-      const saved = selectedProduct.id < 0
-        ? await apiFetch('/api/products/admin', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-          })
-        : await apiFetch(`/api/products/admin/${selectedProduct.id}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-          });
-
-      const savedProduct = saved.product;
-      setProducts((current) => [
-        savedProduct,
-        ...current.filter((product) => product.id !== selectedProduct.id && product.id !== savedProduct.id),
-      ]);
-      setSelectedId(savedProduct.id);
+      const savedProduct = await persistProduct(selectedProduct);
       setStatus(
         savedProduct.status === 'published'
           ? 'Product saved. Public rebuild will be requested automatically when rebuild automation is enabled.'
@@ -330,6 +341,40 @@ const ProductCmsSection = () => {
       setStatus(`Save failed: ${err.message}`);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const syncStripeProduct = async () => {
+    if (!selectedProduct) return;
+    if (!selectedProduct.name?.trim()) {
+      setStatus('Product name is required before Stripe sync.');
+      return;
+    }
+
+    setSyncBusy(true);
+    setStatus('');
+    try {
+      const savedProduct = await persistProduct(selectedProduct);
+      const data = await apiFetch(`/api/products/admin/${savedProduct.id}/stripe-sync`, {
+        method: 'POST',
+      });
+      const syncedProduct = data.product;
+      setProducts((current) => [
+        syncedProduct,
+        ...current.filter((product) => product.id !== savedProduct.id && product.id !== syncedProduct.id),
+      ]);
+      setSelectedId(syncedProduct.id);
+      const sync = data.sync || {};
+      const details = [
+        sync.adoptedEnvPrice ? 'adopted legacy env Price ID' : null,
+        sync.createdPrice ? 'created new Stripe Price' : null,
+        sync.previousStripePriceDeactivated ? 'deactivated replaced Stripe Price' : null,
+      ].filter(Boolean).join('; ');
+      setStatus(`Product saved and Stripe catalog synced${details ? ` (${details})` : ''}.`);
+    } catch (err) {
+      setStatus(`Stripe sync failed: ${err.message}`);
+    } finally {
+      setSyncBusy(false);
     }
   };
 
@@ -453,22 +498,30 @@ const ProductCmsSection = () => {
           <div>
             <h2 style={{ margin: 0 }}>Products</h2>
             <div style={{ fontSize: '0.88rem', color: '#666', marginTop: '0.2rem' }}>
-              Editable catalog foundation. Stripe sync and coupons come in the next phases.
+              Editable catalog with Stripe Product and Price sync.
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               type="button"
               onClick={rebuildPublicSite}
-              disabled={rebuildBusy || !selectedProduct}
+              disabled={rebuildBusy || syncBusy || !selectedProduct}
               style={{ background: 'white', color: '#55463d', border: '1px solid #ddd', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
             >
               {rebuildBusy ? 'Requesting…' : 'Rebuild public site'}
             </button>
             <button
               type="button"
+              onClick={syncStripeProduct}
+              disabled={syncBusy || busy || !selectedProduct}
+              style={{ background: 'white', color: '#55463d', border: '1px solid #ddd', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
+            >
+              {syncBusy ? 'Syncing…' : 'Sync Stripe'}
+            </button>
+            <button
+              type="button"
               onClick={saveProduct}
-              disabled={busy || !selectedProduct}
+              disabled={busy || syncBusy || !selectedProduct}
               style={{ background: 'var(--color-dark)', color: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
             >
               {busy ? 'Saving…' : 'Save'}
@@ -477,7 +530,7 @@ const ProductCmsSection = () => {
               <button
                 type="button"
                 onClick={archiveProduct}
-                disabled={busy}
+                disabled={busy || syncBusy}
                 style={{ background: '#fff0f0', color: '#a40000', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
               >
                 Archive
@@ -613,9 +666,26 @@ const ProductCmsSection = () => {
 	                  placeholder="price_... or STRIPE_PRICE_ID_..."
 	                  style={inputStyle}
 	                />
-	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && (
+	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && selectedProduct.productType !== 'physical' && (
 	                  <span style={helperTextStyle}>Checkout will not work for this product until a Stripe Price is configured.</span>
 	                )}
+	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && selectedProduct.productType === 'physical' && (
+	                  <span style={helperTextStyle}>Sync Stripe to create catalog Product and Price IDs for this physical product.</span>
+	                )}
+	                {selectedProduct.stripePriceEnv && !selectedProduct.stripePriceId && (
+	                  <span style={helperTextStyle}>Sync Stripe will adopt this legacy env Price ID and store the real Price ID in the CMS.</span>
+	                )}
+	              </label>
+
+	              <label style={labelStyle}>
+	                <span style={labelTextStyle}>Stripe Product ID</span>
+	                <input
+	                  value={selectedProduct.stripeProductId || ''}
+	                  onChange={(e) => updateSelected({ stripeProductId: e.target.value.trim() })}
+	                  placeholder="prod_..."
+	                  style={inputStyle}
+	                />
+	                <span style={helperTextStyle}>Leave empty to create a new Stripe Product during sync.</span>
 	              </label>
 
 	              <label style={labelStyle}>
