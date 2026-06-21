@@ -29,6 +29,7 @@ export const products = [
       glow: 'rgba(143, 88, 34, 0.16)',
     },
     productPage: {
+      template: 'digital',
       lead:
         'Premýšľaš nad králikom? Alebo ho už máš doma a chceš si byť istý/istá, že robíš všetko správne? V tejto príručke nájdeš zrozumiteľne spracované základy starostlivosti o králika.',
       galleryImages: [
@@ -111,6 +112,7 @@ export const products = [
       glow: 'rgba(166, 73, 104, 0.16)',
     },
     productPage: {
+      template: 'digital',
       lead:
         'Zabezpečte svojmu králikovi dlhý a zdravý život vďaka pravidelnému monitorovaniu. Táto praktická príručka a denník vám pomôžu jednoducho sledovať vývoj hmotnosti vášho ušatého spoločníka, čo je často najrýchlejší spôsob, ako odhaliť skryté zdravotné problémy.',
       galleryImages: [
@@ -246,6 +248,7 @@ export const products = [
       glow: 'rgba(55, 100, 84, 0.16)',
     },
     productPage: {
+      template: 'physical_preorder',
       lead:
         'Doprajte svojmu ušatému priateľovi aktivitu, ktorá ho nielen zabaví, ale aj mentálne unaví! Naša čuchacia loptička je navrhnutá tak, aby stimulovala prirodzené inštinkty králikov pri hľadaní potravy, podporila ich zvedavosť a zároveň im priniesla kopec zábavy pri objavovaní skrytých dobrôt.',
       galleryImages: [

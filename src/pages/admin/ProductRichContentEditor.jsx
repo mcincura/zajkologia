@@ -1,4 +1,5 @@
 import React from 'react';
+import { PRODUCT_PAGE_TEMPLATE_OPTIONS } from '../../utils/productTemplates';
 
 const iconOptions = [
   'CalendarDays',
@@ -306,6 +307,23 @@ const ProductRichContentEditor = ({ product, onChange }) => {
       <div style={sectionCardStyle}>
         <h3 style={{ margin: '0 0 0.75rem' }}>Core product page copy</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+          <label style={labelStyle}>
+            <span style={labelTextStyle}>Page template</span>
+            <select
+              value={page.template || ''}
+              onChange={(e) => updatePage({ template: e.target.value })}
+              style={inputStyle}
+            >
+              {PRODUCT_PAGE_TEMPLATE_OPTIONS.map((option) => (
+                <option key={option.value || 'auto'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div style={{ alignSelf: 'end', color: '#7a6e66', fontSize: '0.82rem', lineHeight: 1.45 }}>
+            {PRODUCT_PAGE_TEMPLATE_OPTIONS.find((option) => option.value === (page.template || ''))?.description}
+          </div>
           <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
             <span style={labelTextStyle}>Lead</span>
             <textarea

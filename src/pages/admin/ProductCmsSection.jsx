@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../api/client';
 import ProductRichContentEditor from './ProductRichContentEditor';
 import { normalizeRichProductContent } from './productRichContentUtils';
+import { PRODUCT_PAGE_TEMPLATE } from '../../utils/productTemplates';
 
 const slugify = (value) => {
   return (value || '')
@@ -99,6 +100,7 @@ const createEmptyProduct = () => ({
     glow: '',
   },
   productPage: {
+    template: PRODUCT_PAGE_TEMPLATE.DIGITAL,
     lead: '',
     galleryImages: [],
     galleryImagesByCountry: {},
@@ -203,6 +205,34 @@ const ProductCmsSection = () => {
         product.id === selectedProduct.id ? { ...product, ...patch } : product
       )
     );
+  };
+
+  const updateSelectedProductType = (productType) => {
+    const nextTemplate =
+      productType === 'physical'
+        ? PRODUCT_PAGE_TEMPLATE.PHYSICAL_PREORDER
+        : PRODUCT_PAGE_TEMPLATE.DIGITAL;
+
+    updateSelected({
+      productType,
+      fulfillmentType: productType === 'physical' ? 'physical_preorder' : 'pdf_email',
+      productPage: {
+        ...(selectedProduct?.productPage || {}),
+        template: nextTemplate,
+      },
+    });
+  };
+
+  const updateSelectedFulfillmentType = (fulfillmentType) => {
+    updateSelected({
+      fulfillmentType,
+      productPage: {
+        ...(selectedProduct?.productPage || {}),
+        template: fulfillmentType === 'physical'
+          ? PRODUCT_PAGE_TEMPLATE.PHYSICAL
+          : PRODUCT_PAGE_TEMPLATE.PHYSICAL_PREORDER,
+      },
+    });
   };
 
   const updateVariant = (index, patch) => {
@@ -505,13 +535,7 @@ const ProductCmsSection = () => {
                 <span style={labelTextStyle}>Type</span>
                 <select
                   value={selectedProduct.productType || 'digital'}
-                  onChange={(e) => {
-                    const productType = e.target.value;
-                    updateSelected({
-                      productType,
-                      fulfillmentType: productType === 'physical' ? 'physical_preorder' : 'pdf_email',
-                    });
-                  }}
+                  onChange={(e) => updateSelectedProductType(e.target.value)}
                   style={inputStyle}
                 >
                   <option value="digital">Digital</option>
@@ -695,6 +719,21 @@ const ProductCmsSection = () => {
 
 	              {selectedProduct.productType === 'physical' && (
                 <>
+                  <label style={labelStyle}>
+                    <span style={labelTextStyle}>Fulfillment</span>
+                    <select
+                      value={selectedProduct.fulfillmentType || 'physical_preorder'}
+                      onChange={(e) => updateSelectedFulfillmentType(e.target.value)}
+                      style={inputStyle}
+                    >
+                      <option value="physical_preorder">Physical preorder</option>
+                      <option value="physical">Physical product</option>
+                    </select>
+                    <span style={helperTextStyle}>
+                      Preorder uses preorder page/checkout copy. Physical uses normal shipped-product copy.
+                    </span>
+                  </label>
+
                   <label style={labelStyle}>
                     <span style={labelTextStyle}>Shipping EUR</span>
                     <input

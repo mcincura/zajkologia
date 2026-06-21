@@ -29,6 +29,12 @@ import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import ProductCard from '../components/ProductCard';
 import ProductLanguageBadges from '../components/ProductLanguageBadges';
 import { useProduct, useProducts } from '../hooks/useProducts';
+import {
+  PRODUCT_PAGE_TEMPLATE,
+  inferProductPageTemplate,
+  isPhysicalTemplate,
+  isPreorderTemplate,
+} from '../utils/productTemplates';
 import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 import '../styles/product-details.css';
 
@@ -52,15 +58,92 @@ const iconMap = {
   Truck,
 };
 
-const fallbackTemplate = (product) => ({
-  lead: product.shortDescription || product.description || '',
-  trustBadges: [product.deliveryNote || 'PDF doručené na email'],
-  contentTitle: `Čo všetko v produkte nájdeš?`,
-  detailSections: [],
-  closingTitle: `Zisti viac o produkte ${product.name}`,
-  closingText: product.description || '',
-  closingNote: product.deliveryNote || '',
-});
+const templateCopy = {
+  [PRODUCT_PAGE_TEMPLATE.DIGITAL]: {
+    trustBadges: (product) => [product.deliveryNote || 'PDF doručené na email'],
+    contentTitle: 'Čo v digitálnom produkte nájdeš?',
+    closingTitle: (product) => `Získať ${product.name}`,
+    closingNote: (product) => product.deliveryNote || 'Jednorazový nákup, okamžitý prístup po zaplatení.',
+  },
+  [PRODUCT_PAGE_TEMPLATE.PHYSICAL_PREORDER]: {
+    trustBadges: () => [],
+    contentTitle: 'Prečo si produkt obľúbiš',
+    closingTitle: () => 'Chceš si pripraviť miesto v predobjednávke?',
+    closingNote: (product) =>
+      [product.deliveryNote, product.shippingNote, product.stockNote].filter(Boolean).join(' • '),
+  },
+  [PRODUCT_PAGE_TEMPLATE.PHYSICAL]: {
+    trustBadges: () => [],
+    contentTitle: 'Prečo si produkt obľúbiš',
+    closingTitle: (product) => `Objednať ${product.name}`,
+    closingNote: (product) =>
+      [product.deliveryNote, product.shippingNote, product.stockNote].filter(Boolean).join(' • '),
+  },
+};
+
+const featureListToDetailSections = (product) =>
+  (Array.isArray(product.featureList) ? product.featureList : []).map((feature, index) => ({
+    icon: ['CheckCircle2', 'PackageCheck', 'Truck', 'HeartPulse', 'Layers3'][index % 5],
+    title: feature,
+    text: '',
+  }));
+
+const defaultPreorderInfo = (product) => {
+  const items = [
+    product.preorderNote
+      ? {
+          title: 'Predobjednávka',
+          text: product.preorderNote,
+        }
+      : null,
+    product.stockNote
+      ? {
+          title: 'Dostupnosť',
+          text: product.stockNote,
+        }
+      : null,
+    product.shippingNote || product.deliveryNote
+      ? {
+          title: 'Doručenie',
+          text: product.shippingNote || product.deliveryNote,
+        }
+      : null,
+  ].filter(Boolean);
+
+  return items.length
+    ? {
+        title: 'Dôležité informácie k predobjednávke',
+        items,
+      }
+    : null;
+};
+
+const fallbackTemplate = (product, template) => {
+  const copy = templateCopy[template] || templateCopy[PRODUCT_PAGE_TEMPLATE.DIGITAL];
+  const detailSections = featureListToDetailSections(product);
+  const closingNote = copy.closingNote(product);
+
+  return {
+    template,
+    lead: product.shortDescription || product.description || '',
+    trustBadges: copy.trustBadges(product).filter(Boolean),
+    purchaseHighlights: isPhysicalTemplate(template)
+      ? [product.shippingNote, product.stockNote].filter(Boolean)
+      : [],
+    preorderMicrocopy: isPreorderTemplate(template)
+      ? product.preorderNote || 'Predobjednávka bude spracovaná podľa aktuálnej dostupnosti produktu.'
+      : '',
+    variantsIntro: isPhysicalTemplate(template) && product.colorVariants?.length
+      ? 'Vyber si dostupný variant produktu.'
+      : '',
+    contentTitle: copy.contentTitle,
+    detailSections,
+    preorderInfo: isPreorderTemplate(template) ? defaultPreorderInfo(product) : null,
+    closingTitle: copy.closingTitle(product),
+    closingText: product.description || product.shortDescription || '',
+    closingNote,
+  };
+};
 
 const SectionIcon = ({ name }) => {
   const Icon = iconMap[name] || CheckCircle2;
@@ -166,9 +249,11 @@ const ProductDetails = () => {
 
   const pageData = useMemo(() => {
     if (!product) return null;
+    const productTemplate = inferProductPageTemplate(product);
     return {
-      ...fallbackTemplate(product),
+      ...fallbackTemplate(product, productTemplate),
       ...(product.productPage || {}),
+      template: productTemplate,
     };
   }, [product]);
 
@@ -280,35 +365,45 @@ const ProductDetails = () => {
   const productSurface = product.pageTheme?.surface || '#fffaf3';
   const priceLabel = product.price || 'Cena v pokladni';
   const activeGalleryImage = galleryImages[normalizedActiveGalleryIndex] || product.heroImage || product.image;
-  const usesSquareGallery = product.productType === 'physical';
+  const productTemplate = pageData.template || inferProductPageTemplate(product);
+  const isPhysicalProductPage = isPhysicalTemplate(productTemplate);
+  const isPreorderProductPage = isPreorderTemplate(productTemplate);
+  const usesSquareGallery = isPhysicalProductPage;
   const colorVariants = product.colorVariants || [];
   const selectedVariant =
     colorVariants.find((variant) => variant.code === selectedVariantCode) ||
     getDefaultAvailableVariant(colorVariants);
   const selectedVariantUnavailable =
-    product.productType === 'physical' &&
+    isPhysicalProductPage &&
     colorVariants.length > 0 &&
     (!selectedVariant ||
       selectedVariant.isActive === false ||
       Number(selectedVariant.available || 0) <= 0);
-  const preorderDeal = product.preorderDeal || null;
+  const preorderDeal = isPreorderProductPage ? product.preorderDeal || null : null;
+  const showPreorderInfo = isPreorderProductPage && preorderInfo?.items?.length > 0;
+  const showPreorderMicrocopy = isPreorderProductPage && preorderMicrocopy;
   const handmadeItems = handmadeStory?.items || [];
   const productStatusItems = product.hideStatusBadges
     ? []
     : [
-        product.preorderNote ? { icon: Clock3, label: product.preorderNote } : null,
+        isPreorderProductPage && product.preorderNote
+          ? { icon: Clock3, label: product.preorderNote }
+          : null,
         product.stockNote ? { icon: PackageCheck, label: product.stockNote } : null,
         product.shippingNote ? { icon: Truck, label: product.shippingNote } : null,
       ].filter(Boolean);
+  const defaultCtaLabel = isPreorderProductPage
+    ? `Predobjednať za ${priceLabel}`
+    : isPhysicalProductPage
+      ? `Kúpiť za ${priceLabel}`
+      : 'Kúpiť';
   const ctaLabel = isPreviewProduct
     ? (product.purchaseLabel || 'Čoskoro')
     : checkoutLoading
       ? 'Otváram…'
       : selectedVariantUnavailable
         ? 'Vypredané'
-        : product.productType === 'physical'
-          ? `Predobjednať za ${priceLabel}`
-          : 'Kúpiť';
+        : product.purchaseLabel || defaultCtaLabel;
 
   const showGalleryControls = galleryImages.length > 1;
   const goToPreviousGalleryImage = () => {
@@ -326,7 +421,7 @@ const ProductDetails = () => {
 
   return (
     <div
-      className="product-page"
+      className={`product-page product-page--${productTemplate}`}
       style={{
         '--product-page-accent': productAccent,
         '--product-page-accent-strong': productAccentStrong,
@@ -492,12 +587,15 @@ const ProductDetails = () => {
                 </button>
               </div>
 
-              {preorderMicrocopy && (
+              {showPreorderMicrocopy && (
                 <p className="product-page__preorder-note">{preorderMicrocopy}</p>
               )}
 
               <p className="product-page__delivery">
-                {product.deliveryNote || 'Po zaplatení dostanete príručku vo forme PDF na email.'}
+                {product.deliveryNote ||
+                  (isPhysicalProductPage
+                    ? 'Fyzický produkt doručíme podľa dostupných možností dopravy.'
+                    : 'Po zaplatení dostanete príručku vo forme PDF na email.')}
               </p>
 
               {purchaseHighlights.length > 0 && (
@@ -578,7 +676,7 @@ const ProductDetails = () => {
                 </div>
               )}
 
-              {!isPreviewProduct && product.productType !== 'physical' && (
+              {!isPreviewProduct && !isPhysicalProductPage && (
                 <EmailCaptureOffer placement="product" />
               )}
 
@@ -680,7 +778,7 @@ const ProductDetails = () => {
         </section>
       )}
 
-      {preorderInfo?.items?.length > 0 && (
+      {showPreorderInfo && (
         <section className="product-page__section">
           <div className="container product-page__container">
             <div className="product-page__copy-block product-page__copy-block--info">

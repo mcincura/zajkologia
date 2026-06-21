@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, ShoppingCart } from 'lucide-react';
 import { createCheckoutSession } from '../api/client';
 import ProductLanguageBadges from './ProductLanguageBadges';
+import { PRODUCT_PAGE_TEMPLATE, inferProductPageTemplate } from '../utils/productTemplates';
 import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 import '../styles/products.css';
 
@@ -14,6 +15,7 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const from = location.pathname + location.search;
   const destination = `/product/${product.slug}`;
   const isPreviewProduct = Boolean(product.isMock);
+  const productTemplate = inferProductPageTemplate(product);
   const needsVariantSelection = product.productType === 'physical';
 
   const handleCheckout = async (event) => {
@@ -50,7 +52,8 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
     : checkoutLoading
       ? 'Otváram...'
       : needsVariantSelection
-        ? 'Vybrať farbu'
+        ? product.purchaseLabel ||
+          (productTemplate === PRODUCT_PAGE_TEMPLATE.PHYSICAL_PREORDER ? 'Vybrať farbu' : 'Vybrať variant')
         : 'Kúpiť';
 
   return (

@@ -1,3 +1,5 @@
+import { normalizeProductPageTemplate } from '../../utils/productTemplates';
+
 const normalizeTextList = (items) =>
   (Array.isArray(items) ? items : [])
     .map((item) => String(item || '').trim())
@@ -76,6 +78,7 @@ export const normalizeRichProductContent = (product = {}) => {
   });
   const normalizedPage = compactObject({
     ...productPage,
+    template: normalizeProductPageTemplate(productPage.template),
     lead: String(productPage.lead || '').trim(),
     galleryImages: normalizeTextList(productPage.galleryImages),
     galleryImagesByCountry: normalizeCountryGalleries(productPage.galleryImagesByCountry),
