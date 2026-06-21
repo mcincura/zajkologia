@@ -10,6 +10,26 @@ import Terms from './pages/Terms';
 import About from './pages/About';
 import WithdrawalRequest from './pages/WithdrawalRequest';
 
+const restoreStaticHostPath = () => {
+  if (typeof window === 'undefined') return;
+
+  const currentUrl = new URL(window.location.href);
+  const redirectedPath = currentUrl.searchParams.get('p');
+  if (!redirectedPath) return;
+
+  currentUrl.searchParams.delete('p');
+  const normalizedPath = `/${redirectedPath.replace(/^\/+/, '')}`;
+  const targetUrl = new URL(normalizedPath, window.location.origin);
+
+  currentUrl.searchParams.forEach((value, key) => {
+    targetUrl.searchParams.append(key, value);
+  });
+
+  window.history.replaceState(null, '', `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);
+};
+
+restoreStaticHostPath();
+
 function App() {
   return (
     <BrowserRouter basename=''>
@@ -25,6 +45,7 @@ function App() {
           <Route path="odstupenie-od-zmluvy" element={<WithdrawalRequest />} />
           <Route path="admin" element={<Navigate to="/admin/orders" replace />} />
           <Route path="admin/orders" element={<Admin section="orders" />} />
+          <Route path="admin/products" element={<Admin section="products" />} />
           <Route path="admin/posts" element={<Admin section="posts" />} />
           <Route path="*" element={<div className="container">404 Not Found</div>} />
         </Route>

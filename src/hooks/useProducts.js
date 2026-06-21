@@ -3,8 +3,22 @@ import { loadProduct, loadProducts } from '../api/client';
 import { products as fallbackProducts } from '../data/products';
 
 const mergeColorVariants = ({ fallback, apiProduct }) => {
-  if (!fallback.colorVariants?.length || !apiProduct.variants?.length) {
-    return fallback.colorVariants;
+  if (!apiProduct.variants?.length) {
+    return fallback?.colorVariants || [];
+  }
+
+  if (!fallback?.colorVariants?.length) {
+    return apiProduct.variants.map((variant) => ({
+      code: variant.code,
+      name: variant.name,
+      available: variant.availableQuantity ?? variant.sellableQuantity ?? 0,
+      image: variant.image,
+      swatches: variant.swatches || [],
+      sellableQuantity: variant.sellableQuantity,
+      reservedQuantity: variant.reservedQuantity,
+      soldQuantity: variant.soldQuantity,
+      isActive: variant.isActive,
+    }));
   }
 
   const variantsByCode = new Map(apiProduct.variants.map((variant) => [variant.code, variant]));
@@ -26,7 +40,6 @@ const mergeColorVariants = ({ fallback, apiProduct }) => {
 
 const mergeProduct = (apiProduct) => {
   const fallback = fallbackProducts.find((product) => product.slug === apiProduct.slug);
-  if (!fallback) return null;
   const colorVariants = mergeColorVariants({ fallback, apiProduct });
   const totalAvailable = colorVariants?.reduce(
     (sum, variant) => sum + Number(variant.available || 0),
@@ -38,31 +51,61 @@ const mergeProduct = (apiProduct) => {
     typeof apiProduct.amount === 'number';
 
   return {
-    ...fallback,
-    productType: apiProduct.productType || fallback.productType,
-    fulfillmentType: apiProduct.fulfillmentType || fallback.fulfillmentType,
-    price: apiProduct.price || fallback.price || 'Cena v pokladni',
-    originalPrice: apiProduct.originalPrice || fallback.originalPrice,
+    ...(fallback || {}),
+    id: apiProduct.id ?? fallback?.id,
+    slug: apiProduct.slug || fallback?.slug,
+    name: apiProduct.name || fallback?.name,
+    shortDescription: apiProduct.shortDescription || fallback?.shortDescription || '',
+    description: apiProduct.description || fallback?.description || '',
+    productType: apiProduct.productType || fallback?.productType,
+    fulfillmentType: apiProduct.fulfillmentType || fallback?.fulfillmentType,
+    price: apiProduct.price || fallback?.price || 'Cena v pokladni',
+    originalPrice: apiProduct.originalPrice || fallback?.originalPrice,
+    saleLabel: apiProduct.saleLabel || fallback?.saleLabel,
+    saleDescription: apiProduct.saleDescription || fallback?.saleDescription,
+    preorderDeal: apiProduct.preorderDeal || fallback?.preorderDeal,
     amount: apiProduct.amount,
     originalAmount: apiProduct.originalAmount,
     currency: apiProduct.currency,
     shippingAmount: apiProduct.shippingAmount,
     shippingPrice: apiProduct.shippingPrice,
+    shippingNote: apiProduct.shippingNote || fallback?.shippingNote,
+    preorderNote: apiProduct.preorderNote || fallback?.preorderNote,
+    purchaseLabel: apiProduct.purchaseLabel || fallback?.purchaseLabel,
+    deliveryNote: apiProduct.deliveryNote || fallback?.deliveryNote,
+    sortOrder: apiProduct.sortOrder ?? fallback?.sortOrder ?? 0,
+    image: apiProduct.image || fallback?.image || '/zajo.png',
+    heroImage: apiProduct.heroImage || fallback?.heroImage || apiProduct.image || fallback?.image || '/zajo.png',
+    languages: apiProduct.languages || fallback?.languages || [],
+    featureList: apiProduct.featureList || fallback?.featureList || [],
+    pageTheme: apiProduct.pageTheme || fallback?.pageTheme,
+    productPage: apiProduct.productPage || fallback?.productPage,
+    hideStatusBadges: apiProduct.hideStatusBadges ?? fallback?.hideStatusBadges,
     stripePriceActive: apiProduct.stripePriceActive,
-    isMock: fallback.productType === 'physical' ? !hasLiveProductData : fallback.isMock,
+    isMock: fallback?.productType === 'physical' ? !hasLiveProductData : Boolean(apiProduct.isMock || fallback?.isMock),
     url: apiProduct.url,
     colorVariants,
     stockNote:
-      fallback.productType === 'physical' && Number.isFinite(totalAvailable)
+      (apiProduct.productType || fallback?.productType) === 'physical' && Number.isFinite(totalAvailable)
         ? `${totalAvailable} ks celkovo`
-        : fallback.stockNote,
+        : apiProduct.stockNote || fallback?.stockNote,
   };
 };
 
 const mergeProductCollection = (apiProducts) => {
   const pricesBySlug = new Map(apiProducts.map((product) => [product.slug, product]));
+  const fallbackSlugs = new Set(fallbackProducts.map((product) => product.slug));
+  const mergedFallbackProducts = fallbackProducts
+    .map((product) => mergeProduct(pricesBySlug.get(product.slug) || product))
+    .filter(Boolean);
+  const cmsOnlyProducts = apiProducts
+    .filter((product) => !fallbackSlugs.has(product.slug))
+    .map(mergeProduct)
+    .filter(Boolean);
 
-  return fallbackProducts.map((product) => mergeProduct(pricesBySlug.get(product.slug) || product));
+  return [...mergedFallbackProducts, ...cmsOnlyProducts].sort(
+    (a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+  );
 };
 
 export const useProducts = () => {

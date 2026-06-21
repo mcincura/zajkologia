@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, PackageCheck } from 'lucide-react';
+import { FileText, Package, PackageCheck } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, mapPostFromApi } from '../api/client';
+import ProductCmsSection from './admin/ProductCmsSection';
 
 const slugify = (value) => {
     return (value || '')
@@ -132,6 +133,8 @@ const Admin = ({ section = 'orders' }) => {
 
     const selectedPost = useMemo(() => posts.find(p => p.id === selectedId) || null, [posts, selectedId]);
     const isOrdersSection = section === 'orders';
+    const isProductsSection = section === 'products';
+    const isPostsSection = section === 'posts';
     const orderStats = useMemo(() => {
         const paidOrders = orders.filter((order) => ['paid', 'fulfilled'].includes(order.status));
         const physicalToShip = orders.filter((order) =>
@@ -602,13 +605,17 @@ const Admin = ({ section = 'orders' }) => {
                         <PackageCheck size={18} strokeWidth={2.4} />
                         Orders
                     </NavLink>
+                    <NavLink to="/admin/products" style={adminNavLinkStyle}>
+                        <Package size={18} strokeWidth={2.4} />
+                        Products
+                    </NavLink>
                     <NavLink to="/admin/posts" style={adminNavLinkStyle}>
                         <FileText size={18} strokeWidth={2.4} />
                         Blog posts
                     </NavLink>
                 </nav>
 
-                {!isOrdersSection ? (
+                {isPostsSection ? (
                     <>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                             <button
@@ -668,7 +675,7 @@ const Admin = ({ section = 'orders' }) => {
                             <div><b>{formatMoneyMinor(orderStats.revenueMinor, orderStats.currency)}</b> net loaded order revenue</div>
                         </div>
                     </div>
-                ) : (
+                ) : isPostsSection ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {posts.map((p) => (
                             <button
@@ -687,6 +694,17 @@ const Admin = ({ section = 'orders' }) => {
                                 <div style={{ fontSize: '0.85rem', color: '#666' }}>{p.slug || 'missing-slug'} • {p.category || '—'}</div>
                             </button>
                         ))}
+                    </div>
+                ) : (
+                    <div style={{
+                        border: '1px solid #eee',
+                        borderRadius: '10px',
+                        padding: '0.75rem',
+                        background: '#fafafa',
+                        color: '#55463d',
+                        fontSize: '0.88rem',
+                    }}>
+                        Product catalog, variants, pricing, and publish status.
                     </div>
                 )}
             </aside>
@@ -1092,6 +1110,8 @@ const Admin = ({ section = 'orders' }) => {
                     </div>
                 </div>
                     </>
+                ) : isProductsSection ? (
+                    <ProductCmsSection />
                 ) : (
                 !selectedPost ? (
                     <div style={{ padding: '1rem' }}>No post selected.</div>
