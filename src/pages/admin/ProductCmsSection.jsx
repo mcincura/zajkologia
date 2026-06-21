@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../api/client';
+import ProductRichContentEditor from './ProductRichContentEditor';
+import { normalizeRichProductContent } from './productRichContentUtils';
 
 const slugify = (value) => {
   return (value || '')
@@ -89,6 +91,25 @@ const createEmptyProduct = () => ({
   languages: [],
   deliveryNote: '',
   featureList: [],
+  pageTheme: {
+    accent: '',
+    accentStrong: '',
+    tint: '',
+    surface: '',
+    glow: '',
+  },
+  productPage: {
+    lead: '',
+    galleryImages: [],
+    galleryImagesByCountry: {},
+    trustBadges: [],
+    purchaseHighlights: [],
+    contentTitle: '',
+    detailSections: [],
+    closingTitle: '',
+    closingText: '',
+    closingNote: '',
+  },
   saleLabel: '',
   saleDescription: '',
   preorderDeal: {
@@ -228,9 +249,13 @@ const ProductCmsSection = () => {
       return;
     }
 
+    const richContent = normalizeRichProductContent(selectedProduct);
     const payload = {
       ...selectedProduct,
       slug: selectedProduct.slug || slugify(selectedProduct.name),
+      featureList: richContent.featureList,
+      pageTheme: richContent.pageTheme,
+      productPage: richContent.productPage,
       shippingCountries: selectedProduct.productType === 'physical'
         ? selectedProduct.shippingCountries || []
         : [],
@@ -788,6 +813,11 @@ const ProductCmsSection = () => {
 	                </label>
 	              </div>
 	            </div>
+
+            <ProductRichContentEditor
+              product={selectedProduct}
+              onChange={updateSelected}
+            />
 
 	            {selectedProduct.productType === 'physical' && (
 	              <div style={sectionCardStyle}>

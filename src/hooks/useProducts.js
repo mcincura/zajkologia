@@ -2,6 +2,24 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadProduct, loadProducts } from '../api/client';
 import { products as fallbackProducts } from '../data/products';
 
+const mergeRichObject = (apiValue, fallbackValue) => {
+  if (apiValue && typeof apiValue === 'object' && !Array.isArray(apiValue)) {
+    return {
+      ...(fallbackValue && typeof fallbackValue === 'object' && !Array.isArray(fallbackValue)
+        ? fallbackValue
+        : {}),
+      ...apiValue,
+    };
+  }
+
+  return fallbackValue;
+};
+
+const mergeList = (apiValue, fallbackValue) => {
+  if (Array.isArray(apiValue) && apiValue.length > 0) return apiValue;
+  return Array.isArray(fallbackValue) ? fallbackValue : [];
+};
+
 const mergeColorVariants = ({ fallback, apiProduct }) => {
   if (!apiProduct.variants?.length) {
     return fallback?.colorVariants || [];
@@ -30,6 +48,8 @@ const mergeColorVariants = ({ fallback, apiProduct }) => {
     return {
       ...variant,
       available: apiVariant.availableQuantity ?? variant.available,
+      image: apiVariant.image || variant.image,
+      swatches: apiVariant.swatches?.length ? apiVariant.swatches : variant.swatches,
       sellableQuantity: apiVariant.sellableQuantity,
       reservedQuantity: apiVariant.reservedQuantity,
       soldQuantity: apiVariant.soldQuantity,
@@ -77,9 +97,9 @@ const mergeProduct = (apiProduct) => {
     image: apiProduct.image || fallback?.image || '/zajo.png',
     heroImage: apiProduct.heroImage || fallback?.heroImage || apiProduct.image || fallback?.image || '/zajo.png',
     languages: apiProduct.languages || fallback?.languages || [],
-    featureList: apiProduct.featureList || fallback?.featureList || [],
-    pageTheme: apiProduct.pageTheme || fallback?.pageTheme,
-    productPage: apiProduct.productPage || fallback?.productPage,
+    featureList: mergeList(apiProduct.featureList, fallback?.featureList),
+    pageTheme: mergeRichObject(apiProduct.pageTheme, fallback?.pageTheme),
+    productPage: mergeRichObject(apiProduct.productPage, fallback?.productPage),
     hideStatusBadges: apiProduct.hideStatusBadges ?? fallback?.hideStatusBadges,
     stripePriceActive: apiProduct.stripePriceActive,
     isMock: fallback?.productType === 'physical' ? !hasLiveProductData : Boolean(apiProduct.isMock || fallback?.isMock),
