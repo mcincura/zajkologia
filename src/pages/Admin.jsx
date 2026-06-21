@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, Package, PackageCheck } from 'lucide-react';
+import { Download, FileText, Package, PackageCheck } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
-import { apiFetch, mapPostFromApi } from '../api/client';
+import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
 
 const slugify = (value) => {
@@ -427,12 +427,18 @@ const Admin = ({ section = 'orders' }) => {
         setBusy(true);
         setStatus('');
         try {
-            await apiFetch(`/api/orders/admin/refund-requests/${request.id}/review`, {
+            const data = await apiFetch(`/api/orders/admin/refund-requests/${request.id}/review`, {
                 method: 'POST',
                 body: JSON.stringify({ decision, adminReason }),
             });
             await loadOrders();
-            setStatus(`Refund request ${decision}.`);
+            setStatus(
+                data?.emailError
+                    ? `Refund request ${decision}, but email failed: ${data.emailError}`
+                    : data?.emailSent
+                        ? `Refund request ${decision} and customer email sent.`
+                        : `Refund request ${decision}.`
+            );
         } catch (err) {
             setStatus(`Refund review failed: ${err.message}`);
         } finally {
@@ -472,7 +478,7 @@ const Admin = ({ section = 'orders' }) => {
         setBusy(true);
         setStatus('');
         try {
-            await apiFetch(`/api/orders/admin/${order.id}/refund`, {
+            const data = await apiFetch(`/api/orders/admin/${order.id}/refund`, {
                 method: 'POST',
                 body: JSON.stringify({
                     amount,
@@ -486,7 +492,13 @@ const Admin = ({ section = 'orders' }) => {
             });
             await loadOrders();
             await loadAnalytics();
-            setStatus('Stripe refund created and saved locally.');
+            setStatus(
+                data?.emailError
+                    ? `Stripe refund created, but refund email failed: ${data.emailError}`
+                    : data?.emailSent
+                        ? 'Stripe refund created and refund email sent.'
+                        : 'Stripe refund created and saved locally.'
+            );
         } catch (err) {
             setStatus(`Refund failed: ${err.message}`);
         } finally {
@@ -506,6 +518,33 @@ const Admin = ({ section = 'orders' }) => {
             setStatus('Packeta details copied.');
         } catch {
             window.prompt('Copy Packeta details:', text);
+        }
+    };
+
+    const downloadShippingCsv = async (includeShipped = false) => {
+        setBusy(true);
+        setStatus('');
+        try {
+            const path = `/api/orders/admin/export/shipping.csv${includeShipped ? '?includeShipped=true' : ''}`;
+            const res = await fetch(apiUrl(path), { credentials: 'include' });
+            if (!res.ok) throw new Error(`http_${res.status}`);
+
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = includeShipped
+                ? 'zajkologia-shipping-all.csv'
+                : 'zajkologia-shipping-unshipped.csv';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(objectUrl);
+            setStatus('Shipping CSV download started.');
+        } catch (err) {
+            setStatus(`Shipping CSV export failed: ${err.message}`);
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -899,14 +938,26 @@ const Admin = ({ section = 'orders' }) => {
                                 Physical preorders, refund review, and admin-only Stripe refunds.
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={loadOrders}
-                            disabled={ordersLoading}
-                            style={{ background: 'var(--color-dark)', color: 'white', padding: '0.35rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem' }}
-                        >
-                            {ordersLoading ? 'Refreshing…' : 'Refresh'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            <button
+                                type="button"
+                                onClick={() => downloadShippingCsv(false)}
+                                disabled={busy}
+                                title="Download unshipped physical orders as CSV"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', padding: '0.35rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem' }}
+                            >
+                                <Download size={15} aria-hidden="true" />
+                                Shipping CSV
+                            </button>
+                            <button
+                                type="button"
+                                onClick={loadOrders}
+                                disabled={ordersLoading}
+                                style={{ background: 'var(--color-dark)', color: 'white', padding: '0.35rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem' }}
+                            >
+                                {ordersLoading ? 'Refreshing…' : 'Refresh'}
+                            </button>
+                        </div>
                     </div>
 
                     {ordersError ? (
@@ -1070,6 +1121,34 @@ const Admin = ({ section = 'orders' }) => {
                                                 ))}
                                             </div>
                                         )}
+
+                                        {(order.auditEvents || []).length > 0 ? (
+                                            <details style={{ marginTop: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', padding: '0.6rem' }}>
+                                                <summary style={{ cursor: 'pointer', fontWeight: 900, fontSize: '0.82rem', color: '#334155' }}>
+                                                    Audit log ({order.auditEvents.length})
+                                                </summary>
+                                                <div style={{ display: 'grid', gap: '0.45rem', marginTop: '0.6rem' }}>
+                                                    {order.auditEvents.map((event) => (
+                                                        <div key={event.id} style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '0.45rem' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                                                                <strong style={{ fontSize: '0.78rem', color: '#1f2937' }}>{event.eventType}</strong>
+                                                                <span style={{ fontSize: '0.74rem', color: '#64748b' }}>{formatDateTime(event.createdAt)}</span>
+                                                            </div>
+                                                            {event.eventNote ? (
+                                                                <div style={{ marginTop: '0.2rem', fontSize: '0.76rem', color: '#475569', overflowWrap: 'anywhere' }}>
+                                                                    {event.eventNote}
+                                                                </div>
+                                                            ) : null}
+                                                            {event.metadata ? (
+                                                                <div style={{ marginTop: '0.2rem', fontSize: '0.72rem', color: '#64748b', overflowWrap: 'anywhere' }}>
+                                                                    {JSON.stringify(event.metadata)}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </details>
+                                        ) : null}
 
                                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
                                             {pendingRequests.length > 0 ? (
