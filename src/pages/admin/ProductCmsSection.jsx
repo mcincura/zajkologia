@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '../../api/client';
+import { apiFetch, apiUrl } from '../../api/client';
 import ProductRichContentEditor from './ProductRichContentEditor';
 import ProductPromotionsSection from './ProductPromotionsSection';
 import { normalizeRichProductContent } from './productRichContentUtils';
@@ -63,6 +63,118 @@ const normalizePreorderDeal = (deal) => {
 const isHexColor = (value) => /^#[0-9a-f]{6}$/i.test(String(value || '').trim());
 
 const colorInputValue = (value) => (isHexColor(value) ? value : '#ffffff');
+
+const normalizeLanguageCode = (value) => {
+  const code = String(value || '').trim().toLowerCase();
+  return code === 'cz' ? 'cs' : code;
+};
+
+const languageLabels = {
+  sk: 'Slovak PDF',
+  cs: 'Czech PDF',
+};
+
+const appendUnique = (items, item) => {
+  const list = Array.isArray(items) ? items : [];
+  return list.includes(item) ? list : [...list, item];
+};
+
+const getDeliveryLanguages = (product) => {
+  const languages = new Set(['sk', 'cs']);
+  (product?.languages || []).forEach((language) => {
+    const normalized = normalizeLanguageCode(language);
+    if (normalized) languages.add(normalized);
+  });
+  return Array.from(languages);
+};
+
+const getPdfFilename = (product, languageCode) => {
+  const baseName = product?.name?.trim() || 'Zajkologia produkt';
+  if (languageCode === 'cs') return `${baseName} - česká verzia.pdf`;
+  if (languageCode === 'sk') return `${baseName} - slovenská verzia.pdf`;
+  return `${baseName}.pdf`;
+};
+
+const getImageUploadTargets = (product) => {
+  const targets = [
+    { value: 'image', label: 'Main product image' },
+    { value: 'hero', label: 'Hero image' },
+    { value: 'gallery', label: 'Add to gallery' },
+    { value: 'gallery:CZ', label: 'Add to CZ gallery' },
+  ];
+
+  if (product?.productType === 'physical') {
+    (product.variants || []).forEach((variant, index) => {
+      targets.push({
+        value: `variant:${index}`,
+        label: `Variant: ${variant.name || variant.code || index + 1}`,
+      });
+    });
+  }
+
+  return targets;
+};
+
+const applyUploadedImageUrl = (product, target, publicUrl) => {
+  const productPage = product.productPage || {};
+
+  if (target === 'image') {
+    return {
+      ...product,
+      image: publicUrl,
+      heroImage: product.heroImage || publicUrl,
+    };
+  }
+
+  if (target === 'hero') {
+    return {
+      ...product,
+      heroImage: publicUrl,
+    };
+  }
+
+  if (target === 'gallery') {
+    return {
+      ...product,
+      productPage: {
+        ...productPage,
+        galleryImages: appendUnique(productPage.galleryImages, publicUrl),
+      },
+    };
+  }
+
+  if (target === 'gallery:CZ') {
+    return {
+      ...product,
+      productPage: {
+        ...productPage,
+        galleryImagesByCountry: {
+          ...(productPage.galleryImagesByCountry || {}),
+          CZ: appendUnique(productPage.galleryImagesByCountry?.CZ, publicUrl),
+        },
+      },
+    };
+  }
+
+  if (target.startsWith('variant:')) {
+    const index = Number.parseInt(target.split(':')[1], 10);
+    const variants = [...(product.variants || [])];
+    if (!Number.isNaN(index) && variants[index]) {
+      variants[index] = { ...variants[index], image: publicUrl };
+    }
+
+    return {
+      ...product,
+      variants,
+      productPage: {
+        ...productPage,
+        galleryImages: appendUnique(productPage.galleryImages, publicUrl),
+      },
+    };
+  }
+
+  return product;
+};
 
 const createEmptyProduct = () => ({
   id: -Date.now(),
@@ -162,6 +274,16 @@ const sectionCardStyle = {
   background: '#fafafa',
 };
 
+const uploadDropStyle = {
+  border: '1px dashed #d8cec6',
+  borderRadius: '8px',
+  background: 'white',
+  padding: '0.85rem',
+  display: 'grid',
+  gap: '0.35rem',
+  cursor: 'pointer',
+};
+
 const ProductCmsSection = () => {
   const [products, setProducts] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -169,11 +291,24 @@ const ProductCmsSection = () => {
   const [busy, setBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [rebuildBusy, setRebuildBusy] = useState(false);
+  const [assetBusy, setAssetBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [imageUploadTarget, setImageUploadTarget] = useState('image');
+  const [pdfUploadLanguage, setPdfUploadLanguage] = useState('sk');
 
   const selectedProduct = useMemo(
     () => products.find((product) => product.id === selectedId) || null,
     [products, selectedId]
+  );
+
+  const imageUploadTargets = useMemo(
+    () => getImageUploadTargets(selectedProduct),
+    [selectedProduct]
+  );
+
+  const deliveryLanguages = useMemo(
+    () => getDeliveryLanguages(selectedProduct),
+    [selectedProduct]
   );
 
   const loadProducts = async () => {
@@ -199,6 +334,18 @@ const ProductCmsSection = () => {
   useEffect(() => {
     loadProducts();
   }, []);
+
+  useEffect(() => {
+    if (!imageUploadTargets.some((target) => target.value === imageUploadTarget)) {
+      setImageUploadTarget(imageUploadTargets[0]?.value || 'image');
+    }
+  }, [imageUploadTarget, imageUploadTargets]);
+
+  useEffect(() => {
+    if (!deliveryLanguages.includes(pdfUploadLanguage)) {
+      setPdfUploadLanguage(deliveryLanguages[0] || 'sk');
+    }
+  }, [deliveryLanguages, pdfUploadLanguage]);
 
   const updateSelected = (patch) => {
     if (!selectedProduct) return;
@@ -320,6 +467,106 @@ const ProductCmsSection = () => {
     ]);
     setSelectedId(savedProduct.id);
     return savedProduct;
+  };
+
+  const uploadProductAsset = async ({ productId, endpoint, file, fields = {} }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value != null && value !== '') formData.append(key, value);
+    });
+
+    const res = await fetch(apiUrl(`/api/products/admin/${productId}/assets/${endpoint}`), {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    const text = await res.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = null;
+    }
+
+    if (!res.ok) {
+      const err = new Error(data?.error || `http_${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+
+    return data;
+  };
+
+  const handleProductImageFile = async (file) => {
+    if (!file || !selectedProduct) return;
+    if (!selectedProduct.name?.trim()) {
+      setStatus('Product name is required before uploading images.');
+      return;
+    }
+
+    setAssetBusy(true);
+    setStatus('');
+    try {
+      const productForUpload = selectedProduct.id < 0
+        ? await persistProduct(selectedProduct)
+        : selectedProduct;
+      const data = await uploadProductAsset({
+        productId: productForUpload.id,
+        endpoint: 'image',
+        file,
+        fields: {
+          role: imageUploadTarget.split(':')[0],
+        },
+      });
+      const publicUrl = data?.asset?.publicUrl;
+      if (!publicUrl) throw new Error('missing_uploaded_image_url');
+
+      const updatedProduct = applyUploadedImageUrl(productForUpload, imageUploadTarget, publicUrl);
+      await persistProduct(updatedProduct);
+      setStatus('Image uploaded and product saved.');
+    } catch (err) {
+      setStatus(`Image upload failed: ${err.message}`);
+    } finally {
+      setAssetBusy(false);
+    }
+  };
+
+  const handleDigitalPdfFile = async (file) => {
+    if (!file || !selectedProduct) return;
+    if (!selectedProduct.name?.trim()) {
+      setStatus('Product name is required before uploading PDFs.');
+      return;
+    }
+
+    setAssetBusy(true);
+    setStatus('');
+    try {
+      const languageCode = normalizeLanguageCode(pdfUploadLanguage) || 'sk';
+      const savedProduct = await persistProduct(selectedProduct);
+      const data = await uploadProductAsset({
+        productId: savedProduct.id,
+        endpoint: 'pdf',
+        file,
+        fields: {
+          languageCode,
+          customerFilename: getPdfFilename(savedProduct, languageCode),
+        },
+      });
+      if (data?.product) {
+        setProducts((current) => [
+          data.product,
+          ...current.filter((item) => item.id !== savedProduct.id && item.id !== data.product.id),
+        ]);
+        setSelectedId(data.product.id);
+      }
+      setStatus(`${languageLabels[languageCode] || 'PDF'} uploaded and connected to paid email delivery.`);
+    } catch (err) {
+      setStatus(`PDF upload failed: ${err.message}`);
+    } finally {
+      setAssetBusy(false);
+    }
   };
 
   const saveProduct = async () => {
@@ -449,8 +696,8 @@ const ProductCmsSection = () => {
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <button
             type="button"
-            onClick={createProduct}
-            disabled={busy}
+	            onClick={createProduct}
+	            disabled={busy || assetBusy}
             style={{ background: 'var(--color-primary)', color: 'white', padding: '0.45rem 0.65rem', borderRadius: '6px', fontWeight: 800 }}
           >
             New
@@ -505,24 +752,24 @@ const ProductCmsSection = () => {
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               type="button"
-              onClick={rebuildPublicSite}
-              disabled={rebuildBusy || syncBusy || !selectedProduct}
+	              onClick={rebuildPublicSite}
+	              disabled={rebuildBusy || syncBusy || assetBusy || !selectedProduct}
               style={{ background: 'white', color: '#55463d', border: '1px solid #ddd', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
             >
               {rebuildBusy ? 'Requesting…' : 'Rebuild public site'}
             </button>
             <button
               type="button"
-              onClick={syncStripeProduct}
-              disabled={syncBusy || busy || !selectedProduct}
+	              onClick={syncStripeProduct}
+	              disabled={syncBusy || busy || assetBusy || !selectedProduct}
               style={{ background: 'white', color: '#55463d', border: '1px solid #ddd', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
             >
               {syncBusy ? 'Syncing…' : 'Sync Stripe'}
             </button>
             <button
               type="button"
-              onClick={saveProduct}
-              disabled={busy || syncBusy || !selectedProduct}
+	              onClick={saveProduct}
+	              disabled={busy || syncBusy || assetBusy || !selectedProduct}
               style={{ background: 'var(--color-dark)', color: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
             >
               {busy ? 'Saving…' : 'Save'}
@@ -530,8 +777,8 @@ const ProductCmsSection = () => {
             {selectedProduct?.id > 0 && (
               <button
                 type="button"
-                onClick={archiveProduct}
-                disabled={busy || syncBusy}
+	                onClick={archiveProduct}
+	                disabled={busy || syncBusy || assetBusy}
                 style={{ background: '#fff0f0', color: '#a40000', padding: '0.5rem 0.75rem', borderRadius: '6px', fontWeight: 800 }}
               >
                 Archive
@@ -631,12 +878,126 @@ const ProductCmsSection = () => {
                   value={selectedProduct.heroImage || ''}
                   onChange={(e) => updateSelected({ heroImage: e.target.value })}
                   style={inputStyle}
-                />
-              </label>
+	                />
+	              </label>
 
-              <label style={labelStyle}>
-                <span style={labelTextStyle}>Current price EUR</span>
-                <input
+	              <div style={{ ...sectionCardStyle, gridColumn: '1 / -1' }}>
+	                <h3 style={{ margin: '0 0 0.75rem' }}>Product uploads</h3>
+	                <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '0.75rem', alignItems: 'end' }}>
+	                  <label style={labelStyle}>
+	                    <span style={labelTextStyle}>Image destination</span>
+	                    <select
+	                      value={imageUploadTarget}
+	                      onChange={(e) => setImageUploadTarget(e.target.value)}
+	                      disabled={assetBusy}
+	                      style={inputStyle}
+	                    >
+	                      {imageUploadTargets.map((target) => (
+	                        <option key={target.value} value={target.value}>{target.label}</option>
+	                      ))}
+	                    </select>
+	                  </label>
+	                  <label
+	                    style={{
+	                      ...uploadDropStyle,
+	                      opacity: assetBusy ? 0.65 : 1,
+	                      cursor: assetBusy ? 'not-allowed' : 'pointer',
+	                    }}
+	                    onDragOver={(event) => event.preventDefault()}
+	                    onDrop={(event) => {
+	                      event.preventDefault();
+	                      if (!assetBusy) handleProductImageFile(event.dataTransfer?.files?.[0]);
+	                    }}
+	                  >
+	                    <span style={{ fontWeight: 900, color: '#55463d' }}>
+	                      {assetBusy ? 'Uploading…' : 'Upload image'}
+	                    </span>
+	                    <span style={helperTextStyle}>JPG, PNG or WebP. The selected product field will be saved automatically.</span>
+	                    <input
+	                      type="file"
+	                      accept="image/jpeg,image/png,image/webp"
+	                      disabled={assetBusy || busy || syncBusy}
+	                      onChange={(event) => {
+	                        const file = event.target.files?.[0];
+	                        event.target.value = '';
+	                        handleProductImageFile(file);
+	                      }}
+	                      style={{ fontSize: '0.82rem' }}
+	                    />
+	                  </label>
+	                </div>
+
+	                {selectedProduct.productType === 'digital' && selectedProduct.fulfillmentType === 'pdf_email' && (
+	                  <div style={{ borderTop: '1px solid #eee', marginTop: '0.85rem', paddingTop: '0.85rem' }}>
+	                    <h4 style={{ margin: '0 0 0.65rem', fontSize: '0.95rem' }}>Digital PDF delivery</h4>
+	                    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '0.75rem', alignItems: 'end' }}>
+	                      <label style={labelStyle}>
+	                        <span style={labelTextStyle}>PDF version</span>
+	                        <select
+	                          value={pdfUploadLanguage}
+	                          onChange={(e) => setPdfUploadLanguage(e.target.value)}
+	                          disabled={assetBusy}
+	                          style={inputStyle}
+	                        >
+	                          {deliveryLanguages.map((languageCode) => (
+	                            <option key={languageCode} value={languageCode}>
+	                              {languageLabels[languageCode] || languageCode.toUpperCase()}
+	                            </option>
+	                          ))}
+	                        </select>
+	                      </label>
+	                      <label
+	                        style={{
+	                          ...uploadDropStyle,
+	                          opacity: assetBusy ? 0.65 : 1,
+	                          cursor: assetBusy ? 'not-allowed' : 'pointer',
+	                        }}
+	                        onDragOver={(event) => event.preventDefault()}
+	                        onDrop={(event) => {
+	                          event.preventDefault();
+	                          if (!assetBusy) handleDigitalPdfFile(event.dataTransfer?.files?.[0]);
+	                        }}
+	                      >
+	                        <span style={{ fontWeight: 900, color: '#55463d' }}>
+	                          {assetBusy ? 'Uploading…' : 'Upload delivery PDF'}
+	                        </span>
+	                        <span style={helperTextStyle}>This replaces the active paid email attachment for the selected language.</span>
+	                        <input
+	                          type="file"
+	                          accept="application/pdf,.pdf"
+	                          disabled={assetBusy || busy || syncBusy}
+	                          onChange={(event) => {
+	                            const file = event.target.files?.[0];
+	                            event.target.value = '';
+	                            handleDigitalPdfFile(file);
+	                          }}
+	                          style={{ fontSize: '0.82rem' }}
+	                        />
+	                      </label>
+	                    </div>
+
+	                    <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.35rem' }}>
+	                      <span style={labelTextStyle}>Current email attachments</span>
+	                      {(selectedProduct.emailAttachments || []).length ? (
+	                        <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#55463d', fontSize: '0.86rem' }}>
+	                          {(selectedProduct.emailAttachments || []).map((attachment, index) => (
+	                            <li key={`${attachment.filename || 'attachment'}-${index}`}>
+	                              {attachment.languageCode ? `${languageLabels[attachment.languageCode] || attachment.languageCode.toUpperCase()}: ` : ''}
+	                              {attachment.filename || 'PDF attachment'}
+	                            </li>
+	                          ))}
+	                        </ul>
+	                      ) : (
+	                        <span style={helperTextStyle}>No product PDF attachment is configured yet.</span>
+	                      )}
+	                    </div>
+	                  </div>
+	                )}
+	              </div>
+
+	              <label style={labelStyle}>
+	                <span style={labelTextStyle}>Current price EUR</span>
+	                <input
                   value={formatMinorInput(selectedProduct.unitAmount)}
                   onChange={(e) => updateSelected({ unitAmount: parseEuroToMinor(e.target.value) })}
                   placeholder="7.99"
