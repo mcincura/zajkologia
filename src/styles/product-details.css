@@ -277,6 +277,10 @@
   width: 100%;
 }
 
+.product-page__buy-row--deal .product-page__checkout-controls {
+  width: 100%;
+}
+
 .product-page__price-block {
   display: flex;
   flex-direction: column;
@@ -485,6 +489,55 @@
   cursor: default;
 }
 
+.product-page__checkout-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, 190px) max-content;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.product-page__coupon-field {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-height: 52px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(47, 23, 8, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--product-page-accent-strong);
+}
+
+.product-page__coupon-field input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #221006;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.product-page__coupon-field input::placeholder {
+  color: rgba(47, 23, 8, 0.48);
+  text-transform: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .product-page__delivery,
 .product-page__closing-note {
   color: rgba(47, 23, 8, 0.64);
@@ -659,6 +712,21 @@
   font-size: 0.76rem;
   font-weight: 800;
   line-height: 1.2;
+}
+
+.product-page__variant-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--product-page-accent-strong);
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.product-page__variant-price span {
+  color: rgba(47, 23, 8, 0.45);
+  text-decoration: line-through;
 }
 
 .product-page__variant-swatches {
@@ -1145,6 +1213,11 @@
   }
 
   .product-page__cta {
+    width: 100%;
+  }
+
+  .product-page__checkout-controls {
+    grid-template-columns: 1fr;
     width: 100%;
   }
 

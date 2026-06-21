@@ -65,6 +65,7 @@ export const createCheckoutSession = async (productSlug, options = {}) => {
             productSlug,
             ...(options.variantCode ? { variantCode: options.variantCode } : {}),
             ...(options.quantity ? { quantity: options.quantity } : {}),
+            ...(options.couponCode ? { couponCode: options.couponCode } : {}),
             ...(token ? { discountToken: token } : {}),
             attribution,
         }),

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../api/client';
 import ProductRichContentEditor from './ProductRichContentEditor';
+import ProductPromotionsSection from './ProductPromotionsSection';
 import { normalizeRichProductContent } from './productRichContentUtils';
 import { PRODUCT_PAGE_TEMPLATE } from '../../utils/productTemplates';
 
@@ -926,6 +927,11 @@ const ProductCmsSection = () => {
             <ProductRichContentEditor
               product={selectedProduct}
               onChange={updateSelected}
+            />
+
+            <ProductPromotionsSection
+              selectedProduct={selectedProduct}
+              products={products.filter((product) => product.id > 0)}
             />
 
 	            {selectedProduct.productType === 'physical' && (

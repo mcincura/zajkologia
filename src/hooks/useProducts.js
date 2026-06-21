@@ -15,6 +15,11 @@ const mapColorVariants = (apiProduct) => {
     reservedQuantity: variant.reservedQuantity,
     soldQuantity: variant.soldQuantity,
     isActive: variant.isActive,
+    price: variant.price,
+    amount: variant.amount,
+    originalPrice: variant.originalPrice,
+    originalAmount: variant.originalAmount,
+    sale: variant.sale,
   }));
 };
 

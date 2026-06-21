@@ -168,6 +168,7 @@ const ProductDetails = () => {
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [selectedVariantCode, setSelectedVariantCode] = useState('');
   const [visitorCountryCode, setVisitorCountryCode] = useState('');
+  const [couponCode, setCouponCode] = useState('');
   const summaryRef = useRef(null);
   const isPreviewProduct = Boolean(product?.isMock);
 
@@ -219,11 +220,13 @@ const ProductDetails = () => {
     setCheckoutLoading(true);
     setCheckoutError('');
     try {
+      const normalizedCouponCode = couponCode.trim();
       const session = await createCheckoutSession(product.slug, {
+        ...(normalizedCouponCode ? { couponCode: normalizedCouponCode } : {}),
+        disableStoredDiscount: isPhysicalCheckout || Boolean(normalizedCouponCode),
         ...(isPhysicalCheckout
           ? {
               variantCode: selectedVariant.code,
-              disableStoredDiscount: true,
             }
           : {}),
       });
@@ -240,6 +243,8 @@ const ProductDetails = () => {
       } else if (err?.data?.error?.startsWith?.('welcome_discount_')) {
         clearStoredWelcomeDiscountOffer();
         setCheckoutError('Uvítacia zľava už bola použitá alebo nie je platná. Obnovte stránku a skúste nákup bez nej.');
+      } else if (err?.data?.error?.startsWith?.('coupon_')) {
+        setCheckoutError('Zľavový kód nie je platný pre tento nákup alebo sa nedá kombinovať s aktuálnou akciou.');
       } else {
         setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
       }
@@ -363,7 +368,7 @@ const ProductDetails = () => {
   const productAccentStrong = product.pageTheme?.accentStrong || '#8f5822';
   const productTint = product.pageTheme?.tint || '#f7ead8';
   const productSurface = product.pageTheme?.surface || '#fffaf3';
-  const priceLabel = product.price || 'Cena v pokladni';
+  const basePriceLabel = product.price || 'Cena v pokladni';
   const activeGalleryImage = galleryImages[normalizedActiveGalleryIndex] || product.heroImage || product.image;
   const productTemplate = pageData.template || inferProductPageTemplate(product);
   const isPhysicalProductPage = isPhysicalTemplate(productTemplate);
@@ -373,6 +378,8 @@ const ProductDetails = () => {
   const selectedVariant =
     colorVariants.find((variant) => variant.code === selectedVariantCode) ||
     getDefaultAvailableVariant(colorVariants);
+  const priceLabel = selectedVariant?.price || basePriceLabel;
+  const originalPriceLabel = selectedVariant?.originalPrice || product.originalPrice;
   const selectedVariantUnavailable =
     isPhysicalProductPage &&
     colorVariants.length > 0 &&
@@ -533,7 +540,7 @@ const ProductDetails = () => {
                       <div className="product-page__deal-prices">
                         <div className="product-page__deal-anchor">
                           <span>{preorderDeal.anchorLabel}</span>
-                          <strong>{product.originalPrice}</strong>
+                          <strong>{originalPriceLabel}</strong>
                         </div>
 
                         <div className="product-page__deal-current">
@@ -563,8 +570,8 @@ const ProductDetails = () => {
                   ) : (
                     <>
                       <span className="product-page__label">Cena</span>
-                      {product.originalPrice && (
-                        <span className="product-page__price-original">{product.originalPrice}</span>
+                      {originalPriceLabel && (
+                        <span className="product-page__price-original">{originalPriceLabel}</span>
                       )}
                       <span className="product-page__price">{priceLabel}</span>
                       {product.saleDescription && (
@@ -576,15 +583,29 @@ const ProductDetails = () => {
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleCheckout}
-                  disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable}
-                  className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
-                >
-                  <ShoppingCart size={18} />
-                  {ctaLabel}
-                </button>
+                <div className="product-page__checkout-controls">
+                  {!isPreviewProduct && (
+                    <label className="product-page__coupon-field">
+                      <Tag size={16} />
+                      <span className="sr-only">Zľavový kód</span>
+                      <input
+                        value={couponCode}
+                        onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                        placeholder="Zľavový kód"
+                        autoComplete="off"
+                      />
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCheckout}
+                    disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable}
+                    className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
+                  >
+                    <ShoppingCart size={18} />
+                    {ctaLabel}
+                  </button>
+                </div>
               </div>
 
               {showPreorderMicrocopy && (
@@ -657,6 +678,14 @@ const ProductDetails = () => {
                             <span className="product-page__variant-stock">
                               {isUnavailable ? 'Vypredané' : `${variant.available} ks dostupných`}
                             </span>
+                            {variant.price && variant.price !== product.price && (
+                              <span className="product-page__variant-price">
+                                {variant.originalPrice && (
+                                  <span>{variant.originalPrice}</span>
+                                )}
+                                <strong>{variant.price}</strong>
+                              </span>
+                            )}
                             {variant.swatches?.length > 0 && (
                               <span className="product-page__variant-swatches" aria-hidden="true">
                                 {variant.swatches.map((swatch) => (
@@ -833,9 +862,9 @@ const ProductDetails = () => {
 
             <div className="product-page__closing-action">
               <span className="product-page__closing-price">
-                {product.originalPrice && (
+                {originalPriceLabel && (
                   <span className="product-page__closing-price-original">
-                    {product.originalPrice}
+                    {originalPriceLabel}
                   </span>
                 )}
                 <span>{priceLabel}</span>
