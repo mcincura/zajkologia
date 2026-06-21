@@ -107,6 +107,18 @@ const createEmptyPost = (defaultCategoryId) => ({
     faqItems: [],
 });
 
+const DEFAULT_ORDER_FILTER = 'active';
+
+const ORDER_FILTER_OPTIONS = [
+    { value: 'active', label: 'Paid / active' },
+    { value: 'paid_physical', label: 'Paid physical' },
+    { value: 'paid', label: 'All paid' },
+    { value: 'pending', label: 'Pending checkout' },
+    { value: 'expired', label: 'Expired checkout' },
+    { value: 'all', label: 'All non-archived' },
+    { value: 'archived', label: 'Archived tests' },
+];
+
 const Admin = ({ section = 'orders' }) => {
     const [authLoading, setAuthLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -128,6 +140,7 @@ const Admin = ({ section = 'orders' }) => {
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [analyticsError, setAnalyticsError] = useState('');
     const [orders, setOrders] = useState([]);
+    const [orderFilter, setOrderFilter] = useState(DEFAULT_ORDER_FILTER);
     const [ordersLoading, setOrdersLoading] = useState(false);
     const [ordersError, setOrdersError] = useState('');
 
@@ -188,11 +201,17 @@ const Admin = ({ section = 'orders' }) => {
         }
     };
 
-    const loadOrders = async () => {
+    const loadOrders = async (filterOverride) => {
+        const nextFilter = filterOverride || orderFilter;
+        const params = new URLSearchParams({
+            filter: nextFilter,
+            limit: '100',
+        });
+
         setOrdersLoading(true);
         setOrdersError('');
         try {
-            const data = await apiFetch('/api/orders/admin');
+            const data = await apiFetch(`/api/orders/admin?${params.toString()}`);
             setOrders(data?.orders || []);
         } catch (err) {
             setOrders([]);
@@ -951,7 +970,7 @@ const Admin = ({ section = 'orders' }) => {
                             </button>
                             <button
                                 type="button"
-                                onClick={loadOrders}
+                                onClick={() => loadOrders()}
                                 disabled={ordersLoading}
                                 style={{ background: 'var(--color-dark)', color: 'white', padding: '0.35rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem' }}
                             >
@@ -964,10 +983,33 @@ const Admin = ({ section = 'orders' }) => {
                         <div style={{ fontSize: '0.9rem', color: '#a40000', marginBottom: '0.75rem' }}>{ordersError}</div>
                     ) : null}
 
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', color: '#55463d', fontWeight: 800 }}>
+                            Filter
+                            <select
+                                value={orderFilter}
+                                onChange={(e) => {
+                                    const nextFilter = e.target.value;
+                                    setOrderFilter(nextFilter);
+                                    loadOrders(nextFilter);
+                                }}
+                                disabled={ordersLoading}
+                                style={{ padding: '0.35rem 0.5rem', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.85rem', background: 'white' }}
+                            >
+                                {ORDER_FILTER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <div style={{ fontSize: '0.82rem', color: '#666' }}>
+                            {orders.length} loaded
+                        </div>
+                    </div>
+
                     <div style={{ display: 'grid', gap: '0.75rem', maxHeight: '520px', overflow: 'auto' }}>
                         {orders.length === 0 ? (
                             <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem', color: '#777' }}>
-                                No orders yet.
+                                No orders match this filter.
                             </div>
                         ) : (
                             orders.map((order) => {
