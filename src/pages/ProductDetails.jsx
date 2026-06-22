@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -164,12 +164,10 @@ const ProductDetails = () => {
   const { products } = useProducts();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
-  const [heroMediaHeight, setHeroMediaHeight] = useState(null);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [selectedVariantCode, setSelectedVariantCode] = useState('');
   const [visitorCountryCode, setVisitorCountryCode] = useState('');
   const [couponCode, setCouponCode] = useState('');
-  const summaryRef = useRef(null);
   const isPreviewProduct = Boolean(product?.isMock);
 
   useEffect(() => {
@@ -287,42 +285,6 @@ const ProductDetails = () => {
   const normalizedActiveGalleryIndex = galleryImages.length
     ? Math.min(activeGalleryIndex, galleryImages.length - 1)
     : 0;
-  const productLanguagesKey = product?.languages?.join(',') || '';
-  const trustBadgeCount = pageData?.trustBadges?.length || 0;
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const summaryElement = summaryRef.current;
-    if (!summaryElement) return undefined;
-
-    const syncHeroHeight = () => {
-      if (product?.productType === 'physical') {
-        setHeroMediaHeight((current) => (current === null ? current : null));
-        return;
-      }
-
-      if (window.innerWidth <= 1040) {
-        setHeroMediaHeight((current) => (current === null ? current : null));
-        return;
-      }
-
-      const nextHeight = Math.round(summaryElement.getBoundingClientRect().height);
-      setHeroMediaHeight((current) => (current === nextHeight ? current : nextHeight));
-    };
-
-    syncHeroHeight();
-
-    const observer =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncHeroHeight) : null;
-
-    observer?.observe(summaryElement);
-    window.addEventListener('resize', syncHeroHeight);
-
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', syncHeroHeight);
-    };
-  }, [slug, product?.productType, productLanguagesKey, trustBadgeCount]);
 
   if (productLoading && !product) {
     return (
@@ -373,7 +335,6 @@ const ProductDetails = () => {
   const productTemplate = pageData.template || inferProductPageTemplate(product);
   const isPhysicalProductPage = isPhysicalTemplate(productTemplate);
   const isPreorderProductPage = isPreorderTemplate(productTemplate);
-  const usesSquareGallery = isPhysicalProductPage;
   const colorVariants = product.colorVariants || [];
   const selectedVariant =
     colorVariants.find((variant) => variant.code === selectedVariantCode) ||
@@ -450,15 +411,12 @@ const ProductDetails = () => {
           )}
 
           <article className="product-page__hero">
-            <div
-              className={`product-page__image-panel${usesSquareGallery ? ' product-page__image-panel--square' : ''}`}
-              style={heroMediaHeight ? { height: `${heroMediaHeight}px` } : undefined}
-            >
+            <div className="product-page__image-panel product-page__image-panel--square">
               <div className="product-page__image-stage">
                 <img
                   src={activeGalleryImage}
                   alt={`${product.name} – náhľad ${normalizedActiveGalleryIndex + 1}`}
-                  className={`product-page__image${usesSquareGallery ? ' product-page__image--square' : ''}`}
+                  className="product-page__image product-page__image--square"
                 />
 
                 {showGalleryControls && (
@@ -502,7 +460,7 @@ const ProductDetails = () => {
               </div>
             </div>
 
-            <div className="product-page__summary" ref={summaryRef}>
+            <div className="product-page__summary">
               <h1 className="product-page__title">{product.name}</h1>
               <p className="product-page__lead">{lead}</p>
 
