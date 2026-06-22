@@ -115,6 +115,69 @@ export const loadVisitorCountry = async () => {
     return data?.countryCode || '';
 };
 
+const uploadProductAsset = async ({ productId, endpoint, file, fields = {} }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    Object.entries(fields).forEach(([key, value]) => {
+        if (value != null && value !== '') formData.append(key, value);
+    });
+
+    const res = await fetch(apiUrl(`/api/products/admin/${productId}/assets/${endpoint}`), {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+    });
+
+    const text = await res.text();
+    let data = null;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch {
+        data = null;
+    }
+
+    if (!res.ok) {
+        const err = new Error(data?.error || `http_${res.status}`);
+        err.status = res.status;
+        err.data = data;
+        err.url = apiUrl(`/api/products/admin/${productId}/assets/${endpoint}`);
+        err.bodyText = text;
+        throw err;
+    }
+
+    return data;
+};
+
+export const loadProductAssets = async (productId) => {
+    const data = await apiFetch(`/api/products/admin/${productId}/assets`);
+    return data?.assets || [];
+};
+
+export const uploadProductImage = async (productId, file, role = 'asset') => {
+    const data = await uploadProductAsset({
+        productId,
+        endpoint: 'image',
+        file,
+        fields: { role },
+    });
+
+    return data?.asset || null;
+};
+
+export const uploadProductPdf = async (productId, file, { languageCode, customerFilename } = {}) => {
+    const data = await uploadProductAsset({
+        productId,
+        endpoint: 'pdf',
+        file,
+        fields: {
+            languageCode,
+            customerFilename,
+        },
+    });
+
+    return data;
+};
+
 const parseFaqContent = (faqContent) => {
     if (!faqContent) return [];
     try {

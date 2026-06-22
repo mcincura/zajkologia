@@ -155,27 +155,39 @@ const getDefaultAvailableVariant = (variants = []) =>
   variants[0] ||
   null;
 
-const ProductDetails = () => {
+export const ProductDetailView = ({
+  product: productOverride = null,
+  relatedProducts: relatedProductsOverride = null,
+  mode = 'public',
+  countryCodeOverride = '',
+  backTo: backToOverride = '',
+  checkoutCancelled = false,
+}) => {
+  const isAdminPreview = mode === 'admin-preview';
   const { slug } = useParams();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const backTo = location.state?.from || '/?category=Produkty';
-  const { product, loading: productLoading } = useProduct(slug);
-  const { products } = useProducts();
+  const shouldLoadRouteProduct = !productOverride;
+  const backTo = backToOverride || location.state?.from || '/?category=Produkty';
+  const { product: loadedProduct, loading: productLoading } = useProduct(slug, shouldLoadRouteProduct);
+  const { products } = useProducts(shouldLoadRouteProduct && !relatedProductsOverride);
+  const product = productOverride || loadedProduct;
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [selectedVariantCode, setSelectedVariantCode] = useState('');
   const [visitorCountryCode, setVisitorCountryCode] = useState('');
   const [couponCode, setCouponCode] = useState('');
-  const isPreviewProduct = Boolean(product?.isMock);
+  const isPreviewProduct = isAdminPreview || Boolean(product?.isMock);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || isAdminPreview) return;
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [slug]);
+  }, [isAdminPreview, slug]);
 
   useEffect(() => {
+    if (isAdminPreview || countryCodeOverride) return undefined;
+
     let cancelled = false;
 
     const loadCountry = async () => {
@@ -192,10 +204,10 @@ const ProductDetails = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [countryCodeOverride, isAdminPreview]);
 
   const handleCheckout = async () => {
-    if (isPreviewProduct || !product) return;
+    if (isPreviewProduct || isAdminPreview || !product) return;
     const isPhysicalCheckout = product.productType === 'physical';
     const colorOptions = product.colorVariants || [];
     const selectedVariant =
@@ -261,14 +273,15 @@ const ProductDetails = () => {
   }, [product]);
 
   const relatedProducts = useMemo(() => {
+    if (relatedProductsOverride) return relatedProductsOverride;
     if (!product) return [];
     return products.filter((item) => item.slug !== product.slug).slice(0, 2);
-  }, [product, products]);
+  }, [product, products, relatedProductsOverride]);
 
   const galleryImages = useMemo(() => {
     if (!product) return [];
 
-    const normalizedCountryCode = visitorCountryCode.toUpperCase();
+    const normalizedCountryCode = (countryCodeOverride || visitorCountryCode).toUpperCase();
     const countryImages = normalizedCountryCode
       ? product.productPage?.galleryImagesByCountry?.[normalizedCountryCode]
       : null;
@@ -280,13 +293,13 @@ const ProductDetails = () => {
       : [product.heroImage || product.image];
 
     return sourceImages.filter(Boolean);
-  }, [product, visitorCountryCode]);
+  }, [countryCodeOverride, product, visitorCountryCode]);
 
   const normalizedActiveGalleryIndex = galleryImages.length
     ? Math.min(activeGalleryIndex, galleryImages.length - 1)
     : 0;
 
-  if (productLoading && !product) {
+  if (!productOverride && productLoading && !product) {
     return (
       <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
         <h2>Načítavam produkt…</h2>
@@ -295,6 +308,16 @@ const ProductDetails = () => {
   }
 
   if (!product) {
+    if (isAdminPreview) {
+      return (
+        <div className="product-page product-page--admin-preview-empty">
+          <div className="product-page__admin-empty">
+            Vyplň názov a základné údaje produktu. Náhľad sa zobrazí automaticky.
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
         <h2>Produkt nebol nájdený 🥕</h2>
@@ -399,12 +422,20 @@ const ProductDetails = () => {
     >
       <section className="product-page__top">
         <div className="container product-page__container">
-          <Link to={backTo} className="product-page__back-link">
-            <ArrowLeft size={18} />
-            Späť na produkty
-          </Link>
+          {!isAdminPreview && (
+            <Link to={backTo} className="product-page__back-link">
+              <ArrowLeft size={18} />
+              Späť na produkty
+            </Link>
+          )}
 
-          {searchParams.get('checkout') === 'cancelled' && (
+          {isAdminPreview && (
+            <div className="product-page__notice product-page__notice--preview">
+              Admin náhľad. Checkout, zľavové kódy a newsletter sú v tomto režime vypnuté.
+            </div>
+          )}
+
+          {(checkoutCancelled || (!isAdminPreview && searchParams.get('checkout') === 'cancelled')) && (
             <div className="product-page__notice">
               Platba nebola dokončená. Produkt si môžete kúpiť kedykoľvek neskôr.
             </div>
@@ -542,7 +573,7 @@ const ProductDetails = () => {
                 </div>
 
                 <div className="product-page__checkout-controls">
-                  {!isPreviewProduct && (
+                  {!isPreviewProduct && !isAdminPreview && (
                     <label className="product-page__coupon-field">
                       <Tag size={16} />
                       <span className="sr-only">Zľavový kód</span>
@@ -663,7 +694,7 @@ const ProductDetails = () => {
                 </div>
               )}
 
-              {!isPreviewProduct && !isPhysicalProductPage && (
+              {!isPreviewProduct && !isAdminPreview && !isPhysicalProductPage && (
                 <EmailCaptureOffer placement="product" />
               )}
 
@@ -869,5 +900,7 @@ const ProductDetails = () => {
     </div>
   );
 };
+
+const ProductDetails = () => <ProductDetailView />;
 
 export default ProductDetails;

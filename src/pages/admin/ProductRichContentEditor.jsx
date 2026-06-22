@@ -277,7 +277,6 @@ const ProductRichContentEditor = ({ product, onChange }) => {
   const updateUsageSteps = (patch) => updatePage({ usageSteps: { ...usageSteps, ...patch } });
   const updatePreorderInfo = (patch) => updatePage({ preorderInfo: { ...preorderInfo, ...patch } });
   const updateHandmadeStory = (patch) => updatePage({ handmadeStory: { ...handmadeStory, ...patch } });
-  const countryGalleries = page.galleryImagesByCountry || {};
 
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
@@ -401,27 +400,6 @@ const ProductRichContentEditor = ({ product, onChange }) => {
         onChange={(featureList) => onChange({ featureList })}
         placeholder="Feature shown in product summaries"
         addLabel="Add feature"
-      />
-
-      <TextListEditor
-        title="Gallery images"
-        items={page.galleryImages || []}
-        onChange={(galleryImages) => updatePage({ galleryImages })}
-        placeholder="/product-gallery/example.webp"
-        addLabel="Add image"
-      />
-
-      <TextListEditor
-        title="Country gallery CZ"
-        items={countryGalleries.CZ || []}
-        onChange={(images) => updatePage({
-          galleryImagesByCountry: {
-            ...countryGalleries,
-            CZ: images,
-          },
-        })}
-        placeholder="/product-gallery/example-cz.webp"
-        addLabel="Add CZ image"
       />
 
       <TextListEditor
