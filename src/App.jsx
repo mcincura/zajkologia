@@ -9,6 +9,7 @@ import CheckoutSuccess from './pages/CheckoutSuccess';
 import Terms from './pages/Terms';
 import About from './pages/About';
 import WithdrawalRequest from './pages/WithdrawalRequest';
+import ProductPreviewPage from './pages/admin/ProductPreviewPage';
 
 const restoreStaticHostPath = () => {
   if (typeof window === 'undefined') return;
@@ -34,6 +35,7 @@ function App() {
   return (
     <BrowserRouter basename=''>
       <Routes>
+        <Route path="/admin/products/preview" element={<ProductPreviewPage />} />
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="categories" element={<div className="container">Categories Page (Placeholder)</div>} />

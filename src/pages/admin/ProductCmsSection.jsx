@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import {
   apiFetch,
   loadProductAssets,
   uploadProductImage,
   uploadProductPdf,
 } from '../../api/client';
-import { ProductDetailView } from '../ProductDetails';
 import ProductRichContentEditor from './ProductRichContentEditor';
 import ProductPromotionsSection from './ProductPromotionsSection';
 import ProductMediaLibrary from './ProductMediaLibrary';
 import { normalizeRichProductContent } from './productRichContentUtils';
 import { mapAdminProductToPreviewProduct } from '../../utils/productMappers';
+import { saveAdminProductPreview } from '../../utils/adminProductPreviewStorage';
 import { PRODUCT_PAGE_TEMPLATE } from '../../utils/productTemplates';
 import '../../styles/admin-products.css';
 
@@ -342,11 +343,6 @@ const ProductCmsSection = () => {
 
   const deliveryLanguages = useMemo(
     () => getDeliveryLanguages(selectedProduct),
-    [selectedProduct]
-  );
-
-  const previewProduct = useMemo(
-    () => mapAdminProductToPreviewProduct(selectedProduct),
     [selectedProduct]
   );
 
@@ -831,6 +827,32 @@ const ProductCmsSection = () => {
     });
   };
 
+  const openProductPreview = () => {
+    if (!selectedProduct || typeof window === 'undefined') return;
+
+    const previewKey = saveAdminProductPreview({
+      product: mapAdminProductToPreviewProduct(selectedProduct),
+      countryCode: previewCountryCode,
+      isDirty: isSelectedDirty,
+    });
+
+    const previewUrl = new URL('/admin/products/preview', window.location.origin);
+    if (previewKey) previewUrl.searchParams.set('key', previewKey);
+    if (selectedProduct.slug) previewUrl.searchParams.set('slug', selectedProduct.slug);
+    previewUrl.searchParams.set('country', previewCountryCode);
+
+    const previewWindow = window.open(previewUrl.toString(), '_blank');
+    if (!previewWindow) {
+      setStatus('Preview tab was blocked by the browser. Allow pop-ups for this site and try again.');
+      return;
+    }
+
+    previewWindow.opener = null;
+    if (!previewKey) {
+      setStatus('Draft preview storage was blocked, so the preview tab opened the saved product by slug.');
+    }
+  };
+
   return (
     <div className="admin-products-shell">
       <aside style={{ border: '1px solid #eee', borderRadius: '10px', padding: '0.75rem', background: '#fafafa' }}>
@@ -893,7 +915,31 @@ const ProductCmsSection = () => {
               Editable catalog with Stripe Product and Price sync.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="admin-products-actions">
+            <div className="admin-products-preview-controls" aria-label="Product preview controls">
+              <div className="admin-products-preview-language" aria-label="Preview language">
+                {['SK', 'CZ'].map((countryCode) => (
+                  <button
+                    key={countryCode}
+                    type="button"
+                    className={previewCountryCode === countryCode ? 'is-active' : ''}
+                    onClick={() => setPreviewCountryCode(countryCode)}
+                    aria-pressed={previewCountryCode === countryCode}
+                  >
+                    {countryCode}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={openProductPreview}
+                disabled={!selectedProduct}
+                className="admin-products-preview-open"
+              >
+                <ExternalLink size={16} />
+                Preview
+              </button>
+            </div>
             <button
               type="button"
 	              onClick={rebuildPublicSite}
@@ -1471,36 +1517,6 @@ const ProductCmsSection = () => {
               </div>
             </div>
 
-            <aside className="admin-products-preview">
-              <div className="admin-products-preview__toolbar">
-                <div>
-                  <h3>Live preview</h3>
-                  <p>{isSelectedDirty ? 'Draft preview includes unsaved changes.' : 'Preview matches saved CMS data.'}</p>
-                </div>
-                <div className="admin-products-preview__toggle" aria-label="Preview language">
-                  {['SK', 'CZ'].map((countryCode) => (
-                    <button
-                      key={countryCode}
-                      type="button"
-                      className={previewCountryCode === countryCode ? 'is-active' : ''}
-                      onClick={() => setPreviewCountryCode(countryCode)}
-                      aria-pressed={previewCountryCode === countryCode}
-                    >
-                      {countryCode}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="admin-products-preview__frame">
-                <ProductDetailView
-                  product={previewProduct}
-                  relatedProducts={[]}
-                  mode="admin-preview"
-                  countryCodeOverride={previewCountryCode === 'CZ' ? 'CZ' : ''}
-                  backTo="/admin/products"
-                />
-              </div>
-            </aside>
           </div>
         )}
       </section>

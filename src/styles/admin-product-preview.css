@@ -1,0 +1,118 @@
+.admin-product-preview {
+  min-height: 100vh;
+  background: #fff8f8;
+}
+
+.admin-product-preview__bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem clamp(1rem, 4vw, 2rem);
+  border-bottom: 1px solid #eadfdc;
+  background: rgba(255, 248, 248, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.admin-product-preview__bar strong,
+.admin-product-preview__bar span {
+  display: block;
+}
+
+.admin-product-preview__bar strong {
+  color: #341320;
+  font-size: 0.92rem;
+}
+
+.admin-product-preview__bar span {
+  margin-top: 0.1rem;
+  color: #6f6259;
+  font-size: 0.78rem;
+}
+
+.admin-product-preview__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-product-preview__language {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid #e5e1dc;
+  border-radius: 999px;
+  background: white;
+}
+
+.admin-product-preview__language button {
+  min-width: 48px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: transparent;
+  color: #66584f;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.admin-product-preview__language button.is-active {
+  background: #341320;
+  color: #fff8ed;
+}
+
+.admin-product-preview__admin-link,
+.admin-product-preview__empty-card a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #55463d;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.admin-product-preview--empty {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.admin-product-preview__empty-card {
+  width: min(100%, 440px);
+  padding: 1.25rem;
+  border: 1px solid #eadfdc;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 16px 40px rgba(52, 19, 32, 0.08);
+}
+
+.admin-product-preview__empty-card h1 {
+  margin: 0 0 0.35rem;
+  color: #341320;
+  font-size: 1.35rem;
+}
+
+.admin-product-preview__empty-card p {
+  margin: 0 0 1rem;
+  color: #6f6259;
+}
+
+@media (max-width: 720px) {
+  .admin-product-preview__bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-product-preview__controls {
+    justify-content: flex-start;
+  }
+}
