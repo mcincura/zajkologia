@@ -181,6 +181,7 @@
 }
 
 .product-page__summary {
+  min-width: 0;
   padding: 1.35rem;
   text-align: left;
 }
@@ -202,6 +203,11 @@
   font-size: clamp(2rem, 4.2vw, 3.15rem);
   line-height: 1.02;
   font-weight: 800;
+}
+
+.product-page--physical_preorder .product-page__title {
+  font-size: clamp(2rem, 3.55vw, 2.55rem);
+  line-height: 1.06;
 }
 
 .product-page__lead {
@@ -263,6 +269,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
   padding-top: 1rem;
   margin-bottom: 0.8rem;
   border-top: 1px solid rgba(143, 88, 34, 0.1);
@@ -297,6 +304,9 @@
 .product-page__deal-card {
   display: grid;
   gap: 0.7rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: 0.82rem;
   border: 1px solid color-mix(in srgb, var(--product-page-accent-strong) 18%, white);
   border-radius: 16px;
@@ -307,9 +317,11 @@
 
 .product-page__deal-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
+  min-width: 0;
   color: var(--product-page-accent-strong);
   font-size: 0.74rem;
   font-weight: 900;
@@ -319,6 +331,7 @@
 }
 
 .product-page__deal-discount {
+  margin-left: auto;
   padding: 0.26rem 0.48rem;
   border-radius: 999px;
   background: #260c1a;
@@ -331,6 +344,7 @@
   grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
   gap: 0.55rem;
   align-items: stretch;
+  min-width: 0;
 }
 
 .product-page__deal-anchor,
@@ -378,6 +392,7 @@
 .product-page__deal-current strong {
   font-size: clamp(2rem, 5vw, 2.9rem);
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
 .product-page__deal-saving {
@@ -1141,6 +1156,10 @@
     position: sticky;
     top: 1rem;
   }
+
+  .product-page__buy-row--deal .product-page__deal-prices {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1040px) {
@@ -1238,6 +1257,10 @@
   .product-page__checkout-controls {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .product-page__buy-row--deal .product-page__deal-prices {
+    grid-template-columns: 1fr;
   }
 
   .product-page__gallery-arrow {
