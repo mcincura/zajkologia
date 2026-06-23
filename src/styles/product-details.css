@@ -285,8 +285,14 @@
   width: 100%;
 }
 
+.product-page__buy-row--deal .product-page__price-block,
 .product-page__buy-row--deal .product-page__checkout-controls {
+  flex: 0 0 auto;
   width: 100%;
+}
+
+.product-page__buy-row--deal .product-page__price-block {
+  min-width: 0;
 }
 
 .product-page__price-block {
