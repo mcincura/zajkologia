@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
   return {
     base: '/',
     plugins: [react()],
+    test: {
+      setupFiles: './src/test/setup.js',
+    },
     server: {
       proxy: {
         '/api': {

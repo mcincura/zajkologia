@@ -93,6 +93,24 @@ export const createCheckoutSession = async (productSlug, options = {}) => {
     return data;
 };
 
+export const createCartCheckoutSession = async (items, options = {}) => {
+    const attribution = options.attribution || getCheckoutAttribution();
+    const data = await apiFetch('/api/stripe/cart-checkout-session', {
+        method: 'POST',
+        body: JSON.stringify({
+            items,
+            ...(options.couponCode ? { couponCode: options.couponCode } : {}),
+            attribution,
+        }),
+    });
+
+    if (!data?.checkoutUrl) {
+        throw new Error('missing_checkout_url');
+    }
+
+    return data;
+};
+
 export const signupForWelcomeDiscount = async ({ email, consentAccepted, source }) => {
     return apiFetch('/api/newsletter/discount-signup', {
         method: 'POST',

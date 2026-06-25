@@ -1,24 +1,23 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, ShoppingCart } from 'lucide-react';
-import { createCheckoutSession } from '../api/client';
+import { useCart } from '../cart/useCart';
 import ProductLanguageBadges from './ProductLanguageBadges';
 import { PRODUCT_PAGE_TEMPLATE, inferProductPageTemplate } from '../utils/productTemplates';
-import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 import '../styles/products.css';
 
 const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkoutError, setCheckoutError] = useState('');
+  const { addItem } = useCart();
+  const [added, setAdded] = useState(false);
   const from = location.pathname + location.search;
   const destination = `/product/${product.slug}`;
   const isPreviewProduct = Boolean(product.isMock);
   const productTemplate = inferProductPageTemplate(product);
   const needsVariantSelection = product.productType === 'physical';
 
-  const handleCheckout = async (event) => {
+  const handleAddToCart = (event) => {
     event.preventDefault();
     event.stopPropagation();
     if (isPreviewProduct) return;
@@ -26,22 +25,8 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
       navigate(destination, { state: { from } });
       return;
     }
-    setCheckoutLoading(true);
-    setCheckoutError('');
-    try {
-      const session = await createCheckoutSession(product.slug);
-      window.location.assign(session.checkoutUrl);
-    } catch (err) {
-      if (err?.data?.error === 'welcome_discount_reserved') {
-        setCheckoutError('Uvítacia zľava je už pripravená v otvorenej pokladni. Dokončite otvorenú platbu alebo to skúste neskôr.');
-      } else if (err?.data?.error?.startsWith?.('welcome_discount_')) {
-        clearStoredWelcomeDiscountOffer();
-        setCheckoutError('Uvítacia zľava už bola použitá alebo nie je platná.');
-      } else {
-        setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
-      }
-      setCheckoutLoading(false);
-    }
+    addItem({ product, productSlug: product.slug, productType: 'digital', quantity: 1 });
+    setAdded(true);
   };
 
   const description = product.shortDescription || product.description || '';
@@ -49,12 +34,12 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const cardBadges = [product.preorderNote, product.saleLabel].filter(Boolean);
   const buttonLabel = isPreviewProduct
     ? product.purchaseLabel || 'Čoskoro'
-    : checkoutLoading
-      ? 'Otváram...'
+    : added && !needsVariantSelection
+      ? 'Pridané'
       : needsVariantSelection
         ? product.purchaseLabel ||
           (productTemplate === PRODUCT_PAGE_TEMPLATE.PHYSICAL_PREORDER ? 'Vybrať farbu' : 'Vybrať variant')
-        : 'Kúpiť';
+        : 'Pridať';
 
   return (
     <article
@@ -115,14 +100,14 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
           <button
             className={`product-card__button${isPreviewProduct ? ' product-card__button--preview' : ''}`}
             type="button"
-            onClick={handleCheckout}
-            disabled={checkoutLoading || isPreviewProduct}
+            onClick={handleAddToCart}
+            disabled={isPreviewProduct}
             aria-label={
               isPreviewProduct
                 ? `Produkt zatiaľ nie je v predaji: ${product.name}`
                 : needsVariantSelection
                   ? `Vybrať farebnú kombináciu produktu ${product.name}`
-                  : `Kúpiť ${product.name}`
+                  : `Pridať ${product.name} do košíka`
             }
           >
             <ShoppingCart size={16} />
@@ -134,10 +119,6 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
           Pozrieť detail
           <ArrowRight size={15} strokeWidth={2.4} />
         </Link>
-
-        {checkoutError && (
-          <div className="product-card__error">{checkoutError}</div>
-        )}
       </div>
     </article>
   );

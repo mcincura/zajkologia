@@ -4,6 +4,7 @@ import { Download, FileText, Package, PackageCheck } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
+import { isShippableOrder } from '../utils/orderTypes';
 
 const slugify = (value) => {
     return (value || '')
@@ -151,7 +152,7 @@ const Admin = ({ section = 'orders' }) => {
     const orderStats = useMemo(() => {
         const paidOrders = orders.filter((order) => ['paid', 'fulfilled'].includes(order.status));
         const physicalToShip = orders.filter((order) =>
-            order.orderType === 'physical' &&
+            isShippableOrder(order) &&
             ['paid', 'fulfilled'].includes(order.status) &&
             !order.shippedAt
         );
@@ -728,7 +729,7 @@ const Admin = ({ section = 'orders' }) => {
                     }}>
                         <div style={{ fontWeight: 800, marginBottom: '0.55rem' }}>Today’s queue</div>
                         <div style={{ display: 'grid', gap: '0.45rem', fontSize: '0.86rem', color: '#55463d' }}>
-                            <div><b>{orderStats.physicalToShip}</b> physical order(s) waiting to ship</div>
+                            <div><b>{orderStats.physicalToShip}</b> physical/mixed order(s) waiting to ship</div>
                             <div><b>{orderStats.refundRequestsToReview}</b> refund request(s) need review</div>
                             <div><b>{formatMoneyMinor(orderStats.revenueMinor, orderStats.currency)}</b> net loaded order revenue</div>
                         </div>
@@ -795,7 +796,7 @@ const Admin = ({ section = 'orders' }) => {
                         <div style={{ fontSize: '1.8rem', fontWeight: 950, color: '#166534', marginTop: '0.2rem' }}>
                             {orderStats.physicalToShip}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: '#276749', marginTop: '0.2rem' }}>Physical orders without tracking</div>
+                        <div style={{ fontSize: '0.8rem', color: '#276749', marginTop: '0.2rem' }}>Physical/mixed orders without tracking</div>
                     </div>
                     <div style={{ border: '1px solid #f3d4b7', borderRadius: '10px', padding: '1rem', background: '#fff7ed' }}>
                         <div style={{ fontSize: '0.78rem', color: '#9a3412', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Refund review</div>
@@ -1017,6 +1018,7 @@ const Admin = ({ section = 'orders' }) => {
                                 const refundableMinor = Number(order.amountTotal || 0) - Number(order.refundedAmount || 0);
                                 const pendingRequests = (order.refundRequests || []).filter((request) => request.status === 'submitted');
                                 const approvedRequests = (order.refundRequests || []).filter((request) => request.status === 'approved');
+                                const shippable = isShippableOrder(order);
 
                                 return (
                                     <article
@@ -1038,6 +1040,16 @@ const Admin = ({ section = 'orders' }) => {
                                                     {primaryItem?.variantName ? `${primaryItem.variantName} · ` : ''}
                                                     {order.customerEmail || order.shippingEmail || 'no email'}
                                                 </div>
+                                                {(order.items || []).length > 0 ? (
+                                                    <div style={{ display: 'grid', gap: '0.25rem', marginTop: '0.5rem', fontSize: '0.82rem', color: '#475569' }}>
+                                                        {order.items.map((item) => (
+                                                            <div key={item.id || `${item.productSlug}-${item.variantCode || 'digital'}`}>
+                                                                {item.quantity}x {item.productName}
+                                                                {item.variantName ? ` · ${item.variantName}` : ''}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
                                                 <div style={{ fontSize: '0.82rem', color: '#666', marginTop: '0.25rem' }}>
                                                     Paid: {formatDateTime(order.paidAt)} · Status: {order.status} / {order.fulfillmentStatus || '—'}
                                                 </div>
@@ -1046,7 +1058,7 @@ const Admin = ({ section = 'orders' }) => {
                                                         Ship: {order.shippingAddressLine1}, {order.shippingPostalCode} {order.shippingCity}, {order.shippingCountry}
                                                     </div>
                                                 ) : null}
-                                                {order.orderType === 'physical' ? (
+                                                {shippable ? (
                                                     <div style={{ marginTop: '0.6rem', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', padding: '0.6rem', display: 'grid', gap: '0.35rem' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center' }}>
                                                             <strong style={{ fontSize: '0.82rem' }}>Packeta details</strong>
@@ -1213,7 +1225,7 @@ const Admin = ({ section = 'orders' }) => {
                                                     Manual refund override
                                                 </button>
                                             )}
-                                            {order.orderType === 'physical' && ['paid', 'fulfilled'].includes(order.status) ? (
+                                            {shippable && ['paid', 'fulfilled'].includes(order.status) ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => markOrderShipped(order)}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Mail, PackageCheck } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { useCart } from '../cart/useCart';
 import {
   clearStoredWelcomeDiscountOffer,
   suppressEmailCaptureOffers,
@@ -9,6 +10,7 @@ import {
 
 const CheckoutSuccess = () => {
   const [searchParams] = useSearchParams();
+  const { clearCart } = useCart();
   const sessionId = searchParams.get('session_id');
   const [status, setStatus] = useState('loading');
   const [order, setOrder] = useState(null);
@@ -28,7 +30,11 @@ const CheckoutSuccess = () => {
       try {
         const data = await apiFetch(`/api/stripe/checkout-session/${encodeURIComponent(sessionId)}`);
         if (cancelled) return;
-        setOrder(data?.order || null);
+        const loadedOrder = data?.order || null;
+        setOrder(loadedOrder);
+        if (loadedOrder?.checkoutKind === 'cart') {
+          clearCart();
+        }
         setStatus('loaded');
       } catch {
         if (!cancelled) setStatus('error');
@@ -39,24 +45,34 @@ const CheckoutSuccess = () => {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [clearCart, sessionId]);
 
-  const isPhysicalOrder = order?.orderType === 'physical';
-  const primaryOrderItem = order?.items?.[0] || null;
+  const hasDigitalItems = Boolean(order?.hasDigitalItems);
+  const hasPhysicalItems = Boolean(order?.hasPhysicalItems);
+  const isMixedOrder = hasDigitalItems && hasPhysicalItems;
+  const isPhysicalOrder = hasPhysicalItems && !hasDigitalItems;
+  const successTitle = isMixedOrder
+    ? 'Ďakujeme za objednávku'
+    : isPhysicalOrder
+      ? 'Ďakujeme za predobjednávku'
+      : 'Ďakujeme za nákup';
+  const guidanceText = isMixedOrder
+    ? 'Platba bola prijatá. PDF produkty pošleme na e-mail zadaný v pokladni a fyzické položky pripravíme na doručenie.'
+    : isPhysicalOrder
+      ? 'Platba bola prijatá. Predobjednávku sme zaevidovali a ručne vyrábaný produkt pripravíme na doručenie.'
+      : 'Platba bola prijatá. PDF príručku doručíme na e-mail zadaný v pokladni spolu s potvrdením objednávky.';
 
   return (
     <div className="container" style={{ padding: '4rem 0', maxWidth: '760px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1rem' }}>
         <CheckCircle2 size={34} color="#2f7d32" />
         <h1 style={{ margin: 0, fontSize: '2rem' }}>
-          {isPhysicalOrder ? 'Ďakujeme za predobjednávku' : 'Ďakujeme za nákup'}
+          {successTitle}
         </h1>
       </div>
 
       <p style={{ color: '#555', lineHeight: 1.7, fontSize: '1.05rem' }}>
-        {isPhysicalOrder
-          ? 'Platba bola prijatá. Predobjednávku sme zaevidovali a ručne vyrábaný produkt pripravíme na doručenie.'
-          : 'Platba bola prijatá. PDF príručku doručíme na e-mail zadaný v pokladni spolu s potvrdením objednávky.'}
+        {guidanceText}
       </p>
 
       <div
@@ -72,13 +88,15 @@ const CheckoutSuccess = () => {
           alignItems: 'flex-start',
         }}
       >
-        {isPhysicalOrder ? <PackageCheck size={22} /> : <Mail size={22} />}
+        {hasPhysicalItems ? <PackageCheck size={22} /> : <Mail size={22} />}
         <div>
-          <strong>{isPhysicalOrder ? 'Predobjednávka je uložená.' : 'Skontrolujte si e-mail.'}</strong>
+          <strong>{hasPhysicalItems ? 'Objednávka je uložená.' : 'Skontrolujte si e-mail.'}</strong>
           <div style={{ marginTop: '0.35rem', lineHeight: 1.6 }}>
-            {isPhysicalOrder
-              ? 'Doručovacie údaje máme z pokladne. O ďalšom stave objednávky vás budeme informovať.'
-              : 'Ak správu nevidíte do pár minút, skontrolujte aj priečinok spam alebo promo.'}
+            {isMixedOrder
+              ? 'Digitálne produkty hľadajte v e-maile. Doručovacie údaje k fyzickým položkám máme zo Stripe pokladne.'
+              : hasPhysicalItems
+                ? 'Doručovacie údaje máme z pokladne. O ďalšom stave objednávky vás budeme informovať.'
+                : 'Ak správu nevidíte do pár minút, skontrolujte aj priečinok spam alebo promo.'}
           </div>
         </div>
       </div>
@@ -86,10 +104,13 @@ const CheckoutSuccess = () => {
       {status === 'loaded' && order && (
         <div style={{ marginTop: '1.5rem', color: '#555', lineHeight: 1.7 }}>
           <div>Objednávka: <strong>{order.id}</strong></div>
-          <div>Produkt: <strong>{order.productName}</strong></div>
-          {primaryOrderItem?.variantName && (
-            <div>Farba: <strong>{primaryOrderItem.variantName}</strong></div>
-          )}
+          {(order.items || []).map((item) => (
+            <div key={`${item.productSlug}-${item.variantCode || 'digital'}`}>
+              Produkt: <strong>{item.productName}</strong>
+              {item.variantName ? <> · Variant: <strong>{item.variantName}</strong></> : null}
+              {' '}· Množstvo: <strong>{item.quantity}</strong>
+            </div>
+          ))}
           <div>Stav: <strong>{order.status}</strong></div>
         </div>
       )}

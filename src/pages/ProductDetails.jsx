@@ -25,6 +25,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { createCheckoutSession, loadVisitorCountry } from '../api/client';
+import { useCart } from '../cart/useCart';
 import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import ProductCard from '../components/ProductCard';
 import ProductLanguageBadges from '../components/ProductLanguageBadges';
@@ -171,9 +172,11 @@ export const ProductDetailView = ({
   const backTo = backToOverride || location.state?.from || '/?category=Produkty';
   const { product: loadedProduct, loading: productLoading } = useProduct(slug, shouldLoadRouteProduct);
   const { products } = useProducts(shouldLoadRouteProduct && !relatedProductsOverride);
+  const { addItem } = useCart();
   const product = productOverride || loadedProduct;
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [cartAdded, setCartAdded] = useState(false);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [selectedVariantCode, setSelectedVariantCode] = useState('');
   const [visitorCountryCode, setVisitorCountryCode] = useState('');
@@ -206,17 +209,21 @@ export const ProductDetailView = ({
     };
   }, [countryCodeOverride, isAdminPreview]);
 
-  const handleCheckout = async () => {
-    if (isPreviewProduct || isAdminPreview || !product) return;
-    const isPhysicalCheckout = product.productType === 'physical';
+  const getSelectedCheckoutVariant = () => {
     const colorOptions = product.colorVariants || [];
-    const selectedVariant =
+    return (
       colorOptions.find((variant) => variant.code === selectedVariantCode) ||
-      getDefaultAvailableVariant(colorOptions);
+      getDefaultAvailableVariant(colorOptions)
+    );
+  };
+
+  const validateSelectedVariant = () => {
+    const isPhysicalCheckout = product.productType === 'physical';
+    const selectedVariant = getSelectedCheckoutVariant();
 
     if (isPhysicalCheckout && !selectedVariant) {
       setCheckoutError('Vyberte si prosím farebnú kombináciu.');
-      return;
+      return null;
     }
 
     if (
@@ -224,8 +231,35 @@ export const ProductDetailView = ({
       (selectedVariant.isActive === false || Number(selectedVariant.available || 0) <= 0)
     ) {
       setCheckoutError('Táto farebná kombinácia je momentálne vypredaná.');
-      return;
+      return null;
     }
+
+    return selectedVariant;
+  };
+
+  const handleAddToCart = () => {
+    if (isPreviewProduct || isAdminPreview || !product) return;
+    const isPhysicalCheckout = product.productType === 'physical';
+    const selectedVariant = validateSelectedVariant();
+    if (isPhysicalCheckout && !selectedVariant) return;
+
+    addItem({
+      product,
+      productSlug: product.slug,
+      productType: isPhysicalCheckout ? 'physical' : 'digital',
+      ...(isPhysicalCheckout ? { variantCode: selectedVariant.code } : {}),
+      quantity: 1,
+      maxQuantity: product.maxQuantity || 1,
+    });
+    setCheckoutError('');
+    setCartAdded(true);
+  };
+
+  const handleCheckout = async () => {
+    if (isPreviewProduct || isAdminPreview || !product) return;
+    const isPhysicalCheckout = product.productType === 'physical';
+    const selectedVariant = validateSelectedVariant();
+    if (isPhysicalCheckout && !selectedVariant) return;
 
     setCheckoutLoading(true);
     setCheckoutError('');
@@ -587,11 +621,20 @@ export const ProductDetailView = ({
                   )}
                   <button
                     type="button"
+                    onClick={handleAddToCart}
+                    disabled={isPreviewProduct || selectedVariantUnavailable}
+                    className={`product-page__cart-button${cartAdded ? ' is-added' : ''}`}
+                  >
+                    <ShoppingCart size={18} />
+                    {cartAdded ? 'Pridané v košíku' : 'Pridať do košíka'}
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleCheckout}
                     disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable}
                     className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
                   >
-                    <ShoppingCart size={18} />
+                    <ArrowRight size={18} />
                     {ctaLabel}
                   </button>
                 </div>
@@ -651,6 +694,7 @@ export const ProductDetailView = ({
                           className={`product-page__variant${isSelected ? ' is-active' : ''}${isUnavailable ? ' is-unavailable' : ''}`}
                           onClick={() => {
                             setSelectedVariantCode(variant.code);
+                            setCartAdded(false);
                             selectVariantImage(variant.image);
                           }}
                           aria-pressed={isSelected}
@@ -858,15 +902,26 @@ export const ProductDetailView = ({
                 )}
                 <span>{priceLabel}</span>
               </span>
-              <button
-                type="button"
-                onClick={handleCheckout}
-                disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable}
-                className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
-              >
-                <ShoppingCart size={18} />
-                {ctaLabel}
-              </button>
+              <div className="product-page__closing-buttons">
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={isPreviewProduct || selectedVariantUnavailable}
+                  className={`product-page__cart-button${cartAdded ? ' is-added' : ''}`}
+                >
+                  <ShoppingCart size={18} />
+                  {cartAdded ? 'Pridané v košíku' : 'Pridať do košíka'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable}
+                  className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
+                >
+                  <ArrowRight size={18} />
+                  {ctaLabel}
+                </button>
+              </div>
             </div>
           </div>
         </div>

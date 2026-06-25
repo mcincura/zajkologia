@@ -285,10 +285,18 @@
   width: 100%;
 }
 
+.product-page__buy-row--deal .product-page__cart-button {
+  width: 100%;
+}
+
 .product-page__buy-row--deal .product-page__price-block,
 .product-page__buy-row--deal .product-page__checkout-controls {
   flex: 0 0 auto;
   width: 100%;
+}
+
+.product-page__buy-row--deal .product-page__checkout-controls {
+  grid-template-columns: 1fr;
 }
 
 .product-page__buy-row--deal .product-page__price-block {
@@ -466,7 +474,8 @@
   line-height: 1.25;
 }
 
-.product-page__cta {
+.product-page__cta,
+.product-page__cart-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -484,15 +493,45 @@
   transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
+.product-page__cta {
+  background: #341320;
+  color: #fff8ed;
+  box-shadow: 0 12px 24px rgba(52, 19, 32, 0.16);
+}
+
+.product-page__cart-button {
+  border: 1px solid rgba(52, 19, 32, 0.14);
+  background: #fffaf4;
+  color: #341320;
+  box-shadow: 0 10px 20px rgba(52, 19, 32, 0.08);
+}
+
+.product-page__cta:hover,
+.product-page__cta:focus-visible,
+.product-page__cart-button:hover,
+.product-page__cart-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(52, 19, 32, 0.2);
+}
+
 .product-page__cta:hover,
 .product-page__cta:focus-visible {
-  transform: translateY(-1px);
   background: #260c1a;
-  box-shadow: 0 16px 28px rgba(52, 19, 32, 0.2);
+}
+
+.product-page__cart-button:hover,
+.product-page__cart-button:focus-visible,
+.product-page__cart-button.is-added {
+  background: #fff7ed;
 }
 
 .product-page__cta:focus-visible {
   outline: 3px solid rgba(52, 19, 32, 0.16);
+  outline-offset: 4px;
+}
+
+.product-page__cart-button:focus-visible {
+  outline: 3px solid rgba(52, 19, 32, 0.12);
   outline-offset: 4px;
 }
 
@@ -508,7 +547,10 @@
 
 .product-page__cta:disabled,
 .product-page__cta:disabled:hover,
-.product-page__cta:disabled:focus-visible {
+.product-page__cta:disabled:focus-visible,
+.product-page__cart-button:disabled,
+.product-page__cart-button:disabled:hover,
+.product-page__cart-button:disabled:focus-visible {
   background: color-mix(in srgb, var(--product-page-accent) 22%, white);
   color: rgba(47, 23, 8, 0.58);
   box-shadow: none;
@@ -518,11 +560,18 @@
 
 .product-page__checkout-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
   flex: 1 1 18.5rem;
   gap: 0.55rem;
   align-items: center;
   min-width: min(100%, 17rem);
+}
+
+.product-page__closing-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
 }
 
 .product-page__coupon-field {
@@ -1256,7 +1305,8 @@
     min-width: 0;
   }
 
-  .product-page__cta {
+  .product-page__cta,
+  .product-page__cart-button {
     width: 100%;
   }
 
