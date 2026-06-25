@@ -5,6 +5,12 @@ import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
 import { isShippableOrder } from '../utils/orderTypes';
+import {
+    getDefaultRefundCategory,
+    getFullRefundDigitalWarning,
+    getOrderHasPhysicalItems,
+    REFUND_CATEGORY_OPTIONS,
+} from '../utils/adminRefunds';
 
 const slugify = (value) => {
     return (value || '')
@@ -477,33 +483,77 @@ const Admin = ({ section = 'orders' }) => {
             `Refund amount in EUR. Max ${formatMoneyMinor(refundableMinor, order.currency)}:`,
             (refundableMinor / 100).toFixed(2)
         );
+        if (amountInput == null) {
+            setStatus('Refund cancelled before amount was confirmed. No Stripe refund was created.');
+            return;
+        }
+
         const amount = parseEuroToMinor(amountInput);
-        if (!amount) return;
+        if (!amount) {
+            setStatus('Invalid refund amount. No Stripe refund was created.');
+            return;
+        }
+        if (amount > refundableMinor) {
+            setStatus(`Refund amount is higher than the remaining refundable amount (${formatMoneyMinor(refundableMinor, order.currency)}). No Stripe refund was created.`);
+            return;
+        }
 
         const category = window.prompt(
-            'Refund category: pre_ship_cancel, withdrawal, defect_complaint, duplicate_payment, goodwill, other',
-            request?.requestType || 'pre_ship_cancel'
+            `Refund category: ${REFUND_CATEGORY_OPTIONS.join(', ')}`,
+            getDefaultRefundCategory(request)
         );
-        if (!category?.trim()) return;
+        if (category == null) {
+            setStatus('Refund cancelled before category was confirmed. No Stripe refund was created.');
+            return;
+        }
+
+        const normalizedCategory = category.trim();
+        if (!REFUND_CATEGORY_OPTIONS.includes(normalizedCategory)) {
+            setStatus(`Invalid refund category "${normalizedCategory}". Use one of: ${REFUND_CATEGORY_OPTIONS.join(', ')}. No Stripe refund was created.`);
+            return;
+        }
 
         const adminReason = window.prompt('Internal admin reason/decision note:');
-        if (!adminReason?.trim()) return;
+        if (adminReason == null) {
+            setStatus('Refund cancelled before admin reason was confirmed. No Stripe refund was created.');
+            return;
+        }
+        if (!adminReason.trim()) {
+            setStatus('Admin reason is required. No Stripe refund was created.');
+            return;
+        }
 
-        const restock = !order.shippedAt && window.confirm('Restock/release the reserved product variant after refund succeeds?');
+        const fullRefundDigitalWarning = getFullRefundDigitalWarning({
+            order,
+            amount,
+            refundableMinor,
+            formattedRefundAmount: formatMoneyMinor(refundableMinor, order.currency),
+        });
+        if (fullRefundDigitalWarning && !window.confirm(fullRefundDigitalWarning)) {
+            setStatus('Full digital/mixed refund cancelled at extra confirmation. No Stripe refund was created.');
+            return;
+        }
+
+        const restock = getOrderHasPhysicalItems(order) && !order.shippedAt
+            ? window.confirm('Restock/release the reserved product variant after refund succeeds?')
+            : false;
         const confirmed = window.confirm(
             `Create Stripe refund for ${formatMoneyMinor(amount, order.currency)} on order ${order.id}?`
         );
-        if (!confirmed) return;
+        if (!confirmed) {
+            setStatus('Refund cancelled at final confirmation. No Stripe refund was created.');
+            return;
+        }
 
         setBusy(true);
-        setStatus('');
+        setStatus(`Creating Stripe refund for ${formatMoneyMinor(amount, order.currency)}…`);
         try {
             const data = await apiFetch(`/api/orders/admin/${order.id}/refund`, {
                 method: 'POST',
                 body: JSON.stringify({
                     amount,
-                    category,
-                    adminReason,
+                    category: normalizedCategory,
+                    adminReason: adminReason.trim(),
                     refundRequestId: request?.id || null,
                     manualOverride: !request,
                     restock,
