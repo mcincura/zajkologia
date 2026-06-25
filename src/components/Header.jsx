@@ -8,24 +8,14 @@ const Header = () => {
     const { itemCount } = useCart();
 
     return (
-        <header className="site-header">
-            <div className="container site-header__inner">
-                <Link className="site-header__brand" to="/">
-                    ZAJKOLÓGIA
-                </Link>
-
-                <nav className="site-header__nav" aria-label="Hlavná navigácia">
-                    <Link to="/">Domov</Link>
-                    <Link to="/?category=Produkty">Produkty</Link>
-                    <Link to="/o-nas">O nás</Link>
-                    <Link to="/obchodne-podmienky">Podmienky</Link>
-                    <Link className="site-header__cart" to="/cart" aria-label={`Košík, ${itemCount} položiek`}>
-                        <ShoppingCart size={18} />
-                        <span>Košík</span>
-                        {itemCount > 0 && <strong>{itemCount}</strong>}
-                    </Link>
-                </nav>
-            </div>
+        <header className="site-header" aria-label="Košík">
+            <Link className="site-header__cart" to="/cart" aria-label={`Košík, ${itemCount} položiek`}>
+                <ShoppingCart aria-hidden="true" size={23} strokeWidth={2.2} />
+                <span className="site-header__cart-label">Košík</span>
+                <strong className={itemCount > 0 ? '' : 'is-empty'} aria-hidden="true">
+                    {itemCount}
+                </strong>
+            </Link>
         </header>
     );
 };
