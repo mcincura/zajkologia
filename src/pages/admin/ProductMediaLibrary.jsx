@@ -13,7 +13,7 @@ const getGalleryImages = (product, countryCode) => {
   return page.galleryImages || [];
 };
 
-const ImageAssetCard = ({ asset, assignmentTargets, onAssign }) => {
+const ImageAssetCard = ({ asset, assignmentTargets, assetBusy, onAssign, onDelete }) => {
   const [target, setTarget] = useState(assignmentTargets[0]?.value || 'gallery');
 
   return (
@@ -28,8 +28,16 @@ const ImageAssetCard = ({ asset, assignmentTargets, onAssign }) => {
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
-          <button type="button" onClick={() => onAssign(asset.publicUrl, target)}>
+          <button type="button" onClick={() => onAssign(asset.publicUrl, target)} disabled={assetBusy}>
             Assign
+          </button>
+          <button
+            type="button"
+            className="admin-media-card__delete"
+            onClick={() => onDelete(asset)}
+            disabled={assetBusy}
+          >
+            Delete uploaded file
           </button>
         </div>
       </div>
@@ -85,6 +93,7 @@ const ProductMediaLibrary = ({
   onUploadPdf,
   onReloadAssets,
   onAssignImage,
+  onDeleteImageAsset,
   onMoveGalleryImage,
   onRemoveGalleryImage,
 }) => {
@@ -207,7 +216,9 @@ const ProductMediaLibrary = ({
                 key={asset.id}
                 asset={asset}
                 assignmentTargets={assignmentTargets}
+                assetBusy={assetBusy}
                 onAssign={onAssignImage}
+                onDelete={onDeleteImageAsset}
               />
             ))}
           </div>

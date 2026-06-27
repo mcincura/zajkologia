@@ -171,6 +171,12 @@ export const loadProductAssets = async (productId) => {
     return data?.assets || [];
 };
 
+export const deleteProductImageAsset = async (productId, assetId) => {
+    return apiFetch(`/api/products/admin/${productId}/assets/${assetId}`, {
+        method: 'DELETE',
+    });
+};
+
 export const uploadProductImage = async (productId, file, role = 'asset') => {
     const data = await uploadProductAsset({
         productId,

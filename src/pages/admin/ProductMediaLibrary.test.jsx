@@ -1,0 +1,55 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import ProductMediaLibrary from './ProductMediaLibrary';
+
+const imageAsset = {
+  id: 7,
+  assetType: 'image',
+  publicUrl: 'https://api.test/api/product-assets/images/rabbit/photo.jpg',
+  originalFilename: 'photo.jpg',
+  fileSize: 2048,
+  role: 'asset',
+};
+
+const renderMediaLibrary = (overrides = {}) => {
+  const props = {
+    product: {
+      id: 1,
+      productType: 'physical',
+      productPage: {
+        galleryImages: [],
+        galleryImagesByCountry: {},
+      },
+      variants: [],
+    },
+    assets: [imageAsset],
+    assetsLoading: false,
+    assetBusy: false,
+    deliveryLanguages: ['sk'],
+    languageLabels: { sk: 'Slovak PDF' },
+    pdfUploadLanguage: 'sk',
+    onPdfUploadLanguageChange: vi.fn(),
+    onUploadImages: vi.fn(),
+    onUploadPdf: vi.fn(),
+    onReloadAssets: vi.fn(),
+    onAssignImage: vi.fn(),
+    onDeleteImageAsset: vi.fn(),
+    onMoveGalleryImage: vi.fn(),
+    onRemoveGalleryImage: vi.fn(),
+    ...overrides,
+  };
+
+  render(<ProductMediaLibrary {...props} />);
+  return props;
+};
+
+describe('ProductMediaLibrary', () => {
+  it('lets admins delete an uploaded image asset', async () => {
+    const props = renderMediaLibrary();
+
+    await userEvent.click(screen.getByRole('button', { name: /delete uploaded file/i }));
+
+    expect(props.onDeleteImageAsset).toHaveBeenCalledWith(imageAsset);
+  });
+});

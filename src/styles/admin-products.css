@@ -354,6 +354,14 @@
   gap: 0.4rem;
 }
 
+.admin-media-card__delete {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border: 1px solid #f0c5c5;
+  background: #fff4f4;
+  color: #9d1d1d;
+}
+
 .admin-media-card__actions select {
   min-width: 0;
   padding: 0.4rem 0.45rem;

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import {
   apiFetch,
+  deleteProductImageAsset,
   loadProductAssets,
   uploadProductImage,
   uploadProductPdf,
@@ -219,6 +220,50 @@ const applyAssignedImageUrl = (product, target, publicUrl) => {
   }
 
   return product;
+};
+
+const removeAssignedImageUrl = (product, publicUrl) => {
+  if (!product || !publicUrl) return product;
+
+  const productPage = product.productPage;
+  const nextProductPage = productPage && typeof productPage === 'object'
+    ? { ...productPage }
+    : productPage;
+
+  if (nextProductPage && Array.isArray(nextProductPage.galleryImages)) {
+    nextProductPage.galleryImages = nextProductPage.galleryImages.filter((image) => image !== publicUrl);
+  }
+
+  if (
+    nextProductPage?.galleryImagesByCountry &&
+    typeof nextProductPage.galleryImagesByCountry === 'object'
+  ) {
+    nextProductPage.galleryImagesByCountry = Object.fromEntries(
+      Object.entries(nextProductPage.galleryImagesByCountry).map(([countryCode, images]) => [
+        countryCode,
+        Array.isArray(images) ? images.filter((image) => image !== publicUrl) : images,
+      ])
+    );
+  }
+
+  if (nextProductPage?.handmadeStory?.items && Array.isArray(nextProductPage.handmadeStory.items)) {
+    nextProductPage.handmadeStory = {
+      ...nextProductPage.handmadeStory,
+      items: nextProductPage.handmadeStory.items.map((item) =>
+        item?.image === publicUrl ? { ...item, image: '' } : item
+      ),
+    };
+  }
+
+  return {
+    ...product,
+    image: product.image === publicUrl ? '' : product.image,
+    heroImage: product.heroImage === publicUrl ? '' : product.heroImage,
+    variants: (product.variants || []).map((variant) =>
+      variant.image === publicUrl ? { ...variant, image: '' } : variant
+    ),
+    ...(nextProductPage ? { productPage: nextProductPage } : {}),
+  };
 };
 
 const getProductSnapshot = (product) => JSON.stringify(product || null);
@@ -694,6 +739,51 @@ const ProductCmsSection = () => {
     setStatus('Image assigned in the draft. Save the product to persist this change.');
   };
 
+  const deleteUploadedImageAsset = async (asset) => {
+    if (!selectedProduct || !asset?.id) return;
+
+    const filename = asset.originalFilename || 'this uploaded image';
+    if (!window.confirm(`Delete "${filename}" from the media library? This also removes it from this product wherever it is assigned.`)) {
+      return;
+    }
+
+    const wasDirty = isSelectedDirty;
+
+    setAssetBusy(true);
+    setStatus('');
+    try {
+      const data = await deleteProductImageAsset(selectedProduct.id, asset.id);
+      setProductAssets((current) => current.filter((item) => item.id !== asset.id));
+
+      if (data?.product) {
+        setSavedSnapshots((current) => ({
+          ...current,
+          [data.product.id]: getProductSnapshot(data.product),
+        }));
+      }
+
+      if (data?.product && !wasDirty) {
+        setProducts((current) => [
+          data.product,
+          ...current.filter((item) => item.id !== selectedProduct.id && item.id !== data.product.id),
+        ]);
+        setSelectedId(data.product.id);
+      } else if (asset.publicUrl) {
+        updateSelected(removeAssignedImageUrl(selectedProduct, asset.publicUrl));
+      }
+
+      setStatus(
+        data?.referencesRemoved
+          ? 'Image deleted and removed from this product. Save any remaining draft changes before rebuilding.'
+          : 'Image deleted from the media library.'
+      );
+    } catch (err) {
+      setStatus(`Image delete failed: ${err.message}`);
+    } finally {
+      setAssetBusy(false);
+    }
+  };
+
   const moveGalleryImage = (countryCode, index, direction) => {
     if (!selectedProduct) return;
     const images = getGalleryImages(selectedProduct, countryCode);
@@ -1087,6 +1177,7 @@ const ProductCmsSection = () => {
                   onUploadPdf={handleDigitalPdfFile}
                   onReloadAssets={() => refreshProductAssets()}
                   onAssignImage={assignImageToProduct}
+                  onDeleteImageAsset={deleteUploadedImageAsset}
                   onMoveGalleryImage={moveGalleryImage}
                   onRemoveGalleryImage={removeGalleryImage}
                 />
