@@ -408,6 +408,27 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+  align-items: center;
+}
+
+.admin-pdf-history__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #eee0d7;
+  border-radius: 8px;
+  background: white;
+}
+
+.admin-pdf-history__item span {
+  color: #6f6259;
+  font-size: 0.8rem;
+}
+
+.admin-pdf-history__item strong {
+  color: #341320;
 }
 
 @media (max-width: 1180px) {

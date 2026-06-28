@@ -45,6 +45,30 @@ const ImageAssetCard = ({ asset, assignmentTargets, assetBusy, onAssign, onDelet
   );
 };
 
+const PdfAssetRow = ({ asset, assetBusy, languageLabels, onDelete }) => {
+  const filename = asset.customerFilename || asset.originalFilename || 'Uploaded PDF';
+  const languageLabel = asset.languageCode
+    ? languageLabels[asset.languageCode] || asset.languageCode.toUpperCase()
+    : 'PDF';
+
+  return (
+    <div className="admin-pdf-history__item">
+      <span>
+        <strong>{languageLabel}</strong> {asset.isActive ? 'active' : 'inactive'} · {filename}
+      </span>
+      <button
+        type="button"
+        className="admin-media-card__delete"
+        onClick={() => onDelete(asset)}
+        disabled={assetBusy}
+        aria-label={`Delete uploaded PDF ${filename}`}
+      >
+        Delete uploaded PDF
+      </button>
+    </div>
+  );
+};
+
 const GalleryManager = ({ title, images, onMove, onRemove }) => (
   <section className="admin-gallery-manager">
     <div className="admin-gallery-manager__header">
@@ -94,6 +118,7 @@ const ProductMediaLibrary = ({
   onReloadAssets,
   onAssignImage,
   onDeleteImageAsset,
+  onDeletePdfAsset,
   onMoveGalleryImage,
   onRemoveGalleryImage,
 }) => {
@@ -247,9 +272,13 @@ const ProductMediaLibrary = ({
             <div className="admin-pdf-history">
               <span>Uploaded PDFs: </span>
               {pdfAssets.map((asset) => (
-                <span key={asset.id}>
-                  {asset.languageCode?.toUpperCase() || 'PDF'} {asset.isActive ? 'active' : 'inactive'}
-                </span>
+                <PdfAssetRow
+                  key={asset.id}
+                  asset={asset}
+                  assetBusy={assetBusy}
+                  languageLabels={languageLabels}
+                  onDelete={onDeletePdfAsset}
+                />
               ))}
             </div>
           )}

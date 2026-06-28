@@ -12,6 +12,16 @@ const imageAsset = {
   role: 'asset',
 };
 
+const pdfAsset = {
+  id: 9,
+  assetType: 'digital_pdf',
+  languageCode: 'sk',
+  originalFilename: 'guide.pdf',
+  customerFilename: 'Guide SK.pdf',
+  fileSize: 4096,
+  isActive: true,
+};
+
 const renderMediaLibrary = (overrides = {}) => {
   const props = {
     product: {
@@ -35,6 +45,7 @@ const renderMediaLibrary = (overrides = {}) => {
     onReloadAssets: vi.fn(),
     onAssignImage: vi.fn(),
     onDeleteImageAsset: vi.fn(),
+    onDeletePdfAsset: vi.fn(),
     onMoveGalleryImage: vi.fn(),
     onRemoveGalleryImage: vi.fn(),
     ...overrides,
@@ -51,5 +62,26 @@ describe('ProductMediaLibrary', () => {
     await userEvent.click(screen.getByRole('button', { name: /delete uploaded file/i }));
 
     expect(props.onDeleteImageAsset).toHaveBeenCalledWith(imageAsset);
+  });
+
+  it('lets admins delete an uploaded PDF asset', async () => {
+    const props = renderMediaLibrary({
+      product: {
+        id: 1,
+        productType: 'digital',
+        fulfillmentType: 'pdf_email',
+        emailAttachments: [],
+        productPage: {
+          galleryImages: [],
+          galleryImagesByCountry: {},
+        },
+        variants: [],
+      },
+      assets: [imageAsset, pdfAsset],
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /delete uploaded pdf/i }));
+
+    expect(props.onDeletePdfAsset).toHaveBeenCalledWith(pdfAsset);
   });
 });

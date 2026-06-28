@@ -3,6 +3,7 @@ import { ExternalLink } from 'lucide-react';
 import {
   apiFetch,
   deleteProductImageAsset,
+  deleteProductPdfAsset,
   loadProductAssets,
   uploadProductImage,
   uploadProductPdf,
@@ -784,6 +785,51 @@ const ProductCmsSection = () => {
     }
   };
 
+  const deleteUploadedPdfAsset = async (asset) => {
+    if (!selectedProduct || !asset?.id) return;
+
+    const filename = asset.customerFilename || asset.originalFilename || 'this uploaded PDF';
+    if (!window.confirm(`Delete "${filename}" from uploaded PDFs? If it is active, it will be removed from paid email delivery.`)) {
+      return;
+    }
+
+    const wasDirty = isSelectedDirty;
+
+    setAssetBusy(true);
+    setStatus('');
+    try {
+      const data = await deleteProductPdfAsset(selectedProduct.id, asset.id);
+      setProductAssets((current) => current.filter((item) => item.id !== asset.id));
+
+      if (data?.product) {
+        setSavedSnapshots((current) => ({
+          ...current,
+          [data.product.id]: getProductSnapshot(data.product),
+        }));
+      }
+
+      if (data?.product && !wasDirty) {
+        setProducts((current) => [
+          data.product,
+          ...current.filter((item) => item.id !== selectedProduct.id && item.id !== data.product.id),
+        ]);
+        setSelectedId(data.product.id);
+      } else if (data?.product) {
+        updateSelected({ emailAttachments: data.product.emailAttachments || [] });
+      }
+
+      setStatus(
+        data?.referencesRemoved
+          ? 'PDF deleted and removed from paid email delivery.'
+          : 'PDF deleted from uploaded PDFs.'
+      );
+    } catch (err) {
+      setStatus(`PDF delete failed: ${err.message}`);
+    } finally {
+      setAssetBusy(false);
+    }
+  };
+
   const moveGalleryImage = (countryCode, index, direction) => {
     if (!selectedProduct) return;
     const images = getGalleryImages(selectedProduct, countryCode);
@@ -1178,6 +1224,7 @@ const ProductCmsSection = () => {
                   onReloadAssets={() => refreshProductAssets()}
                   onAssignImage={assignImageToProduct}
                   onDeleteImageAsset={deleteUploadedImageAsset}
+                  onDeletePdfAsset={deleteUploadedPdfAsset}
                   onMoveGalleryImage={moveGalleryImage}
                   onRemoveGalleryImage={removeGalleryImage}
                 />
