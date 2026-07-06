@@ -1,7 +1,7 @@
 import process from 'node:process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
@@ -638,6 +638,10 @@ Sitemap: ${routeUrl('/sitemap.xml')}
   );
 }
 
+async function writeSpaFallback() {
+  await copyFile(path.join(distDir, 'index.html'), path.join(distDir, '404.html'));
+}
+
 async function main() {
   const templateHtml = await readFile(path.join(distDir, 'index.html'), 'utf8');
   const assetTags = extractAssetTags(templateHtml);
@@ -826,6 +830,7 @@ async function main() {
 
   await writeSitemap(posts, products);
   await writeRobots();
+  await writeSpaFallback();
 
   console.log(
     `Generated SEO pages for ${posts.length} posts and ${products.length} products from ${API_BASE_URL}`
