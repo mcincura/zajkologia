@@ -57,10 +57,10 @@ const CheckoutSuccess = () => {
       ? 'Ďakujeme za predobjednávku'
       : 'Ďakujeme za nákup';
   const guidanceText = isMixedOrder
-    ? 'Platba bola prijatá. PDF produkty pošleme na e-mail zadaný v pokladni a fyzické položky pripravíme na doručenie.'
+    ? 'Platba bola prijatá. PDF produkty pošleme ako bezpečný odkaz na e-mail zadaný v pokladni a fyzické položky pripravíme na doručenie.'
     : isPhysicalOrder
       ? 'Platba bola prijatá. Predobjednávku sme zaevidovali a ručne vyrábaný produkt pripravíme na doručenie.'
-      : 'Platba bola prijatá. PDF príručku doručíme na e-mail zadaný v pokladni spolu s potvrdením objednávky.';
+      : 'Platba bola prijatá. PDF doručíme bezpečným odkazom na e-mail zadaný v pokladni.';
 
   return (
     <div className="container" style={{ padding: '4rem 0', maxWidth: '760px' }}>
@@ -96,7 +96,7 @@ const CheckoutSuccess = () => {
               ? 'Digitálne produkty hľadajte v e-maile. Doručovacie údaje k fyzickým položkám máme zo Stripe pokladne.'
               : hasPhysicalItems
                 ? 'Doručovacie údaje máme z pokladne. O ďalšom stave objednávky vás budeme informovať.'
-                : 'Ak správu nevidíte do pár minút, skontrolujte aj priečinok spam alebo promo.'}
+                : 'V e-maile nájdete odkaz na stiahnutie. Pred stiahnutím ho overíme krátkym kódom.'}
           </div>
         </div>
       </div>

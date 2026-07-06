@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Download, FileText, Package, PackageCheck } from 'lucide-react';
+import { Ban, Clock, Download, FileText, Package, PackageCheck, RefreshCw, Send, ShieldCheck } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
@@ -659,6 +659,98 @@ const Admin = ({ section = 'orders' }) => {
         }
     };
 
+    const replaceLoadedOrder = (updatedOrder) => {
+        if (!updatedOrder?.id) return;
+        setOrders((prev) => prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)));
+    };
+
+    const resendDigitalDeliveryEmail = async (order) => {
+        const confirmed = window.confirm(`Resend secure PDF download email for order ${order.id}?`);
+        if (!confirmed) return;
+
+        setBusy(true);
+        setStatus('');
+        try {
+            const data = await apiFetch(`/api/orders/admin/${order.id}/digital-delivery/resend`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
+            replaceLoadedOrder(data.order);
+            setStatus('Secure PDF download email sent.');
+        } catch (err) {
+            setStatus(`Digital delivery resend failed: ${err.message}`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const regenerateDigitalDeliveryEmail = async (order) => {
+        const confirmed = window.confirm(`Regenerate secure PDF links and email them for order ${order.id}? Previous email links will stop working.`);
+        if (!confirmed) return;
+
+        setBusy(true);
+        setStatus('');
+        try {
+            const data = await apiFetch(`/api/orders/admin/${order.id}/digital-delivery/regenerate`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
+            replaceLoadedOrder(data.order);
+            setStatus('Secure PDF links regenerated and emailed.');
+        } catch (err) {
+            setStatus(`Digital delivery regenerate failed: ${err.message}`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const revokeDigitalDeliveryLinks = async (order) => {
+        const reason = window.prompt('Reason for revoking these download links:', 'Admin revoked access');
+        if (reason == null) return;
+        const confirmed = window.confirm(`Revoke active secure PDF links for order ${order.id}?`);
+        if (!confirmed) return;
+
+        setBusy(true);
+        setStatus('');
+        try {
+            const data = await apiFetch(`/api/orders/admin/${order.id}/digital-delivery/revoke`, {
+                method: 'POST',
+                body: JSON.stringify({ reason: reason.trim() }),
+            });
+            replaceLoadedOrder(data.order);
+            setStatus('Secure PDF links revoked.');
+        } catch (err) {
+            setStatus(`Digital delivery revoke failed: ${err.message}`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const extendDigitalDeliveryLinks = async (order) => {
+        const daysInput = window.prompt('Extend active links for how many days from now?', '30');
+        if (daysInput == null) return;
+        const days = Number.parseInt(daysInput, 10);
+        if (!Number.isFinite(days) || days < 1 || days > 365) {
+            setStatus('Extension must be between 1 and 365 days.');
+            return;
+        }
+
+        setBusy(true);
+        setStatus('');
+        try {
+            const data = await apiFetch(`/api/orders/admin/${order.id}/digital-delivery/extend`, {
+                method: 'POST',
+                body: JSON.stringify({ days }),
+            });
+            replaceLoadedOrder(data.order);
+            setStatus(`Secure PDF links extended for ${days} day(s).`);
+        } catch (err) {
+            setStatus(`Digital delivery extension failed: ${err.message}`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
     if (authLoading) {
         return <div className="container" style={{ padding: '2rem 0' }}>Loading…</div>;
     }
@@ -1069,6 +1161,11 @@ const Admin = ({ section = 'orders' }) => {
                                 const pendingRequests = (order.refundRequests || []).filter((request) => request.status === 'submitted');
                                 const approvedRequests = (order.refundRequests || []).filter((request) => request.status === 'approved');
                                 const shippable = isShippableOrder(order);
+                                const digitalDeliveryLinks = order.digitalDelivery?.links || [];
+                                const hasDigitalDeliveryControls =
+                                    order.orderType === 'digital' ||
+                                    order.orderType === 'mixed' ||
+                                    digitalDeliveryLinks.length > 0;
 
                                 return (
                                     <article
@@ -1142,6 +1239,80 @@ const Admin = ({ section = 'orders' }) => {
                                                                 {order.shippedAt ? ` · shipped ${formatDateTime(order.shippedAt)}` : ''}
                                                             </div>
                                                         ) : null}
+                                                    </div>
+                                                ) : null}
+                                                {hasDigitalDeliveryControls ? (
+                                                    <div style={{ marginTop: '0.6rem', border: '1px solid #dbe9df', borderRadius: '8px', background: '#f7fcf8', padding: '0.6rem', display: 'grid', gap: '0.5rem' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                            <strong style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', color: '#166534' }}>
+                                                                <ShieldCheck size={16} />
+                                                                Secure PDF delivery
+                                                            </strong>
+                                                            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => resendDigitalDeliveryEmail(order)}
+                                                                    disabled={busy}
+                                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'white', color: '#166534', border: '1px solid #bbf7d0', padding: '0.25rem 0.45rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.72rem' }}
+                                                                >
+                                                                    <Send size={13} />
+                                                                    Resend
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => regenerateDigitalDeliveryEmail(order)}
+                                                                    disabled={busy}
+                                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'white', color: '#334155', border: '1px solid #cbd5e1', padding: '0.25rem 0.45rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.72rem' }}
+                                                                >
+                                                                    <RefreshCw size={13} />
+                                                                    Regenerate
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => extendDigitalDeliveryLinks(order)}
+                                                                    disabled={busy || digitalDeliveryLinks.length === 0}
+                                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'white', color: '#7a3f00', border: '1px solid #f1d7bd', padding: '0.25rem 0.45rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.72rem' }}
+                                                                >
+                                                                    <Clock size={13} />
+                                                                    Extend
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => revokeDigitalDeliveryLinks(order)}
+                                                                    disabled={busy || digitalDeliveryLinks.length === 0}
+                                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'white', color: '#a40000', border: '1px solid #f3c5cd', padding: '0.25rem 0.45rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.72rem' }}
+                                                                >
+                                                                    <Ban size={13} />
+                                                                    Revoke
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        {digitalDeliveryLinks.length === 0 ? (
+                                                            <div style={{ fontSize: '0.78rem', color: '#475569' }}>
+                                                                No delivery links recorded yet.
+                                                            </div>
+                                                        ) : (
+                                                            <div style={{ display: 'grid', gap: '0.4rem' }}>
+                                                                {digitalDeliveryLinks.map((link) => (
+                                                                    <div key={link.id} style={{ borderTop: '1px dashed #cfe7d5', paddingTop: '0.4rem', fontSize: '0.78rem', color: '#475569' }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                                                            <span><strong>{link.filename}</strong></span>
+                                                                            <span style={{ fontWeight: 900, color: link.status === 'available' ? '#166534' : '#8a1c2b' }}>{link.status}</span>
+                                                                        </div>
+                                                                        <div style={{ marginTop: '0.2rem' }}>
+                                                                            {link.downloadCount}/{link.maxDownloads} downloads · expires {formatDateTime(link.expiresAt)}
+                                                                            {link.emailSentAt ? ` · email ${formatDateTime(link.emailSentAt)}` : ' · email pending'}
+                                                                            {link.revokedAt ? ` · revoked ${formatDateTime(link.revokedAt)}` : ''}
+                                                                        </div>
+                                                                        {(link.recentEvents || []).length > 0 ? (
+                                                                            <div style={{ marginTop: '0.2rem', color: '#64748b' }}>
+                                                                                Last event: {link.recentEvents[0].eventType} · {formatDateTime(link.recentEvents[0].createdAt)}
+                                                                            </div>
+                                                                        ) : null}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ) : null}
                                             </div>

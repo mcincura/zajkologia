@@ -205,6 +205,74 @@ export const uploadProductPdf = async (productId, file, { languageCode, customer
     return data;
 };
 
+export const loadDigitalDeliveryClaim = async (claimToken) => {
+    const data = await apiFetch(`/api/digital-delivery/claim/${encodeURIComponent(claimToken)}`);
+    return data?.summary || null;
+};
+
+export const sendDigitalDeliveryCode = async (claimToken) => {
+    return apiFetch(`/api/digital-delivery/claim/${encodeURIComponent(claimToken)}/send-code`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+};
+
+export const verifyDigitalDeliveryCode = async (claimToken, code) => {
+    return apiFetch(`/api/digital-delivery/claim/${encodeURIComponent(claimToken)}/verify`, {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+    });
+};
+
+const parseDownloadFilename = (contentDisposition, fallback) => {
+    const header = String(contentDisposition || '');
+    const encodedMatch = header.match(/filename\*=UTF-8''([^;]+)/i);
+    if (encodedMatch?.[1]) {
+        try {
+            return decodeURIComponent(encodedMatch[1]);
+        } catch {
+            return fallback;
+        }
+    }
+
+    const quotedMatch = header.match(/filename="([^"]+)"/i);
+    return quotedMatch?.[1] || fallback;
+};
+
+export const downloadDigitalDeliveryFile = async ({ deliveryLinkId, sessionToken, filename }) => {
+    const res = await fetch(apiUrl(`/api/digital-delivery/downloads/${encodeURIComponent(deliveryLinkId)}`), {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'X-Digital-Delivery-Session': sessionToken,
+        },
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        let data = null;
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch {
+            data = null;
+        }
+        const err = new Error(data?.error || `http_${res.status}`);
+        err.status = res.status;
+        err.data = data;
+        throw err;
+    }
+
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = parseDownloadFilename(res.headers.get('Content-Disposition'), filename || 'zajkologia.pdf');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+};
+
 const parseFaqContent = (faqContent) => {
     if (!faqContent) return [];
     try {

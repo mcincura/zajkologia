@@ -6,6 +6,7 @@ import PostDetails from './pages/PostDetails';
 import ProductDetails from './pages/ProductDetails';
 import Admin from './pages/Admin';
 import CheckoutSuccess from './pages/CheckoutSuccess';
+import DigitalDownloads from './pages/DigitalDownloads';
 import CartPage from './pages/CartPage';
 import Terms from './pages/Terms';
 import About from './pages/About';
@@ -46,6 +47,7 @@ function App() {
             <Route path="product/:slug" element={<ProductDetails />} />
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout/success" element={<CheckoutSuccess />} />
+            <Route path="downloads/:token" element={<DigitalDownloads />} />
             <Route path="o-nas" element={<About />} />
             <Route path="obchodne-podmienky" element={<Terms />} />
             <Route path="odstupenie-od-zmluvy" element={<WithdrawalRequest />} />
