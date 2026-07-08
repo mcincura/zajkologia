@@ -57,4 +57,20 @@ describe('ProductCard', () => {
 
     expect(JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY)).items).toEqual([]);
   });
+
+  it('routes mixed bundle cards to detail for variant selection', async () => {
+    renderCard({
+      id: 3,
+      slug: 'mixed-bundle',
+      name: 'Mixed Bundle',
+      productType: 'mixed',
+      fulfillmentType: 'physical_preorder',
+      image: '/bundle.jpg',
+      price: '12,99 €',
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /vybrať farebnú kombináciu/i }));
+
+    expect(JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY)).items).toEqual([]);
+  });
 });

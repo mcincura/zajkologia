@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { hasDigitalDelivery, hasPhysicalDelivery } from '../../utils/productTypes';
 
 const assignmentLabels = {
   image: 'Main image',
@@ -133,7 +134,7 @@ const ProductMediaLibrary = ({
   const assignmentTargets = useMemo(() => {
     const targets = Object.entries(assignmentLabels).map(([value, label]) => ({ value, label }));
 
-    if (product?.productType === 'physical') {
+    if (hasPhysicalDelivery(product)) {
       (product.variants || []).forEach((variant, index) => {
         targets.push({
           value: `variant:${index}`,
@@ -183,7 +184,7 @@ const ProductMediaLibrary = ({
           />
         </label>
 
-        {product?.productType === 'digital' && product.fulfillmentType === 'pdf_email' && (
+        {hasDigitalDelivery(product) && (
           <div className="admin-upload-drop admin-upload-drop--pdf">
             <label>
               <span>PDF version</span>
@@ -254,7 +255,7 @@ const ProductMediaLibrary = ({
         )}
       </div>
 
-      {product?.productType === 'digital' && product.fulfillmentType === 'pdf_email' && (
+      {hasDigitalDelivery(product) && (
         <div className="admin-pdf-status">
           <h4>PDF delivery</h4>
           <div className="admin-pdf-status__grid">

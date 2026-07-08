@@ -45,6 +45,26 @@ const products = [
       image: '/ball-black.jpg',
     }],
   },
+  {
+    slug: 'mixed-bundle',
+    name: 'Mixed Bundle',
+    productType: 'mixed',
+    fulfillmentType: 'physical_preorder',
+    amount: 1299,
+    shippingAmount: 150,
+    maxQuantity: 1,
+    currency: 'eur',
+    image: '/bundle.jpg',
+    isPublished: true,
+    colorVariants: [{
+      code: 'bundle',
+      name: 'Bundle',
+      amount: 1299,
+      available: 1,
+      isActive: true,
+      image: '/bundle-variant.jpg',
+    }],
+  },
 ];
 
 const renderCartPage = (items) => {
@@ -98,5 +118,30 @@ describe('CartPage', () => {
 
     expect(screen.getByText('Produkt už nie je dostupný.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /prejsť do pokladne/i })).toBeDisabled();
+  });
+
+  it('renders mixed bundle lines as physical-capable and submits the selected variant', async () => {
+    vi.mocked(createCartCheckoutSession).mockRejectedValue(new Error('stop-before-redirect'));
+    renderCartPage([
+      {
+        productSlug: 'mixed-bundle',
+        variantCode: 'bundle',
+        quantity: 1,
+        addedAt: '2026-06-25T12:02:00.000Z',
+      },
+    ]);
+
+    expect(screen.getByText('Digitálny PDF + fyzický produkt')).toBeInTheDocument();
+    expect(screen.getByText(/Doprava Packeta/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /prejsť do pokladne/i }));
+
+    await waitFor(() => {
+      expect(createCartCheckoutSession).toHaveBeenCalledWith([
+        { productSlug: 'mixed-bundle', variantCode: 'bundle', quantity: 1 },
+      ], {
+        couponCode: '',
+      });
+    });
   });
 });

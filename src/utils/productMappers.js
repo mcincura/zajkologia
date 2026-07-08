@@ -1,3 +1,5 @@
+import { hasPhysicalDelivery } from './productTypes';
+
 const formatCurrencyMinor = (value, currency = 'eur') => {
   if (value == null || value === '') return '';
   const amount = Number(value);
@@ -40,7 +42,7 @@ export const mapApiProductToProduct = (apiProduct) => {
     0
   );
   const computedStockNote =
-    apiProduct.productType === 'physical' && Number.isFinite(totalAvailable)
+    hasPhysicalDelivery(apiProduct) && Number.isFinite(totalAvailable)
       ? `${totalAvailable} ks celkovo`
       : '';
 
@@ -154,7 +156,7 @@ export const mapAdminProductToPreviewProduct = (adminProduct) => {
     colorVariants,
     stockNote:
       adminProduct.stockNote ||
-      (adminProduct.productType === 'physical' && Number.isFinite(totalAvailable)
+      (hasPhysicalDelivery(adminProduct) && Number.isFinite(totalAvailable)
         ? `${totalAvailable} ks celkovo`
         : ''),
   };

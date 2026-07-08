@@ -1,3 +1,5 @@
+import { hasPhysicalDelivery } from './productTypes';
+
 export const PRODUCT_PAGE_TEMPLATE = {
   DIGITAL: 'digital',
   PHYSICAL_PREORDER: 'physical_preorder',
@@ -38,7 +40,7 @@ export const inferProductPageTemplate = (product = {}) => {
   const explicitTemplate = normalizeProductPageTemplate(product.productPage?.template);
   if (explicitTemplate) return explicitTemplate;
 
-  if (product.productType !== 'physical') return PRODUCT_PAGE_TEMPLATE.DIGITAL;
+  if (!hasPhysicalDelivery(product)) return PRODUCT_PAGE_TEMPLATE.DIGITAL;
   if (product.fulfillmentType === 'physical') return PRODUCT_PAGE_TEMPLATE.PHYSICAL;
   return PRODUCT_PAGE_TEMPLATE.PHYSICAL_PREORDER;
 };

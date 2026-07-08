@@ -11,24 +11,22 @@ import {
 import ProductRichContentEditor from './ProductRichContentEditor';
 import ProductPromotionsSection from './ProductPromotionsSection';
 import ProductMediaLibrary from './ProductMediaLibrary';
-import { normalizeRichProductContent } from './productRichContentUtils';
+import {
+  buildProductPayload,
+  getFulfillmentTypeForProductType,
+  getTemplateForFulfillmentType,
+  normalizeSwatches,
+  slugify,
+} from './productCmsPayload';
 import { mapAdminProductToPreviewProduct } from '../../utils/productMappers';
 import { saveAdminProductPreview } from '../../utils/adminProductPreviewStorage';
 import { PRODUCT_PAGE_TEMPLATE } from '../../utils/productTemplates';
+import {
+  PRODUCT_TYPE,
+  hasPhysicalDelivery,
+  isMixedProduct,
+} from '../../utils/productTypes';
 import '../../styles/admin-products.css';
-
-const slugify = (value) => {
-  return (value || '')
-    .toString()
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-};
 
 const parseEuroToMinor = (value) => {
   const normalized = String(value || '').trim().replace(',', '.');
@@ -52,25 +50,6 @@ const splitList = (value) =>
     .filter(Boolean);
 
 const joinList = (value) => (Array.isArray(value) ? value.join(', ') : '');
-
-const normalizeSwatches = (swatches) => {
-  if (!Array.isArray(swatches)) return [];
-  return swatches.map((swatch) => String(swatch || '').trim()).filter(Boolean);
-};
-
-const normalizePreorderDeal = (deal) => {
-  if (!deal || typeof deal !== 'object') return null;
-
-  const normalized = {
-    anchorLabel: String(deal.anchorLabel || '').trim(),
-    currentLabel: String(deal.currentLabel || '').trim(),
-    savingsLabel: String(deal.savingsLabel || '').trim(),
-    limitLabel: String(deal.limitLabel || '').trim(),
-    limitDetail: String(deal.limitDetail || '').trim(),
-  };
-
-  return Object.values(normalized).some(Boolean) ? normalized : null;
-};
 
 const isHexColor = (value) => /^#[0-9a-f]{6}$/i.test(String(value || '').trim());
 
@@ -275,7 +254,7 @@ const createEmptyProduct = () => ({
   name: '',
   shortDescription: '',
   description: '',
-  productType: 'digital',
+  productType: PRODUCT_TYPE.DIGITAL,
   fulfillmentType: 'pdf_email',
   status: 'draft',
   sortOrder: 100,
@@ -518,14 +497,15 @@ const ProductCmsSection = () => {
   };
 
   const updateSelectedProductType = (productType) => {
-    const nextTemplate =
-      productType === 'physical'
-        ? PRODUCT_PAGE_TEMPLATE.PHYSICAL_PREORDER
-        : PRODUCT_PAGE_TEMPLATE.DIGITAL;
+    const fulfillmentType = getFulfillmentTypeForProductType(
+      productType,
+      selectedProduct?.fulfillmentType
+    );
+    const nextTemplate = getTemplateForFulfillmentType(productType, fulfillmentType);
 
     updateSelected({
       productType,
-      fulfillmentType: productType === 'physical' ? 'physical_preorder' : 'pdf_email',
+      fulfillmentType,
       productPage: {
         ...(selectedProduct?.productPage || {}),
         template: nextTemplate,
@@ -586,33 +566,6 @@ const ProductCmsSection = () => {
   const selectProduct = (productId) => {
     if (!confirmDiscardUnsaved()) return;
     setSelectedId(productId);
-  };
-
-  const buildProductPayload = (product) => {
-    const richContent = normalizeRichProductContent(product);
-    const payload = {
-      ...product,
-      slug: product.slug || slugify(product.name),
-      featureList: richContent.featureList,
-      pageTheme: richContent.pageTheme,
-      productPage: richContent.productPage,
-      shippingCountries: product.productType === 'physical'
-        ? product.shippingCountries || []
-        : [],
-      preorderDeal: normalizePreorderDeal(product.preorderDeal),
-      fulfillmentType:
-        product.productType === 'physical'
-          ? product.fulfillmentType || 'physical_preorder'
-          : product.fulfillmentType || 'pdf_email',
-      variants: product.productType === 'physical'
-        ? (product.variants || []).map((variant) => ({
-            ...variant,
-            swatches: normalizeSwatches(variant.swatches),
-          }))
-        : [],
-    };
-
-    return payload;
   };
 
   const persistProduct = async (product) => {
@@ -842,12 +795,41 @@ const ProductCmsSection = () => {
     updateSelected(applyGalleryImages(selectedProduct, countryCode, images));
   };
 
+  const validateBeforePublish = (product) => {
+    if (product.status !== 'published') return true;
+
+    if (hasPhysicalDelivery(product)) {
+      const missing = [];
+      if (!product.currency) missing.push('currency');
+      if (typeof product.unitAmount !== 'number') missing.push('current price');
+      if (typeof product.shippingAmount !== 'number') missing.push('shipping price');
+      const hasActiveVariant = (product.variants || []).some((variant) =>
+        variant.isActive !== false && (variant.code || variant.name)
+      );
+      if (!hasActiveVariant) missing.push('at least one active variant');
+
+      if (missing.length) {
+        setStatus(`Cannot publish physical/mixed product until these fields are set: ${missing.join(', ')}.`);
+        return false;
+      }
+    }
+
+    if (isMixedProduct(product) && !(product.emailAttachments || []).length) {
+      return window.confirm(
+        'This mixed bundle has no active paid email PDF configured. Publish it anyway?'
+      );
+    }
+
+    return true;
+  };
+
   const saveProduct = async () => {
     if (!selectedProduct) return;
     if (!selectedProduct.name?.trim()) {
       setStatus('Product name is required.');
       return;
     }
+    if (!validateBeforePublish(selectedProduct)) return;
 
     setBusy(true);
     setStatus('');
@@ -871,6 +853,7 @@ const ProductCmsSection = () => {
       setStatus('Product name is required before Stripe sync.');
       return;
     }
+    if (!validateBeforePublish(selectedProduct)) return;
 
     setSyncBusy(true);
     setStatus('');
@@ -1169,6 +1152,7 @@ const ProductCmsSection = () => {
                 >
                   <option value="digital">Digital</option>
                   <option value="physical">Physical</option>
+                  <option value="mixed">Mixed bundle</option>
                 </select>
               </label>
 
@@ -1263,11 +1247,11 @@ const ProductCmsSection = () => {
 	                  placeholder="price_... or STRIPE_PRICE_ID_..."
 	                  style={inputStyle}
 	                />
-	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && selectedProduct.productType !== 'physical' && (
+	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && !hasPhysicalDelivery(selectedProduct) && (
 	                  <span style={helperTextStyle}>Checkout will not work for this product until a Stripe Price is configured.</span>
 	                )}
-	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && selectedProduct.productType === 'physical' && (
-	                  <span style={helperTextStyle}>Sync Stripe to create catalog Product and Price IDs for this physical product.</span>
+	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && hasPhysicalDelivery(selectedProduct) && (
+	                  <span style={helperTextStyle}>Sync Stripe to create catalog Product and Price IDs for this physical-capable product.</span>
 	                )}
 	                {selectedProduct.stripePriceEnv && !selectedProduct.stripePriceId && (
 	                  <span style={helperTextStyle}>Sync Stripe will adopt this legacy env Price ID and store the real Price ID in the CMS.</span>
@@ -1384,7 +1368,7 @@ const ProductCmsSection = () => {
 	                <span style={labelTextStyle}>Hide status badges on product detail</span>
 	              </label>
 
-	              {selectedProduct.productType === 'physical' && (
+	              {hasPhysicalDelivery(selectedProduct) && (
                 <>
                   <label style={labelStyle}>
                     <span style={labelTextStyle}>Fulfillment</span>
@@ -1530,7 +1514,7 @@ const ProductCmsSection = () => {
               products={products.filter((product) => product.id > 0)}
             />
 
-	            {selectedProduct.productType === 'physical' && (
+	            {hasPhysicalDelivery(selectedProduct) && (
 	              <div style={sectionCardStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <h3 style={{ margin: 0 }}>Variants</h3>

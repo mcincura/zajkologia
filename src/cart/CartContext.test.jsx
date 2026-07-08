@@ -58,6 +58,49 @@ describe('cartReducer', () => {
     });
     expect(state.items).toHaveLength(1);
   });
+
+  it('requires a variant and preserves quantity rules for mixed bundles', () => {
+    let state = { items: [] };
+
+    state = cartReducer(state, {
+      type: 'addItem',
+      item: {
+        productSlug: 'mixed-bundle',
+        productType: 'mixed',
+        quantity: 1,
+      },
+    });
+    expect(state.items).toEqual([]);
+
+    state = cartReducer(state, {
+      type: 'addItem',
+      item: {
+        productSlug: 'mixed-bundle',
+        variantCode: 'bundle',
+        productType: 'mixed',
+        quantity: 2,
+        maxQuantity: 2,
+      },
+    });
+    state = cartReducer(state, {
+      type: 'addItem',
+      item: {
+        productSlug: 'mixed-bundle',
+        variantCode: 'bundle',
+        productType: 'mixed',
+        quantity: 1,
+        maxQuantity: 2,
+      },
+    });
+
+    expect(state.items).toEqual([
+      expect.objectContaining({
+        productSlug: 'mixed-bundle',
+        variantCode: 'bundle',
+        quantity: 2,
+      }),
+    ]);
+  });
 });
 
 describe('cart storage', () => {

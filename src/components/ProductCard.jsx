@@ -4,6 +4,7 @@ import { ArrowRight, ShoppingCart } from 'lucide-react';
 import { useCart } from '../cart/useCart';
 import ProductLanguageBadges from './ProductLanguageBadges';
 import { PRODUCT_PAGE_TEMPLATE, inferProductPageTemplate } from '../utils/productTemplates';
+import { PRODUCT_TYPE, requiresVariantSelection } from '../utils/productTypes';
 import '../styles/products.css';
 
 const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
@@ -15,7 +16,7 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const destination = `/product/${product.slug}`;
   const isPreviewProduct = Boolean(product.isMock);
   const productTemplate = inferProductPageTemplate(product);
-  const needsVariantSelection = product.productType === 'physical';
+  const needsVariantSelection = requiresVariantSelection(product);
 
   const handleAddToCart = (event) => {
     event.preventDefault();
@@ -25,7 +26,7 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
       navigate(destination, { state: { from } });
       return;
     }
-    addItem({ product, productSlug: product.slug, productType: 'digital', quantity: 1 });
+    addItem({ product, productSlug: product.slug, productType: PRODUCT_TYPE.DIGITAL, quantity: 1 });
     setAdded(true);
   };
 

@@ -24,7 +24,7 @@ import {
   Tag,
   Truck,
 } from 'lucide-react';
-import { createCheckoutSession, loadVisitorCountry } from '../api/client';
+import { createCartCheckoutSession, createCheckoutSession, loadVisitorCountry } from '../api/client';
 import { useCart } from '../cart/useCart';
 import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import ProductCard from '../components/ProductCard';
@@ -36,6 +36,11 @@ import {
   isPhysicalTemplate,
   isPreorderTemplate,
 } from '../utils/productTemplates';
+import {
+  PRODUCT_TYPE,
+  hasPhysicalDelivery,
+  isMixedProduct,
+} from '../utils/productTypes';
 import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 import '../styles/product-details.css';
 
@@ -218,7 +223,7 @@ export const ProductDetailView = ({
   };
 
   const validateSelectedVariant = () => {
-    const isPhysicalCheckout = product.productType === 'physical';
+    const isPhysicalCheckout = hasPhysicalDelivery(product);
     const selectedVariant = getSelectedCheckoutVariant();
 
     if (isPhysicalCheckout && !selectedVariant) {
@@ -239,14 +244,14 @@ export const ProductDetailView = ({
 
   const handleAddToCart = () => {
     if (isPreviewProduct || isAdminPreview || !product) return;
-    const isPhysicalCheckout = product.productType === 'physical';
+    const isPhysicalCheckout = hasPhysicalDelivery(product);
     const selectedVariant = validateSelectedVariant();
     if (isPhysicalCheckout && !selectedVariant) return;
 
     addItem({
       product,
       productSlug: product.slug,
-      productType: isPhysicalCheckout ? 'physical' : 'digital',
+      productType: product.productType || (isPhysicalCheckout ? PRODUCT_TYPE.PHYSICAL : PRODUCT_TYPE.DIGITAL),
       ...(isPhysicalCheckout ? { variantCode: selectedVariant.code } : {}),
       quantity: 1,
       maxQuantity: product.maxQuantity || 1,
@@ -257,7 +262,7 @@ export const ProductDetailView = ({
 
   const handleCheckout = async () => {
     if (isPreviewProduct || isAdminPreview || !product) return;
-    const isPhysicalCheckout = product.productType === 'physical';
+    const isPhysicalCheckout = hasPhysicalDelivery(product);
     const selectedVariant = validateSelectedVariant();
     if (isPhysicalCheckout && !selectedVariant) return;
 
@@ -265,15 +270,25 @@ export const ProductDetailView = ({
     setCheckoutError('');
     try {
       const normalizedCouponCode = couponCode.trim();
-      const session = await createCheckoutSession(product.slug, {
-        ...(normalizedCouponCode ? { couponCode: normalizedCouponCode } : {}),
-        disableStoredDiscount: isPhysicalCheckout || Boolean(normalizedCouponCode),
-        ...(isPhysicalCheckout
-          ? {
+      const session = isMixedProduct(product)
+        ? await createCartCheckoutSession([
+            {
+              productSlug: product.slug,
               variantCode: selectedVariant.code,
-            }
-          : {}),
-      });
+              quantity: 1,
+            },
+          ], {
+            ...(normalizedCouponCode ? { couponCode: normalizedCouponCode } : {}),
+          })
+        : await createCheckoutSession(product.slug, {
+            ...(normalizedCouponCode ? { couponCode: normalizedCouponCode } : {}),
+            disableStoredDiscount: isPhysicalCheckout || Boolean(normalizedCouponCode),
+            ...(isPhysicalCheckout
+              ? {
+                  variantCode: selectedVariant.code,
+                }
+              : {}),
+          });
       window.location.assign(session.checkoutUrl);
     } catch (err) {
       if (err?.data?.error === 'variant_sold_out') {

@@ -4,6 +4,7 @@ import { ArrowLeft, Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { createCartCheckoutSession } from '../api/client';
 import { useCart } from '../cart/useCart';
 import { useProducts } from '../hooks/useProducts';
+import { getProductTypeLabel, hasPhysicalDelivery } from '../utils/productTypes';
 import '../styles/cart.css';
 
 const formatMoneyMinor = (amountMinor, currency = 'eur') => {
@@ -46,7 +47,7 @@ const getCartLines = (cartItems, products) => {
 
   return cartItems.map((item) => {
     const product = productsBySlug.get(item.productSlug) || null;
-    const isPhysical = product?.productType === 'physical';
+    const isPhysical = hasPhysicalDelivery(product);
     const variant = isPhysical
       ? product.colorVariants?.find((candidate) => candidate.code === item.variantCode) || null
       : null;
@@ -193,7 +194,7 @@ const CartPage = () => {
                     <div>
                       <h2>{line.product?.name || line.productSlug}</h2>
                       {line.variant?.name && <p>Variant: {line.variant.name}</p>}
-                      <p>{line.isPhysical ? 'Fyzický produkt' : 'Digitálny PDF produkt'}</p>
+                      <p>{getProductTypeLabel(line.product)}</p>
                     </div>
                     <button
                       type="button"

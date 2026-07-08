@@ -1,10 +1,12 @@
+import { PRODUCT_TYPE, hasPhysicalDelivery, hasDigitalDelivery } from '../utils/productTypes';
+
 export const CART_STORAGE_KEY = 'zajkologia_cart_v1';
 
 const getCartLineKey = ({ productSlug, variantCode = null }) =>
   `${productSlug}::${variantCode || ''}`;
 
 const getProductType = (payload = {}) =>
-  payload.productType || payload.product?.productType || (payload.variantCode ? 'physical' : 'digital');
+  payload.productType || payload.product?.productType || (payload.variantCode ? PRODUCT_TYPE.PHYSICAL : PRODUCT_TYPE.DIGITAL);
 
 const getMaxQuantity = (payload = {}) =>
   Math.max(1, Number(payload.maxQuantity || payload.product?.maxQuantity || 99));
@@ -63,16 +65,19 @@ const normalizeAddItemPayload = (payload = {}) => {
   if (!productSlug) return null;
 
   const productType = getProductType(payload);
-  const variantCode = productType === 'physical'
+  const product = { ...(payload.product || {}), productType };
+  const needsVariant = hasPhysicalDelivery(product);
+  const isDigitalOnly = hasDigitalDelivery(product) && !needsVariant;
+  const variantCode = needsVariant
     ? String(payload.variantCode || '').trim() || null
     : null;
   const requestedQuantity = Number.parseInt(String(payload.quantity || '1'), 10) || 1;
   const maxQuantity = getMaxQuantity(payload);
-  const quantity = productType === 'digital'
+  const quantity = isDigitalOnly
     ? 1
     : Math.max(1, Math.min(maxQuantity, requestedQuantity));
 
-  if (productType === 'physical' && !variantCode) return null;
+  if (needsVariant && !variantCode) return null;
 
   return {
     productSlug,
@@ -96,7 +101,7 @@ export const cartReducer = (state, action) => {
             if (getCartLineKey(candidate) !== key) return candidate;
             return {
               ...candidate,
-              quantity: item.productType === 'digital'
+              quantity: hasDigitalDelivery(item) && !hasPhysicalDelivery(item)
                 ? 1
                 : Math.min(item.maxQuantity, Number(candidate.quantity || 1) + item.quantity),
             };
@@ -141,7 +146,9 @@ export const cartReducer = (state, action) => {
           getCartLineKey(item) === key
             ? {
                 ...item,
-                quantity: productType === 'digital' ? 1 : Math.min(maxQuantity, Math.max(1, quantity)),
+                quantity: hasDigitalDelivery({ productType }) && !hasPhysicalDelivery({ productType })
+                  ? 1
+                  : Math.min(maxQuantity, Math.max(1, quantity)),
               }
             : item
         ),
