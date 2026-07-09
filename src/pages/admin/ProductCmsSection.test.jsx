@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildProductPayload } from './productCmsPayload';
+import {
+  buildProductPayload,
+  buildVariantAvailabilityPatch,
+  getVariantAvailableQuantity,
+} from './productCmsPayload';
 
 describe('buildProductPayload', () => {
   it('preserves digital and physical fields for mixed bundles', () => {
@@ -43,5 +47,22 @@ describe('buildProductPayload', () => {
         swatches: ['#ffffff'],
       }),
     ]);
+  });
+
+  it('saves available stock as sold plus reserved plus available capacity', () => {
+    const variant = {
+      initialQuantity: 3,
+      sellableQuantity: 3,
+      reservedQuantity: 1,
+      soldQuantity: 2,
+      availableQuantity: 0,
+    };
+
+    expect(getVariantAvailableQuantity(variant)).toBe(0);
+    expect(buildVariantAvailabilityPatch(variant, '4')).toEqual({
+      availableQuantity: 4,
+      sellableQuantity: 7,
+      initialQuantity: 3,
+    });
   });
 });

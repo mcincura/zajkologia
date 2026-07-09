@@ -20,6 +20,45 @@ export const normalizeSwatches = (swatches) => {
   return swatches.map((swatch) => String(swatch || '').trim()).filter(Boolean);
 };
 
+const toInventoryQuantity = (value) => {
+  const quantity = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+};
+
+export const getVariantReservedQuantity = (variant) =>
+  toInventoryQuantity(variant?.reservedQuantity);
+
+export const getVariantSoldQuantity = (variant) =>
+  toInventoryQuantity(variant?.soldQuantity);
+
+export const getVariantAvailableQuantity = (variant) => {
+  if (variant?.availableQuantity != null) {
+    return toInventoryQuantity(variant.availableQuantity);
+  }
+
+  const sellableQuantity = toInventoryQuantity(
+    variant?.sellableQuantity ?? variant?.initialQuantity
+  );
+
+  return Math.max(
+    0,
+    sellableQuantity - getVariantReservedQuantity(variant) - getVariantSoldQuantity(variant)
+  );
+};
+
+export const buildVariantAvailabilityPatch = (variant, availableQuantity) => {
+  const nextAvailableQuantity = toInventoryQuantity(availableQuantity);
+  const committedQuantity =
+    getVariantReservedQuantity(variant) + getVariantSoldQuantity(variant);
+  const sellableQuantity = committedQuantity + nextAvailableQuantity;
+
+  return {
+    availableQuantity: nextAvailableQuantity,
+    sellableQuantity,
+    initialQuantity: variant?.initialQuantity ?? sellableQuantity,
+  };
+};
+
 const normalizePreorderDeal = (deal) => {
   if (!deal || typeof deal !== 'object') return null;
 

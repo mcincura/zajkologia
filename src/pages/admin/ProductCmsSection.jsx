@@ -12,7 +12,11 @@ import ProductRichContentEditor from './ProductRichContentEditor';
 import ProductPromotionsSection from './ProductPromotionsSection';
 import ProductMediaLibrary from './ProductMediaLibrary';
 import {
+  buildVariantAvailabilityPatch,
   buildProductPayload,
+  getVariantAvailableQuantity,
+  getVariantReservedQuantity,
+  getVariantSoldQuantity,
   getFulfillmentTypeForProductType,
   getTemplateForFulfillmentType,
   normalizeSwatches,
@@ -1528,9 +1532,15 @@ const ProductCmsSection = () => {
                 </div>
 
 	                <div style={{ display: 'grid', gap: '0.75rem' }}>
-	                  {(selectedProduct.variants || []).map((variant, index) => (
+	                  {(selectedProduct.variants || []).map((variant, index) => {
+                      const availableQuantity = getVariantAvailableQuantity(variant);
+                      const reservedQuantity = getVariantReservedQuantity(variant);
+                      const soldQuantity = getVariantSoldQuantity(variant);
+                      const sellableQuantity = Number(variant.sellableQuantity ?? variant.initialQuantity ?? 0);
+
+                      return (
 	                    <div key={`${variant.code}-${index}`} style={{ display: 'grid', gap: '0.75rem', background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '0.75rem' }}>
-	                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px 100px auto', gap: '0.5rem', alignItems: 'end' }}>
+	                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr minmax(150px, 0.8fr) 100px auto', gap: '0.5rem', alignItems: 'end' }}>
 	                        <label style={labelStyle}>
 	                          <span style={labelTextStyle}>Name</span>
 	                          <input
@@ -1559,17 +1569,19 @@ const ProductCmsSection = () => {
 	                          />
 	                        </label>
 	                        <label style={labelStyle}>
-	                          <span style={labelTextStyle}>Stock</span>
+	                          <span style={labelTextStyle}>Available now</span>
 	                          <input
 	                            type="number"
 	                            min="0"
-	                            value={variant.sellableQuantity ?? variant.initialQuantity ?? 0}
+	                            value={availableQuantity}
 	                            onChange={(e) => {
-	                              const quantity = Math.max(0, Number(e.target.value) || 0);
-	                              updateVariant(index, { sellableQuantity: quantity, initialQuantity: variant.initialQuantity ?? quantity });
+	                              updateVariant(index, buildVariantAvailabilityPatch(variant, e.target.value));
 	                            }}
 	                            style={inputStyle}
 	                          />
+                            <span style={helperTextStyle}>
+                              Sold {soldQuantity} · Reserved {reservedQuantity} · Total {sellableQuantity}
+                            </span>
 	                        </label>
 	                        <label style={labelStyle}>
 	                          <span style={labelTextStyle}>Active</span>
@@ -1630,12 +1642,13 @@ const ProductCmsSection = () => {
 	                            <span style={helperTextStyle}>No swatches yet.</span>
 	                          )}
 	                        </div>
+	                        </div>
 	                      </div>
-	                    </div>
-	                  ))}
+                      );
+                    })}
 	                </div>
-                </div>
-              )}
+	              </div>
+	            )}
               </div>
             </div>
 
