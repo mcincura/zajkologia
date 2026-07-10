@@ -30,18 +30,6 @@ const statusCopy = {
 
 const getStatusMessage = (code) => statusCopy[code] || 'Stiahnutie momentálne nie je dostupné.';
 
-const formatDateTime = (value) => {
-  if (!value) return '—';
-  try {
-    return new Intl.DateTimeFormat('sk-SK', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(value));
-  } catch {
-    return String(value);
-  }
-};
-
 const pageStyles = {
   shell: {
     padding: '3rem 0 4rem',
@@ -313,9 +301,8 @@ const DigitalDownloads = () => {
                   </div>
                   <div style={{ color: '#6f5c50', fontSize: '0.82rem', marginTop: '0.25rem' }}>
                     {link.maxDownloads == null
-                      ? `${link.downloadCount} stiahnutí · bez limitu`
+                      ? `${link.downloadCount} stiahnutí · bez limitu · trvalý prístup`
                       : `${link.downloadCount}/${link.maxDownloads} stiahnutí`}
-                    {' · '}platné do {formatDateTime(link.expiresAt)}
                   </div>
                   {!available ? (
                     <div style={{ color: '#8a1c2b', fontWeight: 800, marginTop: '0.35rem' }}>

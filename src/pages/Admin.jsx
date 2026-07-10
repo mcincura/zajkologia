@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Ban, Clock, Download, FileText, Package, PackageCheck, RefreshCw, Send, ShieldCheck } from 'lucide-react';
+import { Ban, Download, FileText, Package, PackageCheck, RefreshCw, Send, ShieldCheck } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
@@ -726,31 +726,6 @@ const Admin = ({ section = 'orders' }) => {
         }
     };
 
-    const extendDigitalDeliveryLinks = async (order) => {
-        const daysInput = window.prompt('Extend active links for how many days from now?', '30');
-        if (daysInput == null) return;
-        const days = Number.parseInt(daysInput, 10);
-        if (!Number.isFinite(days) || days < 1 || days > 365) {
-            setStatus('Extension must be between 1 and 365 days.');
-            return;
-        }
-
-        setBusy(true);
-        setStatus('');
-        try {
-            const data = await apiFetch(`/api/orders/admin/${order.id}/digital-delivery/extend`, {
-                method: 'POST',
-                body: JSON.stringify({ days }),
-            });
-            replaceLoadedOrder(data.order);
-            setStatus(`Secure PDF links extended for ${days} day(s).`);
-        } catch (err) {
-            setStatus(`Digital delivery extension failed: ${err.message}`);
-        } finally {
-            setBusy(false);
-        }
-    };
-
     if (authLoading) {
         return <div className="container" style={{ padding: '2rem 0' }}>Loading…</div>;
     }
@@ -1269,15 +1244,6 @@ const Admin = ({ section = 'orders' }) => {
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => extendDigitalDeliveryLinks(order)}
-                                                                    disabled={busy || digitalDeliveryLinks.length === 0}
-                                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'white', color: '#7a3f00', border: '1px solid #f1d7bd', padding: '0.25rem 0.45rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.72rem' }}
-                                                                >
-                                                                    <Clock size={13} />
-                                                                    Extend
-                                                                </button>
-                                                                <button
-                                                                    type="button"
                                                                     onClick={() => revokeDigitalDeliveryLinks(order)}
                                                                     disabled={busy || digitalDeliveryLinks.length === 0}
                                                                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'white', color: '#a40000', border: '1px solid #f3c5cd', padding: '0.25rem 0.45rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.72rem' }}
@@ -1301,9 +1267,8 @@ const Admin = ({ section = 'orders' }) => {
                                                                         </div>
                                                                         <div style={{ marginTop: '0.2rem' }}>
                                                                             {link.maxDownloads == null
-                                                                                ? `${link.downloadCount} downloads · unlimited`
+                                                                                ? `${link.downloadCount} downloads · unlimited · permanent`
                                                                                 : `${link.downloadCount}/${link.maxDownloads} downloads`}
-                                                                            {' · '}expires {formatDateTime(link.expiresAt)}
                                                                             {link.emailSentAt ? ` · email ${formatDateTime(link.emailSentAt)}` : ' · email pending'}
                                                                             {link.revokedAt ? ` · revoked ${formatDateTime(link.revokedAt)}` : ''}
                                                                         </div>

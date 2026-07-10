@@ -35,7 +35,7 @@ const order = {
         status: 'available',
         downloadCount: 1,
         maxDownloads: null,
-        expiresAt: '2026-08-06T10:00:00.000Z',
+        expiresAt: null,
         emailSentAt: '2026-07-06T10:01:00.000Z',
         recentEvents: [{ id: 99, eventType: 'download_started', createdAt: '2026-07-06T10:05:00.000Z' }],
       },
@@ -74,6 +74,7 @@ describe('Admin digital delivery controls', () => {
     expect(await screen.findByText(/Secure PDF delivery/i)).toBeInTheDocument();
     expect(screen.getByText(/journal.pdf/)).toBeInTheDocument();
     expect(screen.getByText(/unlimited/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Extend$/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Resend/i }));
 
