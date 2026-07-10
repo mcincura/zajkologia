@@ -312,7 +312,10 @@ const DigitalDownloads = () => {
                     {link.filename}
                   </div>
                   <div style={{ color: '#6f5c50', fontSize: '0.82rem', marginTop: '0.25rem' }}>
-                    {link.downloadCount}/{link.maxDownloads} stiahnutí · platné do {formatDateTime(link.expiresAt)}
+                    {link.maxDownloads == null
+                      ? `${link.downloadCount} stiahnutí · bez limitu`
+                      : `${link.downloadCount}/${link.maxDownloads} stiahnutí`}
+                    {' · '}platné do {formatDateTime(link.expiresAt)}
                   </div>
                   {!available ? (
                     <div style={{ color: '#8a1c2b', fontWeight: 800, marginTop: '0.35rem' }}>

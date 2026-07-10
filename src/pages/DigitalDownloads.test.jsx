@@ -41,7 +41,7 @@ const summary = {
       filename: 'journal-sk.pdf',
       expiresAt: '2026-08-01T12:00:00.000Z',
       downloadCount: 0,
-      maxDownloads: 5,
+      maxDownloads: null,
       status: 'available',
     },
   ],
@@ -65,6 +65,7 @@ describe('DigitalDownloads', () => {
     renderPortal();
 
     expect(await screen.findByText(/Digital Journal/)).toBeInTheDocument();
+    expect(screen.getByText(/bez limitu/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Poslať kód/i }));
     expect(await screen.findByText(/Kód sme poslali/)).toBeInTheDocument();
 

@@ -14,6 +14,29 @@ const getGalleryImages = (product, countryCode) => {
   return page.galleryImages || [];
 };
 
+const mergePdfDeliveryAttachments = (emailAttachments, pdfAssets) => {
+  const attachments = Array.isArray(emailAttachments) ? [...emailAttachments] : [];
+  const knownAssetIds = new Set(
+    attachments.map((attachment) => Number(attachment?.assetId || 0)).filter(Boolean)
+  );
+  const knownStorageKeys = new Set(
+    attachments.flatMap((attachment) =>
+      (Array.isArray(attachment?.assetPaths) ? attachment.assetPaths : [])
+        .map((assetPath) => String(assetPath || '').replace(/^uploaded:/, ''))
+    )
+  );
+
+  for (const asset of pdfAssets) {
+    if (knownAssetIds.has(Number(asset.id)) || knownStorageKeys.has(asset.storageKey)) continue;
+    attachments.push({
+      assetId: asset.id,
+      filename: asset.customerFilename || asset.originalFilename,
+      languageCode: asset.languageCode,
+    });
+  }
+  return attachments;
+};
+
 const ImageAssetCard = ({ asset, assignmentTargets, assetBusy, onAssign, onDelete }) => {
   const [target, setTarget] = useState(assignmentTargets[0]?.value || 'gallery');
 
@@ -55,7 +78,7 @@ const PdfAssetRow = ({ asset, assetBusy, languageLabels, onDelete }) => {
   return (
     <div className="admin-pdf-history__item">
       <span>
-        <strong>{languageLabel}</strong> {asset.isActive ? 'active' : 'inactive'} · {filename}
+        <strong>{languageLabel}</strong> included in delivery · {filename}
       </span>
       <button
         type="button"
@@ -131,6 +154,7 @@ const ProductMediaLibrary = ({
     () => (assets || []).filter((asset) => asset.assetType === 'digital_pdf'),
     [assets]
   );
+  const pdfDeliveryAttachments = mergePdfDeliveryAttachments(product?.emailAttachments, pdfAssets);
   const assignmentTargets = useMemo(() => {
     const targets = Object.entries(assignmentLabels).map(([value, label]) => ({ value, label }));
 
@@ -201,16 +225,17 @@ const ProductMediaLibrary = ({
               </select>
             </label>
             <label>
-              <strong>{assetBusy ? 'Uploading…' : 'Upload delivery PDF'}</strong>
-              <span>Replaces the active paid email attachment for the selected language.</span>
+              <strong>{assetBusy ? 'Uploading…' : 'Add PDFs to this product'}</strong>
+              <span>Select one or many PDFs. Every uploaded file stays in the bundle until you delete it.</span>
               <input
                 type="file"
                 accept="application/pdf,.pdf"
+                multiple
                 disabled={assetBusy}
                 onChange={(event) => {
-                  const file = event.target.files?.[0];
+                  const files = Array.from(event.target.files || []);
                   event.target.value = '';
-                  onUploadPdf(file);
+                  onUploadPdf(files);
                 }}
               />
             </label>
@@ -257,16 +282,16 @@ const ProductMediaLibrary = ({
 
       {hasDigitalDelivery(product) && (
         <div className="admin-pdf-status">
-          <h4>PDF delivery</h4>
+          <h4>PDF bundle delivery</h4>
           <div className="admin-pdf-status__grid">
-            {(product.emailAttachments || []).map((attachment, index) => (
+            {pdfDeliveryAttachments.map((attachment, index) => (
               <div key={`${attachment.filename || 'attachment'}-${index}`} className="admin-pdf-chip">
                 <strong>{attachment.languageCode ? languageLabels[attachment.languageCode] || attachment.languageCode.toUpperCase() : 'PDF'}</strong>
                 <span>{attachment.filename || 'PDF attachment'}</span>
               </div>
             ))}
-            {(product.emailAttachments || []).length === 0 && (
-              <p className="admin-media-empty">No active paid email PDF is configured.</p>
+            {pdfDeliveryAttachments.length === 0 && (
+              <p className="admin-media-empty">No delivery PDF is configured.</p>
             )}
           </div>
           {pdfAssets.length > 0 && (

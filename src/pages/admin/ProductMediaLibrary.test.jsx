@@ -84,4 +84,29 @@ describe('ProductMediaLibrary', () => {
 
     expect(props.onDeletePdfAsset).toHaveBeenCalledWith(pdfAsset);
   });
+
+  it('accepts multiple PDFs for one product bundle', async () => {
+    const props = renderMediaLibrary({
+      product: {
+        id: 1,
+        productType: 'digital',
+        fulfillmentType: 'pdf_email',
+        emailAttachments: [],
+        productPage: { galleryImages: [], galleryImagesByCountry: {} },
+        variants: [],
+      },
+      assets: [],
+    });
+    const files = [
+      new File(['one'], 'one.pdf', { type: 'application/pdf' }),
+      new File(['two'], 'two.pdf', { type: 'application/pdf' }),
+      new File(['three'], 'three.pdf', { type: 'application/pdf' }),
+      new File(['four'], 'four.pdf', { type: 'application/pdf' }),
+    ];
+
+    await userEvent.upload(screen.getByLabelText(/Add PDFs to this product/i), files);
+
+    expect(props.onUploadPdf).toHaveBeenCalledWith(files);
+    expect(screen.getByText(/Every uploaded file stays in the bundle/i)).toBeInTheDocument();
+  });
 });

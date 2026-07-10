@@ -1300,7 +1300,10 @@ const Admin = ({ section = 'orders' }) => {
                                                                             <span style={{ fontWeight: 900, color: link.status === 'available' ? '#166534' : '#8a1c2b' }}>{link.status}</span>
                                                                         </div>
                                                                         <div style={{ marginTop: '0.2rem' }}>
-                                                                            {link.downloadCount}/{link.maxDownloads} downloads · expires {formatDateTime(link.expiresAt)}
+                                                                            {link.maxDownloads == null
+                                                                                ? `${link.downloadCount} downloads · unlimited`
+                                                                                : `${link.downloadCount}/${link.maxDownloads} downloads`}
+                                                                            {' · '}expires {formatDateTime(link.expiresAt)}
                                                                             {link.emailSentAt ? ` · email ${formatDateTime(link.emailSentAt)}` : ' · email pending'}
                                                                             {link.revokedAt ? ` · revoked ${formatDateTime(link.revokedAt)}` : ''}
                                                                         </div>

@@ -83,13 +83,6 @@ const getDeliveryLanguages = (product) => {
   return Array.from(languages);
 };
 
-const getPdfFilename = (product, languageCode) => {
-  const baseName = product?.name?.trim() || 'Zajkologia produkt';
-  if (languageCode === 'cs') return `${baseName} - česká verzia.pdf`;
-  if (languageCode === 'sk') return `${baseName} - slovenská verzia.pdf`;
-  return `${baseName}.pdf`;
-};
-
 const moveListItem = (items, index, direction) => {
   const list = Array.isArray(items) ? [...items] : [];
   const nextIndex = index + direction;
@@ -653,8 +646,9 @@ const ProductCmsSection = () => {
     }
   };
 
-  const handleDigitalPdfFile = async (file) => {
-    if (!file || !selectedProduct) return;
+  const handleDigitalPdfFiles = async (files) => {
+    const pdfFiles = (Array.isArray(files) ? files : [files]).filter(Boolean);
+    if (!pdfFiles.length || !selectedProduct) return;
     if (!selectedProduct.name?.trim()) {
       setStatus('Product name is required before uploading PDFs.');
       return;
@@ -662,30 +656,51 @@ const ProductCmsSection = () => {
 
     setAssetBusy(true);
     setStatus('');
-    try {
-      const languageCode = normalizeLanguageCode(pdfUploadLanguage) || 'sk';
-      const savedProduct = await persistProduct(selectedProduct);
-      const data = await uploadProductPdf(savedProduct.id, file, {
-        languageCode,
-        customerFilename: getPdfFilename(savedProduct, languageCode),
-      });
-      if (data?.product) {
+    const uploadedAssets = [];
+    let latestProduct = null;
+    const applyUploadResults = () => {
+      if (latestProduct) {
         setProducts((current) => [
-          data.product,
-          ...current.filter((item) => item.id !== savedProduct.id && item.id !== data.product.id),
+          latestProduct,
+          ...current.filter((item) => item.id !== latestProduct.id),
         ]);
         setSavedSnapshots((current) => ({
           ...current,
-          [data.product.id]: getProductSnapshot(data.product),
+          [latestProduct.id]: getProductSnapshot(latestProduct),
         }));
-        setSelectedId(data.product.id);
+        setSelectedId(latestProduct.id);
       }
-      if (data?.asset) {
-        setProductAssets((current) => [data.asset, ...current.filter((asset) => asset.id !== data.asset.id)]);
+      if (uploadedAssets.length) {
+        setProductAssets((current) => [
+          ...uploadedAssets,
+          ...current.filter((asset) => !uploadedAssets.some((uploaded) => uploaded.id === asset.id)),
+        ]);
       }
-      setStatus(`${languageLabels[languageCode] || 'PDF'} uploaded and connected to paid email delivery.`);
+    };
+
+    try {
+      const languageCode = normalizeLanguageCode(pdfUploadLanguage) || 'sk';
+      const savedProduct = await persistProduct(selectedProduct);
+      latestProduct = savedProduct;
+
+      // Keep requests sequential so each response includes the PDFs attached by the previous request.
+      for (const file of pdfFiles) {
+        const data = await uploadProductPdf(savedProduct.id, file, {
+          languageCode,
+          customerFilename: file.name,
+        });
+        if (data?.product) latestProduct = data.product;
+        if (data?.asset) uploadedAssets.push(data.asset);
+      }
+
+      applyUploadResults();
+      setStatus(`${uploadedAssets.length} PDF${uploadedAssets.length === 1 ? '' : 's'} uploaded and included in this product bundle.`);
     } catch (err) {
-      setStatus(`PDF upload failed: ${err.message}`);
+      applyUploadResults();
+      const partial = uploadedAssets.length
+        ? `${uploadedAssets.length} PDF${uploadedAssets.length === 1 ? '' : 's'} uploaded before the failure. `
+        : '';
+      setStatus(`${partial}PDF upload failed: ${err.message}`);
     } finally {
       setAssetBusy(false);
     }
@@ -746,7 +761,7 @@ const ProductCmsSection = () => {
     if (!selectedProduct || !asset?.id) return;
 
     const filename = asset.customerFilename || asset.originalFilename || 'this uploaded PDF';
-    if (!window.confirm(`Delete "${filename}" from uploaded PDFs? If it is active, it will be removed from paid email delivery.`)) {
+    if (!window.confirm(`Delete "${filename}" from this product bundle? Customers will no longer receive this PDF.`)) {
       return;
     }
 
@@ -777,8 +792,8 @@ const ProductCmsSection = () => {
 
       setStatus(
         data?.referencesRemoved
-          ? 'PDF deleted and removed from paid email delivery.'
-          : 'PDF deleted from uploaded PDFs.'
+          ? 'PDF deleted and removed from secure download delivery.'
+          : 'PDF deleted from this product bundle.'
       );
     } catch (err) {
       setStatus(`PDF delete failed: ${err.message}`);
@@ -818,9 +833,10 @@ const ProductCmsSection = () => {
       }
     }
 
-    if (isMixedProduct(product) && !(product.emailAttachments || []).length) {
+    const hasUploadedPdf = productAssets.some((asset) => asset.assetType === 'digital_pdf');
+    if (isMixedProduct(product) && !(product.emailAttachments || []).length && !hasUploadedPdf) {
       return window.confirm(
-        'This mixed bundle has no active paid email PDF configured. Publish it anyway?'
+        'This mixed bundle has no PDF included in secure download delivery. Publish it anyway?'
       );
     }
 
@@ -1208,7 +1224,7 @@ const ProductCmsSection = () => {
                   pdfUploadLanguage={pdfUploadLanguage}
                   onPdfUploadLanguageChange={setPdfUploadLanguage}
                   onUploadImages={handleProductImageFiles}
-                  onUploadPdf={handleDigitalPdfFile}
+                  onUploadPdf={handleDigitalPdfFiles}
                   onReloadAssets={() => refreshProductAssets()}
                   onAssignImage={assignImageToProduct}
                   onDeleteImageAsset={deleteUploadedImageAsset}
