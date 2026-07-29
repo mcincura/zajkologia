@@ -4,6 +4,7 @@ import {
   Check,
   CircleUserRound,
   CreditCard,
+  LoaderCircle,
   LockKeyhole,
   LogOut,
   Sparkles,
@@ -72,8 +73,12 @@ const Membership = () => {
   const [content, setContent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [code, setCode] = useState('');
-  const [codeRequested, setCodeRequested] = useState(false);
+  const [codePurpose, setCodePurpose] = useState('');
+  const [confirmingPayment, setConfirmingPayment] = useState(
+    searchParams.get('checkout') === 'success'
+  );
   const [busy, setBusy] = useState('');
   const [status, setStatus] = useState('');
   const [downloadBusy, setDownloadBusy] = useState(null);
@@ -81,6 +86,9 @@ const Membership = () => {
   const checkoutState = searchParams.get('checkout');
   const isAuthenticated = Boolean(session?.isAuthenticated);
   const hasAccess = Boolean(session?.hasAccess);
+  const checkoutCodeRequested = codePurpose === 'checkout';
+  const loginCodeRequested = codePurpose === 'login';
+  const paymentPending = confirmingPayment && isAuthenticated && !hasAccess;
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +102,10 @@ const Membership = () => {
         if (cancelled) return;
         setOffer(nextOffer);
         setSession(nextSession);
-        if (nextSession?.member?.email) setEmail(nextSession.member.email);
+        if (nextSession?.member?.email) {
+          setEmail(nextSession.member.email);
+          setLoginEmail(nextSession.member.email);
+        }
         if (nextSession?.isAuthenticated && nextSession?.hasAccess) {
           const nextContent = await loadMembershipContent();
           if (!cancelled) setContent(nextContent);
@@ -111,6 +122,59 @@ const Membership = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!confirmingPayment || !isAuthenticated || hasAccess) return undefined;
+
+    let cancelled = false;
+    let attempts = 0;
+    let timerId;
+
+    const pollForAccess = async () => {
+      attempts += 1;
+      try {
+        const nextSession = await loadMembershipSession();
+        if (cancelled) return;
+        setSession(nextSession);
+        if (nextSession?.hasAccess) {
+          setContent(await loadMembershipContent());
+          if (!cancelled) {
+            setConfirmingPayment(false);
+            setStatus(
+              checkoutState === 'success'
+                ? ''
+                : 'Platba je potvrdená. Vitajte v Zajkológia klube.'
+            );
+          }
+          return;
+        }
+      } catch {
+        // The next attempt handles short-lived webhook or network delays.
+      }
+
+      if (cancelled) return;
+      if (attempts < 12) {
+        timerId = window.setTimeout(pollForAccess, 2500);
+      } else {
+        setConfirmingPayment(false);
+        setStatus(
+          'Stripe platbu ešte spracúva. Počkajte chvíľu a obnovte stránku — novú platbu nevytvárajte.'
+        );
+      }
+    };
+
+    setStatus(
+      checkoutState === 'success'
+        ? ''
+        : 'Platba bola prijatá. Potvrdzujeme prístup do členskej zóny…'
+    );
+    timerId = window.setTimeout(pollForAccess, 1200);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [checkoutState, confirmingPayment, hasAccess, isAuthenticated]);
+
   const groupedContent = useMemo(() => {
     const downloads = content.filter((item) => ['pdf', 'file'].includes(item.contentType));
     const media = content.filter((item) => ['video', 'podcast'].includes(item.contentType));
@@ -122,25 +186,41 @@ const Membership = () => {
     ].filter((group) => group.items.length);
   }, [content]);
 
-  const startCheckout = async (event) => {
-    event.preventDefault();
+  const redirectToCheckout = async () => {
     setBusy('checkout');
     setStatus('');
     try {
       const result = await createMembershipCheckout(email);
       window.location.assign(result.checkoutUrl);
     } catch (error) {
-      if ((error?.data?.error || error?.message) === 'membership_login_required') {
-        try {
-          await requestMembershipCode(email);
-          setCodeRequested(true);
-          setStatus('Poslali sme vám 6-miestny kód. Overte e-mail a potom aktivujte členstvo.');
-        } catch (requestError) {
-          setStatus(errorMessage(requestError));
-        }
+      const errorCode = error?.data?.error || error?.message;
+      if (errorCode === 'membership_checkout_processing') {
+        setConfirmingPayment(true);
+        setStatus('Stripe už platbu spracúva. Potvrdzujeme váš prístup…');
       } else {
         setStatus(errorMessage(error));
       }
+      setBusy('');
+    }
+  };
+
+  const startCheckout = async (event) => {
+    event.preventDefault();
+    await redirectToCheckout();
+  };
+
+  const beginCheckoutVerification = async (event) => {
+    event.preventDefault();
+    setBusy('request-checkout-code');
+    setStatus('');
+    try {
+      await requestMembershipCode(email);
+      setCode('');
+      setCodePurpose('checkout');
+      setStatus('');
+    } catch (error) {
+      setStatus(errorMessage(error));
+    } finally {
       setBusy('');
     }
   };
@@ -150,8 +230,9 @@ const Membership = () => {
     setBusy('request-code');
     setStatus('');
     try {
-      await requestMembershipCode(email);
-      setCodeRequested(true);
+      await requestMembershipCode(loginEmail);
+      setCode('');
+      setCodePurpose('login');
       setStatus('Ak k tomuto e-mailu patrí členstvo, poslali sme naň 6-miestny kód.');
     } catch (error) {
       setStatus(errorMessage(error));
@@ -165,17 +246,21 @@ const Membership = () => {
     setBusy('verify-code');
     setStatus('');
     try {
-      const nextSession = await verifyMembershipCode({ email, code });
+      const nextPurpose = codePurpose;
+      const verificationEmail = nextPurpose === 'login' ? loginEmail : email;
+      const nextSession = await verifyMembershipCode({ email: verificationEmail, code });
       setSession(nextSession);
+      if (nextSession?.member?.email) setEmail(nextSession.member.email);
       setCode('');
-      setCodeRequested(false);
-      setStatus(
-        nextSession.hasAccess
-          ? 'Ste prihlásený/á. Vitajte v klube.'
-          : 'E-mail je overený. Teraz môžete aktivovať členstvo.'
-      );
+      setCodePurpose('');
       if (nextSession.hasAccess) {
+        setStatus('Ste prihlásený/á. Vitajte v klube.');
         setContent(await loadMembershipContent());
+      } else if (nextPurpose === 'checkout') {
+        setStatus('E-mail je overený. Otvárame bezpečnú platbu cez Stripe…');
+        await redirectToCheckout();
+      } else {
+        setStatus('E-mail je overený. Členstvo zatiaľ nie je aktívne.');
       }
     } catch (error) {
       setStatus(errorMessage(error));
@@ -202,6 +287,7 @@ const Membership = () => {
       await logoutMembership();
       setSession({ isAuthenticated: false });
       setContent([]);
+      setConfirmingPayment(false);
       setStatus('Odhlásenie prebehlo úspešne.');
     } catch (error) {
       setStatus(errorMessage(error));
@@ -275,23 +361,49 @@ const Membership = () => {
             </div>
           </header>
 
+          {checkoutState === 'success' && hasAccess ? (
+            <div className="membership-checkout-message is-success" role="status">
+              <Check size={19} aria-hidden="true" />
+              Platba je potvrdená. Členský obsah je odomknutý.
+            </div>
+          ) : null}
           {status ? <div className="membership-status" role="status">{status}</div> : null}
 
-          <section className={`membership-access-card ${hasAccess ? 'is-active' : 'is-inactive'}`}>
+          <section
+            className={`membership-access-card ${
+              hasAccess ? 'is-active' : paymentPending ? 'is-pending' : 'is-inactive'
+            }`}
+            role={paymentPending ? 'status' : undefined}
+            aria-busy={paymentPending || undefined}
+          >
             <div className="membership-access-card__icon" aria-hidden="true">
-              {hasAccess ? <Check size={22} /> : <LockKeyhole size={22} />}
+              {hasAccess ? (
+                <Check size={22} />
+              ) : paymentPending ? (
+                <LoaderCircle className="membership-spinner" size={22} />
+              ) : (
+                <LockKeyhole size={22} />
+              )}
             </div>
             <div>
-              <strong>{hasAccess ? 'Členstvo je aktívne' : 'Členstvo nie je aktívne'}</strong>
+              <strong>
+                {hasAccess
+                  ? 'Členstvo je aktívne'
+                  : paymentPending
+                    ? 'Potvrdzujeme platbu'
+                    : 'Členstvo nie je aktívne'}
+              </strong>
               <p>
                 {hasAccess
                   ? subscription?.cancelAtPeriodEnd
                     ? `Obsah zostáva dostupný do ${formatDate(subscription.currentPeriodEnd) || 'konca zaplateného obdobia'}.`
                     : `Ďalšie obdobie do ${formatDate(subscription?.currentPeriodEnd) || 'najbližšieho obnovenia'}.`
-                  : 'Aktivujte alebo obnovte členstvo, aby ste mali prístup k členskému obsahu.'}
+                  : paymentPending
+                    ? 'Zvyčajne to trvá iba niekoľko sekúnd. Túto stránku nemusíte obnovovať.'
+                    : 'Aktivujte alebo obnovte členstvo, aby ste mali prístup k členskému obsahu.'}
               </p>
             </div>
-            {!hasAccess ? (
+            {!hasAccess && !paymentPending ? (
               <form onSubmit={startCheckout}>
                 <button
                   type="submit"
@@ -363,27 +475,77 @@ const Membership = () => {
             {typeof offer?.unitAmount === 'number' ? <span>/ mesiac</span> : null}
           </div>
           <p>Bez dlhodobej viazanosti. Platba a obnova prebiehajú bezpečne cez Stripe.</p>
-          <form onSubmit={startCheckout} className="membership-form">
-            <label htmlFor="membership-signup-email">E-mail pre členstvo</label>
-            <input
-              id="membership-signup-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="vas@email.sk"
-              required
-            />
-            <button
-              type="submit"
-              className="membership-button membership-button--primary membership-button--wide"
-              disabled={busy === 'checkout' || !offer?.available}
-            >
-              {busy === 'checkout' ? 'Otváram bezpečnú platbu…' : 'Stať sa členom'}
-              <ArrowRight size={18} aria-hidden="true" />
-            </button>
-          </form>
+          {!checkoutCodeRequested ? (
+            <form onSubmit={beginCheckoutVerification} className="membership-form">
+              <label htmlFor="membership-signup-email">E-mail pre členstvo</label>
+              <input
+                id="membership-signup-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="vas@email.sk"
+                required
+              />
+              <button
+                type="submit"
+                className="membership-button membership-button--primary membership-button--wide"
+                disabled={busy === 'request-checkout-code' || !offer?.available}
+              >
+                {busy === 'request-checkout-code' ? 'Posielam overovací kód…' : 'Pokračovať k platbe'}
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+              <p className="membership-offer-card__microcopy">
+                Najprv overíme váš e-mail. Platba ešte neprebieha.
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={verifyCode} className="membership-form membership-code-panel">
+              <div className="membership-code-panel__intro">
+                <span>Overenie e-mailu</span>
+                <strong>Skontrolujte svoju schránku</strong>
+                <p>
+                  6-miestny kód sme poslali na <b>{email}</b>. Po overení pokračujete priamo na Stripe.
+                </p>
+              </div>
+              <label htmlFor="membership-signup-code">6-miestny kód</label>
+              <input
+                id="membership-signup-code"
+                name="signup-one-time-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(event) => setCode(event.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+                placeholder="000000"
+                pattern="\d{6}"
+                required
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="membership-button membership-button--primary membership-button--wide"
+                disabled={busy === 'verify-code' || busy === 'checkout'}
+              >
+                {busy === 'verify-code' || busy === 'checkout'
+                  ? 'Pripravujem platbu…'
+                  : 'Overiť a prejsť k platbe'}
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="membership-text-button membership-text-button--on-light"
+                onClick={() => {
+                  setCodePurpose('');
+                  setCode('');
+                  setStatus('');
+                }}
+              >
+                Zmeniť e-mail
+              </button>
+            </form>
+          )}
           {!offer?.available ? (
             <p className="membership-offer-card__unavailable">Objednávanie členstva bude dostupné čoskoro.</p>
           ) : null}
@@ -409,13 +571,13 @@ const Membership = () => {
             <CircleUserRound size={26} />
           </div>
           <div>
-            <span className="membership-eyebrow">Bezpečný prístup</span>
-            <h2 id="membership-login-title">Overte svoj e-mail</h2>
-            <p>Jednorazový kód slúži na bezpečný vstup aj aktiváciu nového členstva.</p>
+            <span className="membership-eyebrow">Už ste členom?</span>
+            <h2 id="membership-login-title">Prihlásenie do členskej zóny</h2>
+            <p>Zadajte e-mail použitý pri platbe. Prihlásenie je bez hesla — pošleme vám jednorazový kód.</p>
           </div>
         </div>
 
-        {!codeRequested ? (
+        {!loginCodeRequested ? (
           <form onSubmit={sendCode} className="membership-form membership-login__form">
             <label htmlFor="membership-login-email">Členský e-mail</label>
             <div className="membership-form__row">
@@ -424,8 +586,8 @@ const Membership = () => {
                 name="login-email"
                 type="email"
                 autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.target.value)}
                 placeholder="vas@email.sk"
                 required
               />
@@ -467,8 +629,9 @@ const Membership = () => {
               type="button"
               className="membership-text-button"
               onClick={() => {
-                setCodeRequested(false);
+                setCodePurpose('');
                 setCode('');
+                setStatus('');
               }}
             >
               Použiť iný e-mail alebo poslať nový kód

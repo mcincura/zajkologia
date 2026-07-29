@@ -232,6 +232,47 @@
   font-size: 0.88rem;
 }
 
+.membership-offer-card .membership-offer-card__microcopy {
+  margin: 0.1rem 0 0;
+  color: var(--membership-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.membership-code-panel {
+  gap: 0.65rem;
+  padding-top: 0.25rem;
+}
+
+.membership-code-panel__intro {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(47, 111, 91, 0.16);
+  border-radius: 14px;
+  background: #f3faf6;
+}
+
+.membership-code-panel__intro span {
+  color: var(--membership-green);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.membership-code-panel__intro strong {
+  color: var(--membership-ink);
+}
+
+.membership-code-panel__intro p {
+  color: var(--membership-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .membership-checkout-message,
 .membership-status {
   display: flex;
@@ -321,6 +362,10 @@
   text-underline-offset: 3px;
 }
 
+.membership-text-button--on-light {
+  color: var(--membership-muted);
+}
+
 .membership-portal {
   display: grid;
   gap: 1.5rem;
@@ -380,6 +425,11 @@
   background: #fff5f6;
 }
 
+.membership-access-card.is-pending {
+  border-color: rgba(186, 126, 33, 0.22);
+  background: #fff9ec;
+}
+
 .membership-access-card__icon {
   display: grid;
   width: 42px;
@@ -392,6 +442,20 @@
 
 .membership-access-card.is-inactive .membership-access-card__icon {
   color: #8a1c2b;
+}
+
+.membership-access-card.is-pending .membership-access-card__icon {
+  color: #9a681e;
+}
+
+.membership-spinner {
+  animation: membership-spin 900ms linear infinite;
+}
+
+@keyframes membership-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .membership-access-card strong {
@@ -595,6 +659,10 @@
   .membership-icon-button:active:not(:disabled),
   .membership-discount-code:active {
     transform: none;
+  }
+
+  .membership-spinner {
+    animation: none;
   }
 }
 
