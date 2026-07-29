@@ -65,6 +65,35 @@ describe('MembershipAdminSection', () => {
     expect(screen.getByRole('heading', { name: 'Member-facing preview' })).toBeInTheDocument();
   });
 
+  it('labels allowlisted QA access separately from paid Stripe access', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      ...overviewResponse,
+      offer: {
+        ...overviewResponse.offer,
+        testAccessEnabled: true,
+      },
+      members: [
+        {
+          id: 7,
+          email: 'mar.cincura@gmail.com',
+          hasAccess: true,
+          testAccess: true,
+          subscription: null,
+        },
+      ],
+      totals: { members: 1, active: 1, canceling: 0 },
+    });
+
+    render(<MembershipAdminSection />);
+
+    expect(
+      await screen.findByText('Checkout is disabled · allowlisted QA access is enabled')
+    ).toBeInTheDocument();
+    expect(screen.getByText('mar.cincura@gmail.com')).toBeInTheDocument();
+    expect(screen.getByText('QA tester')).toBeInTheDocument();
+    expect(screen.getByText('test access')).toBeInTheDocument();
+  });
+
   it('opens an existing item for metadata editing', async () => {
     const user = userEvent.setup();
     render(<MembershipAdminSection />);

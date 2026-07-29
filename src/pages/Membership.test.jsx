@@ -109,6 +109,57 @@ describe('Membership', () => {
     ).toBeInTheDocument();
   });
 
+  it('opens allowlisted prelaunch test access after real email verification without Checkout', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipOffer).mockResolvedValue({
+      available: false,
+      testAccessEnabled: true,
+      unitAmount: 499,
+      currency: 'eur',
+      interval: 'month',
+    });
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+    vi.mocked(requestMembershipCode).mockResolvedValue({ ok: true });
+    vi.mocked(verifyMembershipCode).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: true,
+      testAccess: true,
+      member: { id: 12, email: 'mar.cincura@gmail.com', hasStripeCustomer: false },
+      subscription: null,
+    });
+    vi.mocked(loadMembershipContent).mockResolvedValue([
+      {
+        id: 14,
+        title: 'Testovací členský materiál',
+        description: 'Viditeľný v bezpečnom QA prístupe.',
+        contentType: 'pdf',
+        filename: 'test.pdf',
+        hasFile: true,
+      },
+    ]);
+
+    renderPage();
+
+    await user.type(
+      await screen.findByLabelText(/E-mail pre členstvo/i),
+      'mar.cincura@gmail.com'
+    );
+    await user.click(screen.getByRole('button', { name: /Otestovať členský prístup/i }));
+    await user.type(await screen.findByLabelText(/6-miestny kód/i), '123456');
+    await user.click(
+      screen.getByRole('button', { name: /Overiť a otvoriť testovací prístup/i })
+    );
+
+    expect(requestMembershipCode).toHaveBeenCalledWith('mar.cincura@gmail.com');
+    expect(createMembershipCheckout).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText('Testovací prístup je aktívny. Žiadna platba neprebehla.')
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Testovací členský materiál' })
+    ).toBeInTheDocument();
+  });
+
   it('shows a non-duplicating confirmation state while Stripe access syncs', async () => {
     vi.mocked(loadMembershipSession).mockResolvedValue({
       isAuthenticated: true,

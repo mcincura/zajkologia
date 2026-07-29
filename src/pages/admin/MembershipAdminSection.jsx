@@ -293,7 +293,9 @@ const MembershipAdminSection = () => {
           <strong>
             {overview.offer?.salesEnabled
               ? 'Customers can start subscriptions'
-              : 'Checkout is disabled while content is being prepared'}
+              : overview.offer?.testAccessEnabled
+                ? 'Checkout is disabled · allowlisted QA access is enabled'
+                : 'Checkout is disabled while content is being prepared'}
           </strong>
         </div>
         <p>
@@ -558,8 +560,14 @@ const MembershipAdminSection = () => {
               {overview.members.map((member) => (
                 <tr key={member.id}>
                   <td>{member.email}</td>
-                  <td>{member.subscription?.status || 'none'}</td>
-                  <td>{member.hasAccess ? (member.subscription?.cancelAtPeriodEnd ? 'until period end' : 'active') : 'blocked'}</td>
+                  <td>{member.testAccess ? 'QA tester' : member.subscription?.status || 'none'}</td>
+                  <td>
+                    {member.testAccess
+                      ? 'test access'
+                      : member.hasAccess
+                        ? (member.subscription?.cancelAtPeriodEnd ? 'until period end' : 'active')
+                        : 'blocked'}
+                  </td>
                   <td>{formatDate(member.subscription?.currentPeriodEnd)}</td>
                   <td>{formatDate(member.lastLoginAt)}</td>
                 </tr>

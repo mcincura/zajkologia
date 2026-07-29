@@ -86,6 +86,10 @@ const Membership = () => {
   const checkoutState = searchParams.get('checkout');
   const isAuthenticated = Boolean(session?.isAuthenticated);
   const hasAccess = Boolean(session?.hasAccess);
+  const testAccess = Boolean(session?.testAccess);
+  const prelaunchTestAccessEnabled = Boolean(
+    offer?.testAccessEnabled && !offer?.available
+  );
   const checkoutCodeRequested = codePurpose === 'checkout';
   const loginCodeRequested = codePurpose === 'login';
   const paymentPending = confirmingPayment && isAuthenticated && !hasAccess;
@@ -254,7 +258,11 @@ const Membership = () => {
       setCode('');
       setCodePurpose('');
       if (nextSession.hasAccess) {
-        setStatus('Ste prihlásený/á. Vitajte v klube.');
+        setStatus(
+          nextSession.testAccess
+            ? 'Testovací prístup je aktívny. Žiadna platba neprebehla.'
+            : 'Ste prihlásený/á. Vitajte v klube.'
+        );
         setContent(await loadMembershipContent());
       } else if (nextPurpose === 'checkout') {
         setStatus('E-mail je overený. Otvárame bezpečnú platbu cez Stripe…');
@@ -338,7 +346,7 @@ const Membership = () => {
               <p>{session.member.email}</p>
             </div>
             <div className="membership-portal__controls">
-              {session.member.hasStripeCustomer ? (
+              {session.member.hasStripeCustomer && !testAccess ? (
                 <button
                   type="button"
                   className="membership-button membership-button--secondary"
@@ -387,14 +395,18 @@ const Membership = () => {
             </div>
             <div>
               <strong>
-                {hasAccess
+                {testAccess
+                  ? 'Testovací prístup je aktívny'
+                  : hasAccess
                   ? 'Členstvo je aktívne'
                   : paymentPending
                     ? 'Potvrdzujeme platbu'
                     : 'Členstvo nie je aktívne'}
               </strong>
               <p>
-                {hasAccess
+                {testAccess
+                  ? 'Môžete skontrolovať e-mailové prihlásenie, členský obsah a chránené súbory bez platby.'
+                  : hasAccess
                   ? subscription?.cancelAtPeriodEnd
                     ? `Obsah zostáva dostupný do ${formatDate(subscription.currentPeriodEnd) || 'konca zaplateného obdobia'}.`
                     : `Ďalšie obdobie do ${formatDate(subscription?.currentPeriodEnd) || 'najbližšieho obnovenia'}.`
@@ -491,13 +503,22 @@ const Membership = () => {
               <button
                 type="submit"
                 className="membership-button membership-button--primary membership-button--wide"
-                disabled={busy === 'request-checkout-code' || !offer?.available}
+                disabled={
+                  busy === 'request-checkout-code' ||
+                  (!offer?.available && !prelaunchTestAccessEnabled)
+                }
               >
-                {busy === 'request-checkout-code' ? 'Posielam overovací kód…' : 'Pokračovať k platbe'}
+                {busy === 'request-checkout-code'
+                  ? 'Posielam overovací kód…'
+                  : prelaunchTestAccessEnabled
+                    ? 'Otestovať členský prístup'
+                    : 'Pokračovať k platbe'}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
               <p className="membership-offer-card__microcopy">
-                Najprv overíme váš e-mail. Platba ešte neprebieha.
+                {prelaunchTestAccessEnabled
+                  ? 'Pre povolený testovací e-mail. Platba sa nevytvorí.'
+                  : 'Najprv overíme váš e-mail. Platba ešte neprebieha.'}
               </p>
             </form>
           ) : (
@@ -506,7 +527,10 @@ const Membership = () => {
                 <span>Overenie e-mailu</span>
                 <strong>Skontrolujte svoju schránku</strong>
                 <p>
-                  6-miestny kód sme poslali na <b>{email}</b>. Po overení pokračujete priamo na Stripe.
+                  6-miestny kód sme poslali na <b>{email}</b>.{' '}
+                  {prelaunchTestAccessEnabled
+                    ? 'Po overení otvoríme bezpečný testovací prístup bez platby.'
+                    : 'Po overení pokračujete priamo na Stripe.'}
                 </p>
               </div>
               <label htmlFor="membership-signup-code">6-miestny kód</label>
@@ -530,7 +554,9 @@ const Membership = () => {
               >
                 {busy === 'verify-code' || busy === 'checkout'
                   ? 'Pripravujem platbu…'
-                  : 'Overiť a prejsť k platbe'}
+                  : prelaunchTestAccessEnabled
+                    ? 'Overiť a otvoriť testovací prístup'
+                    : 'Overiť a prejsť k platbe'}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
               <button
@@ -547,7 +573,11 @@ const Membership = () => {
             </form>
           )}
           {!offer?.available ? (
-            <p className="membership-offer-card__unavailable">Objednávanie členstva bude dostupné čoskoro.</p>
+            <p className="membership-offer-card__unavailable">
+              {prelaunchTestAccessEnabled
+                ? 'Predaj zostáva zatvorený. Povolený tester môže skontrolovať členskú zónu bez platby.'
+                : 'Objednávanie členstva bude dostupné čoskoro.'}
+            </p>
           ) : null}
         </div>
       </section>
