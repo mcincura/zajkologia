@@ -3,6 +3,8 @@ import DisclaimerModal from './DisclaimerModal';
 import { FaInstagram, FaFacebook, FaEnvelope } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
+const membershipPublic = import.meta.env.VITE_MEMBERSHIP_PUBLIC === 'true';
+
 const Footer = () => {
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     return (
@@ -34,6 +36,18 @@ const Footer = () => {
             Powered by hay, love and binkies.
           </p>
           <p style={{ marginTop: "1rem", fontSize: "0.9rem" }}>
+            {membershipPublic ? (
+              <Link
+                to="/klub"
+                style={{
+                  color: "var(--color-white)",
+                  textDecoration: "underline",
+                  marginRight: "1rem",
+                }}
+              >
+                Zajkológia klub
+              </Link>
+            ) : null}
             <Link
               to="/o-nas"
               style={{

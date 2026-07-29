@@ -1,0 +1,297 @@
+.admin-membership {
+  display: grid;
+  gap: 1.25rem;
+  color: #341320;
+}
+
+.admin-membership__header,
+.admin-membership__section-heading,
+.admin-membership-content article,
+.admin-membership-content__actions {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.admin-membership__header {
+  justify-content: space-between;
+}
+
+.admin-membership__header h2,
+.admin-membership__section-heading h3,
+.admin-membership-content h4 {
+  margin: 0;
+}
+
+.admin-membership__header p,
+.admin-membership-content p {
+  margin: 0.25rem 0 0;
+  color: #705862;
+  font-size: 0.88rem;
+}
+
+.admin-membership__status {
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #7a3f00;
+  font-weight: 800;
+}
+
+.admin-membership__launch-state {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  border: 1px solid #d8c7ba;
+  border-radius: 12px;
+  background: #fffaf5;
+}
+
+.admin-membership__launch-state div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.admin-membership__launch-state span {
+  color: #8a3a18;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-membership__launch-state strong {
+  font-size: 0.95rem;
+}
+
+.admin-membership__launch-state p {
+  margin: 0;
+  color: #705862;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.admin-membership__launch-state.is-live {
+  border-color: #98c9b5;
+  background: #f2fbf6;
+}
+
+.admin-membership__launch-state.is-live span {
+  color: #226049;
+}
+
+.admin-membership__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.7rem;
+}
+
+.admin-membership__stats div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem;
+  border: 1px solid #eadfd5;
+  border-radius: 12px;
+  background: #fffaf5;
+}
+
+.admin-membership__stats span {
+  color: #705862;
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.admin-membership__stats strong {
+  font-size: 1.8rem;
+}
+
+.admin-membership__section {
+  padding: 1rem;
+  border: 1px solid #eadfd5;
+  border-radius: 14px;
+}
+
+.admin-membership__section-heading {
+  margin-bottom: 1rem;
+}
+
+.admin-membership-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.admin-membership-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-membership-form label > span {
+  color: #705862;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.admin-membership-form input,
+.admin-membership-form select,
+.admin-membership-form textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d8c7ba;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+}
+
+.admin-membership-form input:focus-visible,
+.admin-membership-form select:focus-visible,
+.admin-membership-form textarea:focus-visible,
+.admin-membership button:focus-visible,
+.admin-membership a:focus-visible {
+  outline: 3px solid rgba(155, 106, 108, 0.35);
+  outline-offset: 2px;
+}
+
+.admin-membership-form .is-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-membership-form__checkbox {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+}
+
+.admin-membership-form__checkbox input {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-membership__primary,
+.admin-membership__secondary,
+.admin-membership-content button,
+.admin-membership-content a {
+  display: inline-flex;
+  min-height: 40px;
+  padding: 0.55rem 0.75rem;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 850;
+}
+
+.admin-membership__primary {
+  background: #341320;
+  color: #fff8ed;
+}
+
+.admin-membership__secondary,
+.admin-membership-content button,
+.admin-membership-content a {
+  border: 1px solid #d8c7ba;
+  background: #fff;
+  color: #341320;
+}
+
+.admin-membership-content {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.admin-membership-content article {
+  justify-content: space-between;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #faf7f5;
+}
+
+.admin-membership-content__status {
+  color: #8a1c2b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-membership-content__status.is-ready {
+  color: #2f6f5b;
+}
+
+.admin-membership-content__status.is-scheduled {
+  color: #8a5a13;
+}
+
+.admin-membership-content__actions .is-danger {
+  color: #8a1c2b;
+}
+
+.admin-membership__preview-note {
+  margin: -0.4rem 0 1rem;
+  color: #705862;
+  font-size: 0.85rem;
+}
+
+.admin-membership__preview-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.admin-membership__preview-item {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-membership__preview-item > .admin-membership-content__status {
+  justify-self: start;
+}
+
+.admin-membership-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-membership-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+.admin-membership-table th,
+.admin-membership-table td {
+  padding: 0.65rem;
+  border-bottom: 1px solid #eadfd5;
+  white-space: nowrap;
+}
+
+.admin-membership-table th {
+  color: #705862;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+@media (max-width: 850px) {
+  .admin-membership__stats,
+  .admin-membership-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-membership__stats,
+  .admin-membership-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-membership-content article,
+  .admin-membership__launch-state,
+  .admin-membership__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-membership-form .is-wide {
+    grid-column: auto;
+  }
+}

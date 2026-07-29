@@ -133,6 +133,79 @@ export const loadVisitorCountry = async () => {
     return data?.countryCode || '';
 };
 
+export const loadMembershipOffer = async () => {
+    const data = await apiFetch('/api/membership/offer');
+    return data?.offer || null;
+};
+
+export const createMembershipCheckout = async (email) => {
+    const data = await apiFetch('/api/membership/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
+    if (!data?.checkoutUrl) throw new Error('missing_checkout_url');
+    return data;
+};
+
+export const loadMembershipSession = async () =>
+    apiFetch('/api/membership/me');
+
+export const requestMembershipCode = async (email) =>
+    apiFetch('/api/membership/auth/request-code', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
+
+export const verifyMembershipCode = async ({ email, code }) =>
+    apiFetch('/api/membership/auth/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+    });
+
+export const logoutMembership = async () =>
+    apiFetch('/api/membership/auth/logout', { method: 'POST' });
+
+export const loadMembershipContent = async () => {
+    const data = await apiFetch('/api/membership/content');
+    return data?.content || [];
+};
+
+export const createMembershipBillingPortal = async () => {
+    const data = await apiFetch('/api/membership/billing-portal', { method: 'POST' });
+    if (!data?.portalUrl) throw new Error('missing_billing_portal_url');
+    return data;
+};
+
+export const downloadMembershipFile = async ({ contentId, filename }) => {
+    const res = await fetch(apiUrl(`/api/membership/content/${encodeURIComponent(contentId)}/download`), {
+        method: 'GET',
+        credentials: 'include',
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        let data = null;
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch {
+            data = null;
+        }
+        const error = new Error(data?.error || `http_${res.status}`);
+        error.status = res.status;
+        error.data = data;
+        throw error;
+    }
+
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename || 'zajkologia-file';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+};
+
 const uploadProductAsset = async ({ productId, endpoint, file, fields = {} }) => {
     const formData = new FormData();
     formData.append('file', file);

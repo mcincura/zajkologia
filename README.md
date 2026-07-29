@@ -1,5 +1,16 @@
 # React + Vite
 
+## Membership staging switch
+
+`VITE_MEMBERSHIP_PUBLIC` is baked into the static build. Keep it `false` while
+the client prepares the library; `/klub` remains available by direct URL for
+controlled checks, but the public header and footer do not advertise it. Set it
+to `true` and rebuild only after the backend sales gate and launch checklist
+have passed.
+
+The operational checklist is maintained in the backend repository at
+`docs/membership-eur5-launch-runbook.md`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

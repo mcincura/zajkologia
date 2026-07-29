@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Ban, Download, FileText, Package, PackageCheck, RefreshCw, Send, ShieldCheck } from 'lucide-react';
+import { Ban, Download, FileText, Package, PackageCheck, RefreshCw, Send, ShieldCheck, UsersRound } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
+import MembershipAdminSection from './admin/MembershipAdminSection';
 import { isShippableOrder } from '../utils/orderTypes';
 import {
     getDefaultRefundCategory,
@@ -155,6 +156,7 @@ const Admin = ({ section = 'orders' }) => {
     const isOrdersSection = section === 'orders';
     const isProductsSection = section === 'products';
     const isPostsSection = section === 'posts';
+    const isMembershipSection = section === 'membership';
     const orderStats = useMemo(() => {
         const paidOrders = orders.filter((order) => ['paid', 'fulfilled'].includes(order.status));
         const physicalToShip = orders.filter((order) =>
@@ -789,6 +791,10 @@ const Admin = ({ section = 'orders' }) => {
                         <FileText size={18} strokeWidth={2.4} />
                         Blog posts
                     </NavLink>
+                    <NavLink to="/admin/membership" style={adminNavLinkStyle}>
+                        <UsersRound size={18} strokeWidth={2.4} />
+                        Membership
+                    </NavLink>
                 </nav>
 
                 {isPostsSection ? (
@@ -870,6 +876,17 @@ const Admin = ({ section = 'orders' }) => {
                                 <div style={{ fontSize: '0.85rem', color: '#666' }}>{p.slug || 'missing-slug'} • {p.category || '—'}</div>
                             </button>
                         ))}
+                    </div>
+                ) : isMembershipSection ? (
+                    <div style={{
+                        border: '1px solid #eee',
+                        borderRadius: '10px',
+                        padding: '0.75rem',
+                        background: '#fafafa',
+                        color: '#55463d',
+                        fontSize: '0.88rem',
+                    }}>
+                        Stripe-synchronized members and protected club content.
                     </div>
                 ) : (
                     <div style={{
@@ -1434,6 +1451,8 @@ const Admin = ({ section = 'orders' }) => {
                     </>
                 ) : isProductsSection ? (
                     <ProductCmsSection />
+                ) : isMembershipSection ? (
+                    <MembershipAdminSection />
                 ) : (
                 !selectedPost ? (
                     <div style={{ padding: '1rem' }}>No post selected.</div>
