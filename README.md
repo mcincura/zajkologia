@@ -9,7 +9,7 @@ to `true` and rebuild only after the backend sales gate and launch checklist
 have passed.
 
 The operational checklist is maintained in the backend repository at
-`docs/membership-eur5-launch-runbook.md`.
+`docs/membership-eur499-launch-runbook.md`.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

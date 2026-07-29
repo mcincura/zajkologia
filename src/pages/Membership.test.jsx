@@ -36,7 +36,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadMembershipOffer).mockResolvedValue({
     available: true,
-    unitAmount: 500,
+    unitAmount: 499,
     currency: 'eur',
     interval: 'month',
   });
@@ -51,7 +51,7 @@ describe('Membership', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: /Istota v starostlivosti/i })).toBeInTheDocument();
-    expect(screen.getByText('5,00 €')).toBeInTheDocument();
+    expect(screen.getByText('4,99 €')).toBeInTheDocument();
 
     const loginEmail = screen.getByLabelText(/Členský e-mail/i);
     await user.type(loginEmail, 'member@example.com');

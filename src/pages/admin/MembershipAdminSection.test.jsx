@@ -18,7 +18,7 @@ const overviewResponse = {
     configured: true,
     salesEnabled: false,
     billingPortalConfigured: true,
-    unitAmount: 500,
+    unitAmount: 499,
     currency: 'eur',
   },
   content: [
@@ -58,7 +58,7 @@ describe('MembershipAdminSection', () => {
 
     expect(await screen.findByText('Private staging')).toBeInTheDocument();
     expect(
-      screen.getByText('5,00 € / month · Stripe Price ready · Billing Portal ready')
+      screen.getByText('4,99 € / month · Stripe Price ready · Billing Portal ready')
     ).toBeInTheDocument();
     expect(screen.getAllByText('Draft')).toHaveLength(2);
     expect(screen.getByText(/Scheduled ·/)).toBeInTheDocument();
