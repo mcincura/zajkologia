@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Heart } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import PostCard from '../components/PostCard';
 import ProductCard from '../components/ProductCard';
@@ -164,18 +164,12 @@ const Home = () => {
               aria-label="Vstúpiť do Zajkológia klubu"
             >
               <span className="home-hero-club-link__icon" aria-hidden="true">
-                <Sparkles size={23} strokeWidth={2.2} />
+                <Heart size={21} strokeWidth={2.4} />
               </span>
-              <span className="home-hero-club-link__copy">
-                <span>Exkluzívny obsah</span>
-                <strong>Vstúpiť do Zajkológia klubu</strong>
+              <strong>Vstúpiť do Zajkológia klubu</strong>
+              <span className="home-hero-club-link__arrow" aria-hidden="true">
+                <ArrowRight size={19} strokeWidth={2.7} />
               </span>
-              <ArrowRight
-                className="home-hero-club-link__arrow"
-                aria-hidden="true"
-                size={24}
-                strokeWidth={2.5}
-              />
             </Link>
 
             <Link className="home-hero-about-link" to="/o-nas">
