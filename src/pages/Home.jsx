@@ -158,11 +158,6 @@ const Home = () => {
           </p>
           <SearchBar onSearch={setSearchTerm} />
           <div className="home-hero-actions">
-            <Link className="home-hero-about-link" to="/o-nas">
-              Zistiť viac o Zajkológii
-              <ArrowRight aria-hidden="true" size={18} strokeWidth={2.6} />
-            </Link>
-
             <Link
               className="home-hero-club-link"
               to="/klub"
@@ -178,9 +173,14 @@ const Home = () => {
               <ArrowRight
                 className="home-hero-club-link__arrow"
                 aria-hidden="true"
-                size={22}
+                size={24}
                 strokeWidth={2.5}
               />
+            </Link>
+
+            <Link className="home-hero-about-link" to="/o-nas">
+              Zistiť viac o Zajkológii
+              <ArrowRight aria-hidden="true" size={16} strokeWidth={2.5} />
             </Link>
           </div>
         </div>
