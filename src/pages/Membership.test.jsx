@@ -13,6 +13,7 @@ import {
   verifyMembershipCode,
 } from '../api/client';
 import Membership from './Membership';
+import { parseMembershipLoginHandoff } from '../utils/membershipLoginHandoff';
 
 vi.mock('../api/client', () => ({
   createMembershipBillingPortal: vi.fn(),
@@ -27,10 +28,10 @@ vi.mock('../api/client', () => ({
   verifyMembershipCode: vi.fn(),
 }));
 
-const renderPage = (route = '/klub') =>
+const renderPage = (route = '/klub', props = {}) =>
   render(
     <MemoryRouter initialEntries={[route]}>
-      <Membership />
+      <Membership {...props} />
     </MemoryRouter>
   );
 
@@ -67,6 +68,74 @@ describe('Membership', () => {
 
     expect(requestMembershipCode).toHaveBeenCalledWith('member@example.com');
     expect(await screen.findByLabelText(/6-miestny kód/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Poslať kód znova (30 s)' })
+    ).toBeDisabled();
+  });
+
+  it('resends a code after a wrong-code error, preserves the normalized email, and clears the field', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+    vi.mocked(requestMembershipCode)
+      .mockResolvedValueOnce({ ok: true, resendCooldownSeconds: 0 })
+      .mockResolvedValueOnce({ ok: true, resendCooldownSeconds: 30 });
+    vi.mocked(verifyMembershipCode).mockRejectedValue({ data: { error: 'invalid_code' } });
+
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/Členský e-mail/i), ' MEMBER@Example.com ');
+    await user.click(screen.getByRole('button', { name: 'Poslať kód' }));
+    await user.type(screen.getByLabelText(/6-miestny kód z e-mailu/i), '111111');
+    await user.click(screen.getByRole('button', { name: 'Overiť a pokračovať' }));
+    expect(await screen.findByText(/Kód nie je správny/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Poslať kód znova' }));
+
+    expect(requestMembershipCode).toHaveBeenLastCalledWith('member@example.com');
+    expect(screen.getByLabelText(/6-miestny kód z e-mailu/i)).toHaveValue('');
+    expect(
+      await screen.findByText('Poslali sme nový 6-miestny kód. Predchádzajúce kódy už neplatia.')
+    ).toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByLabelText(/6-miestny kód z e-mailu/i));
+  });
+
+  it('opens the email handoff in prepared code-entry state without leaving the secret in the URL', async () => {
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+    window.history.replaceState(
+      null,
+      '',
+      '/klub#membership-login=1&email=MEMBER%40example.com&code=123456'
+    );
+
+    renderPage();
+
+    expect(await screen.findByDisplayValue('123456')).toBeInTheDocument();
+    expect(screen.getByLabelText(/6-miestny kód z e-mailu/i)).toBeInTheDocument();
+    expect(window.location.hash).toBe('');
+    expect(
+      screen.getByText('Kód z e-mailu sme predvyplnili. Potvrďte prihlásenie.')
+    ).toBeInTheDocument();
+  });
+
+  it('accepts only a complete, valid email handoff fragment', () => {
+    expect(
+      parseMembershipLoginHandoff('#membership-login=1&email=MEMBER%40example.com&code=123456')
+    ).toEqual({ email: 'member@example.com', code: '123456' });
+    expect(parseMembershipLoginHandoff('#membership-login=1&email=member@example.com&code=12'))
+      .toBeNull();
+    expect(parseMembershipLoginHandoff('#email=member@example.com&code=123456')).toBeNull();
+  });
+
+  it('keeps the unlinked login-only route free of offer, category, and post data', async () => {
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+
+    renderPage('/klub/prihlasenie', { loginOnly: true });
+
+    expect(await screen.findByRole('heading', { name: /prihlásenie do členskej zóny/i })).toBeInTheDocument();
+    expect(loadMembershipOffer).not.toHaveBeenCalled();
+    expect(loadMembershipCategories).not.toHaveBeenCalled();
+    expect(loadMembershipPosts).not.toHaveBeenCalled();
+    expect(screen.queryByText(/jedno jednoduché členstvo/i)).not.toBeInTheDocument();
   });
 
   it('starts the purchase with email verification before Stripe', async () => {

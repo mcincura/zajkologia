@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { loadMembershipPreviewAccess } from '../api/client';
 import ClubComingSoon from './ClubComingSoon';
 
-const ClubPreviewGate = ({ children }) => {
+const ClubPreviewGate = ({ children, loginOnly = false }) => {
   const [isAllowed, setIsAllowed] = useState(false);
 
   useEffect(() => {
+    if (loginOnly) return undefined;
     let active = true;
 
     loadMembershipPreviewAccess()
@@ -20,9 +21,9 @@ const ClubPreviewGate = ({ children }) => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [loginOnly]);
 
-  return isAllowed ? children : <ClubComingSoon />;
+  return loginOnly || isAllowed ? children : <ClubComingSoon />;
 };
 
 export default ClubPreviewGate;

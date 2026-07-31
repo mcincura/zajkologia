@@ -13,7 +13,9 @@ vi.mock('./api/client', async (importOriginal) => {
 });
 
 vi.mock('./pages/Membership', () => ({
-  default: () => <h1>Skutočný prehľad klubu</h1>,
+  default: ({ loginOnly = false }) => (
+    <h1>{loginOnly ? 'Len prihlásenie do klubu' : 'Skutočný prehľad klubu'}</h1>
+  ),
 }));
 
 vi.mock('./pages/MembershipPost', () => ({
@@ -53,5 +55,12 @@ describe('private club preview routes', () => {
 
     expect(await screen.findByRole('heading', { name: /klub pre vás práve pripravujeme/i })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /skutočný detail príspevku/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps the explicit login path reachable without the preview allowlist', async () => {
+    renderRoute('/klub/prihlasenie');
+
+    expect(await screen.findByRole('heading', { name: /len prihlásenie do klubu/i })).toBeInTheDocument();
+    expect(loadMembershipPreviewAccess).not.toHaveBeenCalled();
   });
 });

@@ -62,6 +62,14 @@ function App() {
                 )}
               />
               <Route
+                path="klub/prihlasenie"
+                element={(
+                  <ClubPreviewGate loginOnly>
+                    <Membership loginOnly />
+                  </ClubPreviewGate>
+                )}
+              />
+              <Route
                 path="klub/:slug"
                 element={(
                   <ClubPreviewGate>

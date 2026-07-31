@@ -50,6 +50,28 @@ describe('ClubPreviewGate', () => {
     expect(screen.queryByRole('heading', { name: /klub pre vás práve pripravujeme/i })).not.toBeInTheDocument();
   });
 
+  it('shows the real club when the backend authorizes a current member on an unlisted network', async () => {
+    vi.mocked(loadMembershipPreviewAccess).mockResolvedValue(true);
+
+    renderGate();
+
+    expect(await screen.findByRole('heading', { name: /súkromný náhľad klubu/i })).toBeInTheDocument();
+  });
+
+  it('opens the dedicated login-only path without checking or exposing the club feed', () => {
+    render(
+      <MemoryRouter>
+        <ClubPreviewGate loginOnly>
+          <h1>Len prihlásenie</h1>
+        </ClubPreviewGate>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('heading', { name: 'Len prihlásenie' })).toBeInTheDocument();
+    expect(loadMembershipPreviewAccess).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { name: /klub pre vás práve pripravujeme/i })).not.toBeInTheDocument();
+  });
+
   it('keeps showing the construction page after a denied response settles', async () => {
     const access = createDeferred();
     vi.mocked(loadMembershipPreviewAccess).mockReturnValue(access.promise);

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Bookmark,
@@ -12,7 +12,7 @@ import {
   Search,
   Sparkles,
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   createMembershipBillingPortal,
@@ -27,6 +27,7 @@ import {
   verifyMembershipCode,
 } from '../api/client';
 import MembershipPostCard from '../components/MembershipPostCard';
+import { parseMembershipLoginHandoff } from '../utils/membershipLoginHandoff';
 import '../styles/membership.css';
 
 const errorMessage = (error) => {
@@ -83,8 +84,11 @@ const mediaFilters = [
   { key: 'image', label: 'Obrázky' },
 ];
 
-const Membership = () => {
+const membershipResendCooldownSeconds = 30;
+
+const Membership = ({ loginOnly = false }) => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [offer, setOffer] = useState(null);
   const [session, setSession] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -110,6 +114,8 @@ const Membership = () => {
   const [busy, setBusy] = useState('');
   const [status, setStatus] = useState('');
   const [saveBusy, setSaveBusy] = useState(null);
+  const [resendSecondsRemaining, setResendSecondsRemaining] = useState(0);
+  const codeInputRef = useRef(null);
 
   const checkoutState = searchParams.get('checkout');
   const isAuthenticated = Boolean(session?.isAuthenticated);
@@ -126,16 +132,52 @@ const Membership = () => {
   const loginCodeRequested = codePurpose === 'login';
   const paymentPending = confirmingPayment && isAuthenticated && !hasAccess;
 
+  const beginResendCooldown = (seconds = membershipResendCooldownSeconds) => {
+    const parsedSeconds = Number(seconds);
+    setResendSecondsRemaining(
+      Math.max(
+        0,
+        Number.isFinite(parsedSeconds) ? parsedSeconds : membershipResendCooldownSeconds
+      )
+    );
+  };
+
+  useEffect(() => {
+    if (!resendSecondsRemaining) return undefined;
+    const timerId = window.setInterval(() => {
+      setResendSecondsRemaining((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => window.clearInterval(timerId);
+  }, [resendSecondsRemaining]);
+
+  useEffect(() => {
+    const handoff = parseMembershipLoginHandoff(window.location.hash);
+    if (!handoff) return;
+
+    setLoginEmail(handoff.email);
+    setCode(handoff.code);
+    setCodePurpose('login');
+    setStatus('Kód z e-mailu sme predvyplnili. Potvrďte prihlásenie.');
+    // Keep the secret out of the address bar after the trusted page has read it.
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+  }, []);
+
+  useEffect(() => {
+    if (codePurpose && !code) codeInputRef.current?.focus();
+  }, [codePurpose, code]);
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
-        const [nextOffer, nextSession, nextCategories] = await Promise.all([
-          loadMembershipOffer().catch(() => null),
-          loadMembershipSession(),
-          loadMembershipCategories().catch(() => []),
-        ]);
+        const nextSession = await loadMembershipSession();
+        const [nextOffer, nextCategories] = loginOnly
+          ? [null, []]
+          : await Promise.all([
+              loadMembershipOffer().catch(() => null),
+              loadMembershipCategories().catch(() => []),
+            ]);
         if (cancelled) return;
         setOffer(nextOffer);
         setSession(nextSession);
@@ -154,9 +196,13 @@ const Membership = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loginOnly]);
 
   useEffect(() => {
+    if (loginOnly) {
+      setFeedLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     const loadFeed = async () => {
       setFeedLoading(true);
@@ -176,7 +222,13 @@ const Membership = () => {
     return () => {
       cancelled = true;
     };
-  }, [feedRevision, filters]);
+  }, [feedRevision, filters, loginOnly]);
+
+  useEffect(() => {
+    if (loginOnly && session?.isAuthenticated) {
+      navigate('/klub', { replace: true });
+    }
+  }, [loginOnly, navigate, session?.isAuthenticated]);
 
   useEffect(() => {
     if (!confirmingPayment || !isAuthenticated || hasAccess) return undefined;
@@ -244,12 +296,30 @@ const Membership = () => {
 
   const beginCheckoutVerification = async (event) => {
     event.preventDefault();
-    setBusy('request-checkout-code');
+    await requestCode({ purpose: 'checkout', requestedEmail: email, busyState: 'request-checkout-code' });
+  };
+
+  const sendCode = async (event) => {
+    event.preventDefault();
+    await requestCode({ purpose: 'login', requestedEmail: loginEmail, busyState: 'request-code' });
+  };
+
+  const requestCode = async ({ purpose, requestedEmail, busyState, isResend = false }) => {
+    const normalizedEmail = String(requestedEmail || '').trim().toLowerCase();
+    setBusy(busyState);
     setStatus('');
     try {
-      await requestMembershipCode(email);
+      const result = await requestMembershipCode(normalizedEmail);
       setCode('');
-      setCodePurpose('checkout');
+      setCodePurpose(purpose);
+      if (purpose === 'login') setLoginEmail(normalizedEmail);
+      else setEmail(normalizedEmail);
+      beginResendCooldown(result?.resendCooldownSeconds);
+      setStatus(
+        isResend
+          ? 'Poslali sme nový 6-miestny kód. Predchádzajúce kódy už neplatia.'
+          : 'Ak k tomuto e-mailu patrí členstvo, poslali sme naň 6-miestny kód.'
+      );
     } catch (error) {
       setStatus(errorMessage(error));
     } finally {
@@ -257,20 +327,15 @@ const Membership = () => {
     }
   };
 
-  const sendCode = async (event) => {
-    event.preventDefault();
-    setBusy('request-code');
-    setStatus('');
-    try {
-      await requestMembershipCode(loginEmail);
-      setCode('');
-      setCodePurpose('login');
-      setStatus('Ak k tomuto e-mailu patrí členstvo, poslali sme naň 6-miestny kód.');
-    } catch (error) {
-      setStatus(errorMessage(error));
-    } finally {
-      setBusy('');
-    }
+  const resendCode = async () => {
+    const purpose = codePurpose;
+    if (!purpose || resendSecondsRemaining > 0) return;
+    await requestCode({
+      purpose,
+      requestedEmail: purpose === 'login' ? loginEmail : email,
+      busyState: 'resend-code',
+      isResend: true,
+    });
   };
 
   const verifyCode = async (event) => {
@@ -393,6 +458,119 @@ const Membership = () => {
     );
   }
 
+  if (loginOnly) {
+    return (
+      <main className="membership-page" id="main-content">
+        <div className="membership-live-region" role="status" aria-live="polite">
+          {status ? <div className="membership-status">{status}</div> : null}
+        </div>
+        {!isAuthenticated ? (
+          <section
+            className="membership-login"
+            id="prihlasenie"
+            aria-labelledby="membership-login-title"
+          >
+            <div className="membership-login__intro">
+              <div className="membership-login__icon" aria-hidden="true">
+                <CircleUserRound size={26} />
+              </div>
+              <div>
+                <h1 id="membership-login-title">Prihlásenie do členskej zóny</h1>
+                <p>
+                  Zadajte e-mail použitý pri platbe alebo pridelený k členstvu.
+                  Pošleme vám jednorazový kód — heslo nepotrebujete.
+                </p>
+              </div>
+            </div>
+
+            {!loginCodeRequested ? (
+              <form onSubmit={sendCode} className="membership-form membership-login__form">
+                <label htmlFor="membership-login-email">Členský e-mail</label>
+                <div className="membership-form__row">
+                  <input
+                    id="membership-login-email"
+                    name="login-email"
+                    type="email"
+                    autoComplete="email"
+                    value={loginEmail}
+                    onChange={(event) => setLoginEmail(event.target.value)}
+                    placeholder="vas@email.sk"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="membership-button membership-button--secondary"
+                    disabled={busy === 'request-code'}
+                  >
+                    {busy === 'request-code' ? 'Posielam…' : 'Poslať kód'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={verifyCode} className="membership-form membership-login__form">
+                <label htmlFor="membership-login-code">6-miestny kód z e-mailu</label>
+                <div className="membership-form__row">
+                  <input
+                    id="membership-login-code"
+                    name="one-time-code"
+                    type="text"
+                    ref={codeInputRef}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(event) =>
+                      setCode(event.target.value.replace(/[^\d]/g, '').slice(0, 6))
+                    }
+                    placeholder="000000"
+                    pattern="\d{6}"
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="membership-button membership-button--primary"
+                    disabled={busy === 'verify-code'}
+                  >
+                    {busy === 'verify-code' ? 'Overujem…' : 'Overiť a pokračovať'}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="membership-text-button"
+                  onClick={resendCode}
+                  disabled={busy === 'resend-code' || resendSecondsRemaining > 0}
+                  aria-describedby="membership-login-resend-help"
+                >
+                  {busy === 'resend-code'
+                    ? 'Posielam nový kód…'
+                    : resendSecondsRemaining > 0
+                      ? `Poslať kód znova (${resendSecondsRemaining} s)`
+                      : 'Poslať kód znova'}
+                </button>
+                <span id="membership-login-resend-help" className="sr-only">
+                  Nové odoslanie zneplatní predchádzajúci kód.
+                </span>
+                <button
+                  type="button"
+                  className="membership-text-button"
+                  onClick={() => {
+                    setCodePurpose('');
+                    setCode('');
+                    setStatus('');
+                  }}
+                >
+                  Použiť iný e-mail alebo poslať nový kód
+                </button>
+              </form>
+            )}
+          </section>
+        ) : (
+          <div className="membership-loading" role="status">Overujem váš prístup…</div>
+        )}
+      </main>
+    );
+  }
+
   const subscription = session?.subscription;
 
   return (
@@ -466,6 +644,7 @@ const Membership = () => {
                   id="membership-signup-code"
                   name="signup-one-time-code"
                   type="text"
+                  ref={codeInputRef}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   value={code}
@@ -488,6 +667,22 @@ const Membership = () => {
                       ? 'Overiť a otvoriť testovací prístup'
                       : 'Overiť a prejsť k platbe'}
                 </button>
+                <button
+                  type="button"
+                  className="membership-text-button membership-text-button--on-light"
+                  onClick={resendCode}
+                  disabled={busy === 'resend-code' || resendSecondsRemaining > 0}
+                  aria-describedby="membership-signup-resend-help"
+                >
+                  {busy === 'resend-code'
+                    ? 'Posielam nový kód…'
+                    : resendSecondsRemaining > 0
+                      ? `Poslať kód znova (${resendSecondsRemaining} s)`
+                      : 'Poslať kód znova'}
+                </button>
+                <span id="membership-signup-resend-help" className="sr-only">
+                  Nové odoslanie zneplatní predchádzajúci kód.
+                </span>
                 <button
                   type="button"
                   className="membership-text-button membership-text-button--on-light"
@@ -820,6 +1015,7 @@ const Membership = () => {
                   id="membership-login-code"
                   name="one-time-code"
                   type="text"
+                  ref={codeInputRef}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   value={code}
@@ -839,6 +1035,22 @@ const Membership = () => {
                   {busy === 'verify-code' ? 'Overujem…' : 'Overiť a pokračovať'}
                 </button>
               </div>
+              <button
+                type="button"
+                className="membership-text-button"
+                onClick={resendCode}
+                disabled={busy === 'resend-code' || resendSecondsRemaining > 0}
+                aria-describedby="membership-login-resend-help"
+              >
+                {busy === 'resend-code'
+                  ? 'Posielam nový kód…'
+                  : resendSecondsRemaining > 0
+                    ? `Poslať kód znova (${resendSecondsRemaining} s)`
+                    : 'Poslať kód znova'}
+              </button>
+              <span id="membership-login-resend-help" className="sr-only">
+                Nové odoslanie zneplatní predchádzajúci kód.
+              </span>
               <button
                 type="button"
                 className="membership-text-button"
