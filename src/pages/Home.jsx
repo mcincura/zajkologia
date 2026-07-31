@@ -14,7 +14,7 @@ import '../styles/products.css';
 const PRODUCTS_CATEGORY_NAME = 'Produkty';
 const PRODUCTS_CARD_ACCENT = '#F8E8D4';
 const CLUB_FEATURES = [
-  { label: 'Edukačné plagáty', icon: <FileText aria-hidden="true" size={22} strokeWidth={1.8} /> },
+  { label: 'Edukačné materiály', icon: <FileText aria-hidden="true" size={22} strokeWidth={1.8} /> },
   { label: 'Videá', icon: <Play aria-hidden="true" size={22} strokeWidth={1.8} /> },
   { label: 'Príručky', icon: <BookOpen aria-hidden="true" size={22} strokeWidth={1.8} /> },
   { label: 'Audioblogy', icon: <Headphones aria-hidden="true" size={22} strokeWidth={1.8} /> },

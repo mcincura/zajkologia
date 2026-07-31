@@ -88,9 +88,9 @@
 .home-hero-club-card__rabbit {
   position: absolute;
   z-index: 1;
-  right: -1.25rem;
-  bottom: 4.25rem;
-  width: 13.5rem;
+  top: -1rem;
+  right: -0.65rem;
+  width: 11.75rem;
   height: auto;
   pointer-events: none;
   filter: drop-shadow(0 8px 10px rgba(38, 12, 26, 0.22));
@@ -270,9 +270,9 @@
   }
 
   .home-hero-club-card__rabbit {
-    right: -1.15rem;
-    bottom: 3.35rem;
-    width: 9.5rem;
+    top: -0.6rem;
+    right: -0.85rem;
+    width: 9rem;
   }
 
   .home-hero-club-card__features {
@@ -314,8 +314,9 @@
   }
 
   .home-hero-club-card__rabbit {
-    right: -1rem;
-    width: 9.4rem;
+    top: -0.6rem;
+    right: -0.3rem;
+    width: 7.6rem;
   }
 
   .home-hero-club-card__features {

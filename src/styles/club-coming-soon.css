@@ -1,0 +1,187 @@
+.club-coming-soon {
+  position: relative;
+  display: grid;
+  min-height: min(760px, calc(100vh - 7rem));
+  place-items: center;
+  overflow: hidden;
+  padding: clamp(2.5rem, 7vw, 6rem) 1rem;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(229, 165, 181, 0.34), transparent 29rem),
+    radial-gradient(circle at 92% 88%, rgba(236, 207, 195, 0.6), transparent 26rem),
+    #fdf6f6;
+}
+
+.club-coming-soon__card {
+  position: relative;
+  display: grid;
+  width: min(100%, 980px);
+  grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.88fr);
+  align-items: center;
+  gap: clamp(1rem, 4vw, 3.5rem);
+  overflow: hidden;
+  padding: clamp(2rem, 5vw, 4.75rem);
+  border: 1px solid rgba(92, 19, 45, 0.12);
+  border-radius: clamp(26px, 4vw, 44px);
+  background: rgba(255, 251, 249, 0.94);
+  box-shadow: 0 28px 70px rgba(60, 9, 25, 0.13);
+}
+
+.club-coming-soon__copy {
+  position: relative;
+  z-index: 2;
+  max-width: 570px;
+}
+
+.club-coming-soon__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1.15rem;
+  color: #8f294b;
+  font-size: 0.8rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.club-coming-soon__copy h1 {
+  max-width: 650px;
+  margin: 0 0 1rem;
+  color: #3c0919;
+  font-size: clamp(2.15rem, 5vw, 4.25rem);
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.club-coming-soon__lead {
+  max-width: 570px;
+  margin: 0;
+  color: #714d59;
+  font-size: clamp(1rem, 2vw, 1.16rem);
+  line-height: 1.65;
+}
+
+.club-coming-soon__notice {
+  display: grid;
+  gap: 0.25rem;
+  margin: 1.75rem 0;
+  padding: 1rem 1.1rem;
+  border-left: 4px solid #c45c7c;
+  border-radius: 4px 14px 14px 4px;
+  background: #f8e6eb;
+  color: #5c132d;
+  line-height: 1.45;
+}
+
+.club-coming-soon__notice strong {
+  font-size: 0.98rem;
+}
+
+.club-coming-soon__notice span {
+  color: #79505e;
+  font-size: 0.9rem;
+}
+
+.club-coming-soon__back {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 1.1rem;
+  border: 1px solid rgba(60, 9, 25, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: #3c0919;
+  font-size: 0.92rem;
+  font-weight: 800;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.club-coming-soon__back:hover,
+.club-coming-soon__back:focus-visible {
+  border-color: rgba(60, 9, 25, 0.36);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(60, 9, 25, 0.12);
+}
+
+.club-coming-soon__back:focus-visible {
+  outline: 3px solid rgba(196, 92, 124, 0.34);
+  outline-offset: 3px;
+}
+
+.club-coming-soon__visual {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-height: 340px;
+  place-items: center;
+}
+
+.club-coming-soon__halo {
+  position: absolute;
+  width: min(100%, 330px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f7d8df, #f3e4dc);
+}
+
+.club-coming-soon__visual img {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 350px);
+  height: auto;
+  filter: drop-shadow(0 18px 18px rgba(60, 9, 25, 0.13));
+}
+
+@media (max-width: 760px) {
+  .club-coming-soon {
+    min-height: calc(100vh - 5rem);
+    padding: 1.25rem 0.8rem 2.5rem;
+  }
+
+  .club-coming-soon__card {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 1.5rem 1.25rem 1.75rem;
+    text-align: center;
+  }
+
+  .club-coming-soon__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .club-coming-soon__copy h1 {
+    font-size: clamp(2rem, 10vw, 3.1rem);
+  }
+
+  .club-coming-soon__visual {
+    order: -1;
+    min-height: 190px;
+  }
+
+  .club-coming-soon__halo {
+    width: 195px;
+  }
+
+  .club-coming-soon__visual img {
+    width: 210px;
+    margin-bottom: -1.2rem;
+  }
+
+  .club-coming-soon__notice {
+    width: 100%;
+    border-left: 0;
+    border-top: 4px solid #c45c7c;
+    border-radius: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-coming-soon__back {
+    transition: none;
+  }
+}
