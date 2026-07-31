@@ -3,10 +3,11 @@
 ## Membership staging switch
 
 `VITE_MEMBERSHIP_PUBLIC` is baked into the static build. Keep it `false` while
-the client prepares the library; `/klub` remains available by direct URL for
-controlled checks, but the public header and footer do not advertise it. Set it
-to `true` and rebuild only after the backend sales gate and launch checklist
-have passed.
+the client prepares the library; the public header and footer do not advertise
+it. During prelaunch, `/klub` asks the backend to verify the visitor against
+`MEMBERSHIP_PREVIEW_ALLOWED_IPS` and otherwise renders the construction page.
+Set the public switch to `true` and rebuild only after the backend sales gate
+and launch checklist have passed.
 
 The operational checklist is maintained in the backend repository at
 `docs/membership-eur499-launch-runbook.md`.

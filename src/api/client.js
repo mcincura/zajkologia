@@ -138,6 +138,11 @@ export const loadMembershipOffer = async () => {
     return data?.offer || null;
 };
 
+export const loadMembershipPreviewAccess = async () => {
+    const data = await apiFetch('/api/membership/preview-access');
+    return data?.allowed === true;
+};
+
 export const createMembershipCheckout = async (email) => {
     const data = await apiFetch('/api/membership/checkout', {
         method: 'POST',

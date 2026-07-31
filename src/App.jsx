@@ -14,7 +14,9 @@ import ProductPreviewPage from './pages/admin/ProductPreviewPage';
 import { CartProvider } from './cart/CartContext';
 
 const Admin = lazy(() => import('./pages/Admin'));
-const ClubComingSoon = lazy(() => import('./pages/ClubComingSoon'));
+const ClubPreviewGate = lazy(() => import('./pages/ClubPreviewGate'));
+const Membership = lazy(() => import('./pages/Membership'));
+const MembershipPost = lazy(() => import('./pages/MembershipPost'));
 
 const restoreStaticHostPath = () => {
   if (typeof window === 'undefined') return;
@@ -51,8 +53,22 @@ function App() {
               <Route path="cart" element={<CartPage />} />
               <Route path="checkout/success" element={<CheckoutSuccess />} />
               <Route path="downloads/:token" element={<DigitalDownloads />} />
-              <Route path="klub" element={<ClubComingSoon />} />
-              <Route path="klub/:slug" element={<ClubComingSoon />} />
+              <Route
+                path="klub"
+                element={(
+                  <ClubPreviewGate>
+                    <Membership />
+                  </ClubPreviewGate>
+                )}
+              />
+              <Route
+                path="klub/:slug"
+                element={(
+                  <ClubPreviewGate>
+                    <MembershipPost />
+                  </ClubPreviewGate>
+                )}
+              />
               <Route path="o-nas" element={<About />} />
               <Route path="obchodne-podmienky" element={<Terms />} />
               <Route path="odstupenie-od-zmluvy" element={<WithdrawalRequest />} />
