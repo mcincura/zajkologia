@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Heart } from 'lucide-react';
+import { ArrowRight, BookOpen, Crown, FileText, Headphones, Play } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import PostCard from '../components/PostCard';
 import ProductCard from '../components/ProductCard';
@@ -13,6 +13,12 @@ import '../styles/products.css';
 
 const PRODUCTS_CATEGORY_NAME = 'Produkty';
 const PRODUCTS_CARD_ACCENT = '#F8E8D4';
+const CLUB_FEATURES = [
+  { label: 'Edukačné plagáty', icon: <FileText aria-hidden="true" size={22} strokeWidth={1.8} /> },
+  { label: 'Videá', icon: <Play aria-hidden="true" size={22} strokeWidth={1.8} /> },
+  { label: 'Príručky', icon: <BookOpen aria-hidden="true" size={22} strokeWidth={1.8} /> },
+  { label: 'Audioblogy', icon: <Headphones aria-hidden="true" size={22} strokeWidth={1.8} /> },
+];
 const CATEGORY_TILE_SIZE = '124px';
 const CATEGORY_TILE_HEIGHT = '94px';
 const CATEGORY_TILE_BASE_STYLE = {
@@ -158,19 +164,40 @@ const Home = () => {
           </p>
           <SearchBar onSearch={setSearchTerm} />
           <div className="home-hero-actions">
-            <Link
-              className="home-hero-club-link"
-              to="/klub"
-              aria-label="Vstúpiť do Zajkológia klubu"
-            >
-              <span className="home-hero-club-link__icon" aria-hidden="true">
-                <Heart size={21} strokeWidth={2.4} />
-              </span>
-              <strong>Vstúpiť do Zajkológia klubu</strong>
-              <span className="home-hero-club-link__arrow" aria-hidden="true">
-                <ArrowRight size={19} strokeWidth={2.7} />
-              </span>
-            </Link>
+            <section className="home-hero-club-card" aria-labelledby="home-club-title">
+              <div className="home-hero-club-card__intro">
+                <span className="home-hero-club-card__crown" aria-hidden="true">
+                  <Crown size={34} strokeWidth={1.8} />
+                </span>
+                <div className="home-hero-club-card__copy">
+                  <h2 id="home-club-title">Zajkológia Klub</h2>
+                  <p>Exkluzívny obsah pre majiteľov, ktorí chcú ísť viac do hĺbky.</p>
+                </div>
+              </div>
+
+              <img
+                className="home-hero-club-card__rabbit"
+                src="/club-rabbit-book.png"
+                width="720"
+                height="788"
+                alt=""
+                aria-hidden="true"
+              />
+
+              <ul className="home-hero-club-card__features" aria-label="Obsah v Zajkológia Klube">
+                {CLUB_FEATURES.map(({ label, icon }) => (
+                  <li key={label}>
+                    {icon}
+                    <span>{label}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link className="home-hero-club-card__button" to="/klub">
+                Vstúpiť do Zajkológia klubu
+                <ArrowRight aria-hidden="true" size={20} strokeWidth={2.4} />
+              </Link>
+            </section>
 
             <Link className="home-hero-about-link" to="/o-nas">
               Zistiť viac o Zajkológii
