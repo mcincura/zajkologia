@@ -760,7 +760,15 @@ const Admin = ({ section = 'orders' }) => {
     }
 
     return (
-        <div className="container" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem' }}>
+        <div
+            className={`container admin-page-layout ${isMembershipSection ? 'is-membership' : ''}`}
+            style={{
+                display: 'grid',
+                gridTemplateColumns: isMembershipSection ? '260px minmax(0, 1fr)' : '320px minmax(0, 1fr)',
+                gap: '1.5rem',
+                maxWidth: isMembershipSection ? '1800px' : undefined,
+            }}
+        >
             <aside style={{
                 background: 'white',
                 borderRadius: 'var(--radius)',

@@ -21,52 +21,58 @@ const overviewResponse = {
     unitAmount: 499,
     currency: 'eur',
   },
-  content: [
-    {
-      id: 1,
-      title: 'Draft guide',
-      description: 'Not visible to members yet.',
-      contentType: 'pdf',
-      filename: 'draft-guide.pdf',
-      hasFile: true,
-      isActive: false,
-      sortOrder: 0,
-      publishedAt: null,
-    },
-    {
-      id: 2,
-      title: 'Scheduled video',
-      description: 'Next week.',
-      contentType: 'video',
-      externalUrl: 'https://example.com/video',
-      hasFile: false,
-      isActive: true,
-      sortOrder: 1,
-      publishedAt: '2099-08-05T10:00:00.000Z',
-    },
-  ],
+  content: [],
+};
+
+const draftPost = {
+  id: 1,
+  title: 'Draft guide',
+  slug: 'draft-guide',
+  excerpt: 'Not visible to members yet.',
+  bodyMd: '# Draft guide',
+  status: 'draft',
+  isPinned: false,
+  allowComments: true,
+  publishedAt: null,
+  scheduledFor: null,
+  updatedAt: '2026-07-31T10:00:00.000Z',
+  categories: [],
+  assets: [],
+  coverAssetId: null,
+  commentCount: 0,
+};
+
+const installApiResponses = (overview = overviewResponse) => {
+  vi.mocked(apiFetch).mockImplementation(async (path) => {
+    if (path === '/api/membership/admin/overview') return overview;
+    if (path === '/api/membership/admin/posts') {
+      return { posts: [draftPost], categories: [] };
+    }
+    if (path === '/api/membership/admin/comments') return { comments: [] };
+    if (path === '/api/membership/admin/analytics') return { posts: [] };
+    throw new Error(`Unexpected API request: ${path}`);
+  });
 };
 
 describe('MembershipAdminSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(apiFetch).mockResolvedValue(overviewResponse);
+    installApiResponses();
   });
 
-  it('shows sales-closed readiness and explicit content staging states', async () => {
+  it('shows the sales-closed creator studio and draft publishing state', async () => {
     render(<MembershipAdminSection />);
 
-    expect(await screen.findByText('Private staging')).toBeInTheDocument();
-    expect(
-      screen.getByText('4,99 € / month · Stripe Price ready · Billing Portal ready')
-    ).toBeInTheDocument();
-    expect(screen.getAllByText('Draft')).toHaveLength(2);
-    expect(screen.getByText(/Scheduled ·/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Member-facing preview' })).toBeInTheDocument();
+    expect(await screen.findByText('Súkromná príprava')).toBeInTheDocument();
+    expect(screen.getByText(/4,99/)).toBeInTheDocument();
+    expect(screen.getByText('Koncept')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Nový príspevok' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Draft guide' })).toBeInTheDocument();
   });
 
   it('labels allowlisted QA access separately from paid Stripe access', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({
+    const user = userEvent.setup();
+    installApiResponses({
       ...overviewResponse,
       offer: {
         ...overviewResponse.offer,
@@ -87,22 +93,24 @@ describe('MembershipAdminSection', () => {
     render(<MembershipAdminSection />);
 
     expect(
-      await screen.findByText('Checkout is disabled · allowlisted QA access is enabled')
+      await screen.findByText('Platba je vypnutá · testovací prístup je aktívny')
     ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Členovia' }));
+
     expect(screen.getByText('mar.cincura@gmail.com')).toBeInTheDocument();
     expect(screen.getByText('QA tester')).toBeInTheDocument();
-    expect(screen.getByText('test access')).toBeInTheDocument();
+    expect(screen.getByText('testovací')).toBeInTheDocument();
   });
 
-  it('opens an existing item for metadata editing', async () => {
+  it('opens an existing post in the creator editor', async () => {
     const user = userEvent.setup();
     render(<MembershipAdminSection />);
 
-    await user.click(await screen.findByRole('button', { name: 'Edit Draft guide' }));
+    await user.click(await screen.findByRole('button', { name: 'Upraviť' }));
 
-    expect(screen.getByRole('heading', { name: 'Edit member content' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Upraviť príspevok' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Draft guide')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Type *')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Uložiť koncept' })).toBeInTheDocument();
   });
 });

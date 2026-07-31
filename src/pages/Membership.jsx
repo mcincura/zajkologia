@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
+  Bookmark,
   Check,
   CircleUserRound,
   CreditCard,
+  LayoutGrid,
   LoaderCircle,
   LockKeyhole,
   LogOut,
+  Search,
   Sparkles,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -14,15 +17,16 @@ import { useSearchParams } from 'react-router-dom';
 import {
   createMembershipBillingPortal,
   createMembershipCheckout,
-  downloadMembershipFile,
-  loadMembershipContent,
+  loadMembershipCategories,
   loadMembershipOffer,
+  loadMembershipPosts,
   loadMembershipSession,
   logoutMembership,
   requestMembershipCode,
+  setMembershipPostSaved,
   verifyMembershipCode,
 } from '../api/client';
-import MembershipContentCard from '../components/MembershipContentCard';
+import MembershipPostCard from '../components/MembershipPostCard';
 import '../styles/membership.css';
 
 const errorMessage = (error) => {
@@ -40,6 +44,7 @@ const errorMessage = (error) => {
     active_membership_required: 'Obsah je dostupný po aktivácii členstva.',
     billing_customer_missing: 'K tomuto účtu zatiaľ nemáme fakturačný profil.',
     billing_portal_not_configured: 'Správa platieb sa pripravuje. Skúste to, prosím, neskôr.',
+    membership_publishing_not_migrated: 'Publikačná časť klubu sa práve aktualizuje.',
   };
   return messages[code] || 'Niečo sa nepodarilo. Skúste to, prosím, ešte raz.';
 };
@@ -60,18 +65,39 @@ const formatMoney = (unitAmount, currency) => {
 const formatDate = (value) => {
   if (!value) return '';
   try {
-    return new Intl.DateTimeFormat('sk-SK', { dateStyle: 'long' }).format(new Date(value));
+    return new Intl.DateTimeFormat('sk-SK', { dateStyle: 'long' }).format(
+      new Date(value)
+    );
   } catch {
     return '';
   }
 };
 
+const mediaFilters = [
+  { key: '', label: 'Všetko' },
+  { key: 'video', label: 'Videá' },
+  { key: 'audio', label: 'Audio' },
+  { key: 'document', label: 'PDF a knihy' },
+  { key: 'image', label: 'Obrázky' },
+];
+
 const Membership = () => {
   const [searchParams] = useSearchParams();
   const [offer, setOffer] = useState(null);
   const [session, setSession] = useState(null);
-  const [content, setContent] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedRevision, setFeedRevision] = useState(0);
+  const [queryInput, setQueryInput] = useState('');
+  const [filters, setFilters] = useState({
+    q: '',
+    category: '',
+    type: '',
+    saved: false,
+  });
   const [email, setEmail] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
   const [code, setCode] = useState('');
@@ -81,7 +107,7 @@ const Membership = () => {
   );
   const [busy, setBusy] = useState('');
   const [status, setStatus] = useState('');
-  const [downloadBusy, setDownloadBusy] = useState(null);
+  const [saveBusy, setSaveBusy] = useState(null);
 
   const checkoutState = searchParams.get('checkout');
   const isAuthenticated = Boolean(session?.isAuthenticated);
@@ -99,20 +125,18 @@ const Membership = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const [nextOffer, nextSession] = await Promise.all([
+        const [nextOffer, nextSession, nextCategories] = await Promise.all([
           loadMembershipOffer().catch(() => null),
           loadMembershipSession(),
+          loadMembershipCategories().catch(() => []),
         ]);
         if (cancelled) return;
         setOffer(nextOffer);
         setSession(nextSession);
+        setCategories(nextCategories);
         if (nextSession?.member?.email) {
           setEmail(nextSession.member.email);
           setLoginEmail(nextSession.member.email);
-        }
-        if (nextSession?.isAuthenticated && nextSession?.hasAccess) {
-          const nextContent = await loadMembershipContent();
-          if (!cancelled) setContent(nextContent);
         }
       } catch (error) {
         if (!cancelled) setStatus(errorMessage(error));
@@ -127,12 +151,32 @@ const Membership = () => {
   }, []);
 
   useEffect(() => {
-    if (!confirmingPayment || !isAuthenticated || hasAccess) return undefined;
+    let cancelled = false;
+    const loadFeed = async () => {
+      setFeedLoading(true);
+      try {
+        const result = await loadMembershipPosts(filters);
+        if (!cancelled) {
+          setPosts(result.posts);
+          setNextCursor(result.nextCursor);
+        }
+      } catch (error) {
+        if (!cancelled) setStatus(errorMessage(error));
+      } finally {
+        if (!cancelled) setFeedLoading(false);
+      }
+    };
+    loadFeed();
+    return () => {
+      cancelled = true;
+    };
+  }, [feedRevision, filters]);
 
+  useEffect(() => {
+    if (!confirmingPayment || !isAuthenticated || hasAccess) return undefined;
     let cancelled = false;
     let attempts = 0;
     let timerId;
-
     const pollForAccess = async () => {
       attempts += 1;
       try {
@@ -140,21 +184,14 @@ const Membership = () => {
         if (cancelled) return;
         setSession(nextSession);
         if (nextSession?.hasAccess) {
-          setContent(await loadMembershipContent());
-          if (!cancelled) {
-            setConfirmingPayment(false);
-            setStatus(
-              checkoutState === 'success'
-                ? ''
-                : 'Platba je potvrdená. Vitajte v Zajkológia klube.'
-            );
-          }
+          setConfirmingPayment(false);
+          setStatus('Platba je potvrdená. Vitajte v Zajkológia klube.');
+          setFeedRevision((value) => value + 1);
           return;
         }
       } catch {
-        // The next attempt handles short-lived webhook or network delays.
+        // A later attempt covers short-lived webhook or network delays.
       }
-
       if (cancelled) return;
       if (attempts < 12) {
         timerId = window.setTimeout(pollForAccess, 2500);
@@ -165,30 +202,17 @@ const Membership = () => {
         );
       }
     };
-
-    setStatus(
-      checkoutState === 'success'
-        ? ''
-        : 'Platba bola prijatá. Potvrdzujeme prístup do členskej zóny…'
-    );
     timerId = window.setTimeout(pollForAccess, 1200);
-
     return () => {
       cancelled = true;
       window.clearTimeout(timerId);
     };
-  }, [checkoutState, confirmingPayment, hasAccess, isAuthenticated]);
+  }, [confirmingPayment, hasAccess, isAuthenticated]);
 
-  const groupedContent = useMemo(() => {
-    const downloads = content.filter((item) => ['pdf', 'file'].includes(item.contentType));
-    const media = content.filter((item) => ['video', 'podcast'].includes(item.contentType));
-    const extras = content.filter((item) => ['discount', 'link'].includes(item.contentType));
-    return [
-      { key: 'downloads', title: 'Materiály na stiahnutie', items: downloads },
-      { key: 'media', title: 'Videá a podcasty', items: media },
-      { key: 'extras', title: 'Členské výhody', items: extras },
-    ].filter((group) => group.items.length);
-  }, [content]);
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.slug === filters.category),
+    [categories, filters.category]
+  );
 
   const redirectToCheckout = async () => {
     setBusy('checkout');
@@ -197,8 +221,7 @@ const Membership = () => {
       const result = await createMembershipCheckout(email);
       window.location.assign(result.checkoutUrl);
     } catch (error) {
-      const errorCode = error?.data?.error || error?.message;
-      if (errorCode === 'membership_checkout_processing') {
+      if ((error?.data?.error || error?.message) === 'membership_checkout_processing') {
         setConfirmingPayment(true);
         setStatus('Stripe už platbu spracúva. Potvrdzujeme váš prístup…');
       } else {
@@ -221,7 +244,6 @@ const Membership = () => {
       await requestMembershipCode(email);
       setCode('');
       setCodePurpose('checkout');
-      setStatus('');
     } catch (error) {
       setStatus(errorMessage(error));
     } finally {
@@ -252,9 +274,15 @@ const Membership = () => {
     try {
       const nextPurpose = codePurpose;
       const verificationEmail = nextPurpose === 'login' ? loginEmail : email;
-      const nextSession = await verifyMembershipCode({ email: verificationEmail, code });
+      const nextSession = await verifyMembershipCode({
+        email: verificationEmail,
+        code,
+      });
       setSession(nextSession);
-      if (nextSession?.member?.email) setEmail(nextSession.member.email);
+      if (nextSession?.member?.email) {
+        setEmail(nextSession.member.email);
+        setLoginEmail(nextSession.member.email);
+      }
       setCode('');
       setCodePurpose('');
       if (nextSession.hasAccess) {
@@ -263,7 +291,7 @@ const Membership = () => {
             ? 'Testovací prístup je aktívny. Žiadna platba neprebehla.'
             : 'Ste prihlásený/á. Vitajte v klube.'
         );
-        setContent(await loadMembershipContent());
+        setFeedRevision((value) => value + 1);
       } else if (nextPurpose === 'checkout') {
         setStatus('E-mail je overený. Otvárame bezpečnú platbu cez Stripe…');
         await redirectToCheckout();
@@ -294,7 +322,8 @@ const Membership = () => {
     try {
       await logoutMembership();
       setSession({ isAuthenticated: false });
-      setContent([]);
+      setFilters((current) => ({ ...current, saved: false }));
+      setFeedRevision((value) => value + 1);
       setConfirmingPayment(false);
       setStatus('Odhlásenie prebehlo úspešne.');
     } catch (error) {
@@ -304,288 +333,217 @@ const Membership = () => {
     }
   };
 
-  const downloadFile = async (item) => {
-    setDownloadBusy(item.id);
-    setStatus('');
+  const submitSearch = (event) => {
+    event.preventDefault();
+    setFilters((current) => ({ ...current, q: queryInput.trim() }));
+  };
+
+  const loadMore = async () => {
+    if (!nextCursor) return;
+    setBusy('more');
     try {
-      await downloadMembershipFile({ contentId: item.id, filename: item.filename });
-      setStatus('Sťahovanie sa začalo.');
+      const result = await loadMembershipPosts({
+        ...filters,
+        cursor: nextCursor,
+      });
+      setPosts((current) => [...current, ...result.posts]);
+      setNextCursor(result.nextCursor);
     } catch (error) {
       setStatus(errorMessage(error));
     } finally {
-      setDownloadBusy(null);
+      setBusy('');
     }
   };
 
-  const copyDiscount = async (item) => {
+  const toggleSaved = async (post) => {
+    const saved = !post.isSaved;
+    setSaveBusy(post.id);
     try {
-      await navigator.clipboard.writeText(item.discountCode);
-      setStatus(`Kód ${item.discountCode} je skopírovaný.`);
-    } catch {
-      setStatus(`Zľavový kód: ${item.discountCode}`);
+      await setMembershipPostSaved({ postId: post.id, saved });
+      setPosts((current) =>
+        current
+          .map((item) => (item.id === post.id ? { ...item, isSaved: saved } : item))
+          .filter((item) => !(filters.saved && !item.isSaved))
+      );
+      setStatus(saved ? 'Príspevok je uložený.' : 'Príspevok bol odstránený z uložených.');
+    } catch (error) {
+      setStatus(errorMessage(error));
+    } finally {
+      setSaveBusy(null);
     }
   };
 
   if (loading) {
     return (
-      <div className="membership-page membership-page--loading" id="main-content">
-        <div className="membership-loading" role="status">Načítavam Zajkológia klub…</div>
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    const subscription = session.subscription;
-    return (
-      <div className="membership-page" id="main-content">
-        <div className="membership-portal">
-          <header className="membership-portal__header">
-            <div>
-              <span className="membership-eyebrow">Členská zóna</span>
-              <h1>Vitajte v Zajkológia klube</h1>
-              <p>{session.member.email}</p>
-            </div>
-            <div className="membership-portal__controls">
-              {session.member.hasStripeCustomer && !testAccess ? (
-                <button
-                  type="button"
-                  className="membership-button membership-button--secondary"
-                  onClick={openBillingPortal}
-                  disabled={busy === 'billing'}
-                >
-                  <CreditCard size={18} aria-hidden="true" />
-                  {busy === 'billing' ? 'Otváram…' : 'Platby a členstvo'}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="membership-icon-button"
-                onClick={logout}
-                disabled={busy === 'logout'}
-                aria-label="Odhlásiť sa z členskej zóny"
-              >
-                <LogOut size={20} aria-hidden="true" />
-              </button>
-            </div>
-          </header>
-
-          {checkoutState === 'success' && hasAccess ? (
-            <div className="membership-checkout-message is-success" role="status">
-              <Check size={19} aria-hidden="true" />
-              Platba je potvrdená. Členský obsah je odomknutý.
-            </div>
-          ) : null}
-          {status ? <div className="membership-status" role="status">{status}</div> : null}
-
-          <section
-            className={`membership-access-card ${
-              hasAccess ? 'is-active' : paymentPending ? 'is-pending' : 'is-inactive'
-            }`}
-            role={paymentPending ? 'status' : undefined}
-            aria-busy={paymentPending || undefined}
-          >
-            <div className="membership-access-card__icon" aria-hidden="true">
-              {hasAccess ? (
-                <Check size={22} />
-              ) : paymentPending ? (
-                <LoaderCircle className="membership-spinner" size={22} />
-              ) : (
-                <LockKeyhole size={22} />
-              )}
-            </div>
-            <div>
-              <strong>
-                {testAccess
-                  ? 'Testovací prístup je aktívny'
-                  : hasAccess
-                  ? 'Členstvo je aktívne'
-                  : paymentPending
-                    ? 'Potvrdzujeme platbu'
-                    : 'Členstvo nie je aktívne'}
-              </strong>
-              <p>
-                {testAccess
-                  ? 'Môžete skontrolovať e-mailové prihlásenie, členský obsah a chránené súbory bez platby.'
-                  : hasAccess
-                  ? subscription?.cancelAtPeriodEnd
-                    ? `Obsah zostáva dostupný do ${formatDate(subscription.currentPeriodEnd) || 'konca zaplateného obdobia'}.`
-                    : `Ďalšie obdobie do ${formatDate(subscription?.currentPeriodEnd) || 'najbližšieho obnovenia'}.`
-                  : paymentPending
-                    ? 'Zvyčajne to trvá iba niekoľko sekúnd. Túto stránku nemusíte obnovovať.'
-                    : 'Aktivujte alebo obnovte členstvo, aby ste mali prístup k členskému obsahu.'}
-              </p>
-            </div>
-            {!hasAccess && !paymentPending ? (
-              <form onSubmit={startCheckout}>
-                <button
-                  type="submit"
-                  className="membership-button membership-button--primary"
-                  disabled={busy === 'checkout' || !offer?.available}
-                >
-                  {busy === 'checkout' ? 'Otváram platbu…' : 'Aktivovať členstvo'}
-                  <ArrowRight size={17} aria-hidden="true" />
-                </button>
-              </form>
-            ) : null}
-          </section>
-
-          {hasAccess ? (
-            groupedContent.length ? (
-              groupedContent.map((group) => (
-                <section className="membership-library" key={group.key} aria-labelledby={`membership-${group.key}`}>
-                  <div className="membership-library__heading">
-                    <span>{String(group.items.length).padStart(2, '0')}</span>
-                    <h2 id={`membership-${group.key}`}>{group.title}</h2>
-                  </div>
-                  <div className="membership-content-grid">
-                    {group.items.map((item) => (
-                      <MembershipContentCard
-                        key={item.id}
-                        item={item}
-                        onDownload={downloadFile}
-                        downloadBusy={downloadBusy}
-                        onCopy={copyDiscount}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))
-            ) : (
-              <section className="membership-empty">
-                <Sparkles size={28} aria-hidden="true" />
-                <h2>Prvý členský obsah pripravujeme</h2>
-                <p>Hneď ako pribudnú nové materiály, nájdete ich na tomto mieste.</p>
-              </section>
-            )
-          ) : null}
+      <main className="membership-page membership-page--loading" id="main-content">
+        <div className="membership-loading" role="status">
+          <LoaderCircle className="membership-spinner" size={20} aria-hidden="true" />
+          Načítavam Zajkológia klub…
         </div>
-      </div>
+      </main>
     );
   }
+
+  const subscription = session?.subscription;
 
   return (
-    <div className="membership-page" id="main-content">
-      <section className="membership-hero">
-        <div className="membership-hero__copy">
-          <span className="membership-eyebrow">Zajkológia klub</span>
-          <h1>Istota v starostlivosti. Každý mesiac o kúsok viac.</h1>
-          <p className="membership-hero__lead">
-            Praktické materiály pre spokojnejší život s králikom — PDF príručky, videá,
-            podcasty a členské výhody na jednom bezpečnom mieste.
-          </p>
-          <ul className="membership-benefits">
-            <li><Check size={17} aria-hidden="true" /> Nový a aktualizovaný obsah v členskej zóne</li>
-            <li><Check size={17} aria-hidden="true" /> Súkromný prístup cez kód poslaný e-mailom</li>
-            <li><Check size={17} aria-hidden="true" /> Členstvo môžete spravovať alebo zrušiť online</li>
-          </ul>
-        </div>
-
-        <div className="membership-offer-card">
-          <span className="membership-offer-card__label">Jedno jednoduché členstvo</span>
-          <div className="membership-offer-card__price">
-            <strong>{formatMoney(offer?.unitAmount, offer?.currency)}</strong>
-            {typeof offer?.unitAmount === 'number' ? <span>/ mesiac</span> : null}
+    <main className="membership-page" id="main-content">
+      {!isAuthenticated ? (
+        <section className="membership-hero" aria-labelledby="membership-title">
+          <div className="membership-hero__copy">
+            <h1 id="membership-title">Istota v starostlivosti. Každý mesiac o kúsok viac.</h1>
+            <p className="membership-hero__lead">
+              Praktické príspevky, videá, audio nahrávky, PDF príručky a členské
+              výhody na jednom bezpečnom mieste.
+            </p>
+            <ul className="membership-benefits">
+              <li><Check size={17} aria-hidden="true" /> Nový a aktualizovaný obsah počas mesiaca</li>
+              <li><Check size={17} aria-hidden="true" /> Komentáre a uložené príspevky pre členov</li>
+              <li><Check size={17} aria-hidden="true" /> Členstvo môžete spravovať alebo zrušiť online</li>
+            </ul>
           </div>
-          <p>Bez dlhodobej viazanosti. Platba a obnova prebiehajú bezpečne cez Stripe.</p>
-          {!checkoutCodeRequested ? (
-            <form onSubmit={beginCheckoutVerification} className="membership-form">
-              <label htmlFor="membership-signup-email">E-mail pre členstvo</label>
-              <input
-                id="membership-signup-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="vas@email.sk"
-                required
-              />
-              <button
-                type="submit"
-                className="membership-button membership-button--primary membership-button--wide"
-                disabled={
-                  busy === 'request-checkout-code' ||
-                  (!offer?.available && !prelaunchTestAccessEnabled)
-                }
-              >
-                {busy === 'request-checkout-code'
-                  ? 'Posielam overovací kód…'
-                  : prelaunchTestAccessEnabled
-                    ? 'Otestovať členský prístup'
-                    : 'Pokračovať k platbe'}
-                <ArrowRight size={18} aria-hidden="true" />
-              </button>
-              <p className="membership-offer-card__microcopy">
-                {prelaunchTestAccessEnabled
-                  ? 'Pre povolený testovací e-mail. Platba sa nevytvorí.'
-                  : 'Najprv overíme váš e-mail. Platba ešte neprebieha.'}
-              </p>
-            </form>
-          ) : (
-            <form onSubmit={verifyCode} className="membership-form membership-code-panel">
-              <div className="membership-code-panel__intro">
-                <span>Overenie e-mailu</span>
-                <strong>Skontrolujte svoju schránku</strong>
-                <p>
-                  6-miestny kód sme poslali na <b>{email}</b>.{' '}
+
+          <div className="membership-offer-card">
+            <span className="membership-offer-card__label">Jedno jednoduché členstvo</span>
+            <div className="membership-offer-card__price">
+              <strong>{formatMoney(offer?.unitAmount, offer?.currency)}</strong>
+              {typeof offer?.unitAmount === 'number' ? <span>/ mesiac</span> : null}
+            </div>
+            <p>Bez dlhodobej viazanosti. Platba a obnova prebiehajú bezpečne cez Stripe.</p>
+            {!checkoutCodeRequested ? (
+              <form onSubmit={beginCheckoutVerification} className="membership-form">
+                <label htmlFor="membership-signup-email">E-mail pre členstvo</label>
+                <input
+                  id="membership-signup-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="vas@email.sk"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="membership-button membership-button--primary membership-button--wide"
+                  disabled={
+                    busy === 'request-checkout-code' ||
+                    (!offer?.available && !prelaunchTestAccessEnabled)
+                  }
+                >
+                  {busy === 'request-checkout-code'
+                    ? 'Posielam overovací kód…'
+                    : prelaunchTestAccessEnabled
+                      ? 'Otestovať členský prístup'
+                      : 'Pokračovať k platbe'}
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+                <p className="membership-offer-card__microcopy">
                   {prelaunchTestAccessEnabled
-                    ? 'Po overení otvoríme bezpečný testovací prístup bez platby.'
-                    : 'Po overení pokračujete priamo na Stripe.'}
+                    ? 'Pre povolený testovací e-mail. Platba sa nevytvorí.'
+                    : 'Najprv overíme váš e-mail. Platba ešte neprebieha.'}
                 </p>
+              </form>
+            ) : (
+              <form onSubmit={verifyCode} className="membership-form membership-code-panel">
+                <div className="membership-code-panel__intro">
+                  <strong>Skontrolujte svoju schránku</strong>
+                  <p>
+                    6-miestny kód sme poslali na <b>{email}</b>.
+                  </p>
+                </div>
+                <label htmlFor="membership-signup-code">6-miestny kód</label>
+                <input
+                  id="membership-signup-code"
+                  name="signup-one-time-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={code}
+                  onChange={(event) =>
+                    setCode(event.target.value.replace(/[^\d]/g, '').slice(0, 6))
+                  }
+                  placeholder="000000"
+                  pattern="\d{6}"
+                  required
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="membership-button membership-button--primary membership-button--wide"
+                  disabled={busy === 'verify-code' || busy === 'checkout'}
+                >
+                  {busy === 'verify-code' || busy === 'checkout'
+                    ? 'Overujem…'
+                    : prelaunchTestAccessEnabled
+                      ? 'Overiť a otvoriť testovací prístup'
+                      : 'Overiť a prejsť k platbe'}
+                </button>
+                <button
+                  type="button"
+                  className="membership-text-button membership-text-button--on-light"
+                  onClick={() => {
+                    setCodePurpose('');
+                    setCode('');
+                    setStatus('');
+                  }}
+                >
+                  Zmeniť e-mail
+                </button>
+              </form>
+            )}
+            {!offer?.available ? (
+              <p className="membership-offer-card__unavailable">
+                {prelaunchTestAccessEnabled
+                  ? 'Predaj zostáva zatvorený. Povolený tester môže skontrolovať klub bez platby.'
+                  : 'Objednávanie členstva bude dostupné čoskoro.'}
+              </p>
+            ) : null}
+          </div>
+        </section>
+      ) : (
+        <header className="membership-club-header">
+          <div className="membership-club-header__title">
+            <h1>Zajkológia klub</h1>
+            <div className="membership-member-chip">
+              <span aria-hidden="true">
+                {session.member?.email?.[0]?.toUpperCase() || 'Č'}
+              </span>
+              <div>
+                <strong>{session.member?.email}</strong>
+                <small>{hasAccess ? 'Aktívny člen' : 'Členstvo nie je aktívne'}</small>
               </div>
-              <label htmlFor="membership-signup-code">6-miestny kód</label>
-              <input
-                id="membership-signup-code"
-                name="signup-one-time-code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/[^\d]/g, '').slice(0, 6))}
-                placeholder="000000"
-                pattern="\d{6}"
-                required
-                autoFocus
-              />
-              <button
-                type="submit"
-                className="membership-button membership-button--primary membership-button--wide"
-                disabled={busy === 'verify-code' || busy === 'checkout'}
-              >
-                {busy === 'verify-code' || busy === 'checkout'
-                  ? 'Pripravujem platbu…'
-                  : prelaunchTestAccessEnabled
-                    ? 'Overiť a otvoriť testovací prístup'
-                    : 'Overiť a prejsť k platbe'}
-                <ArrowRight size={18} aria-hidden="true" />
-              </button>
+            </div>
+          </div>
+          <div className="membership-club-header__actions">
+            {session.member?.hasStripeCustomer && !testAccess ? (
               <button
                 type="button"
-                className="membership-text-button membership-text-button--on-light"
-                onClick={() => {
-                  setCodePurpose('');
-                  setCode('');
-                  setStatus('');
-                }}
+                className="membership-button membership-button--secondary"
+                onClick={openBillingPortal}
+                disabled={busy === 'billing'}
               >
-                Zmeniť e-mail
+                <CreditCard size={18} aria-hidden="true" />
+                Spravovať členstvo
               </button>
-            </form>
-          )}
-          {!offer?.available ? (
-            <p className="membership-offer-card__unavailable">
-              {prelaunchTestAccessEnabled
-                ? 'Predaj zostáva zatvorený. Povolený tester môže skontrolovať členskú zónu bez platby.'
-                : 'Objednávanie členstva bude dostupné čoskoro.'}
-            </p>
-          ) : null}
-        </div>
-      </section>
+            ) : null}
+            <button
+              type="button"
+              className="membership-icon-button"
+              onClick={logout}
+              disabled={busy === 'logout'}
+              aria-label="Odhlásiť sa z členskej zóny"
+            >
+              <LogOut size={20} aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+      )}
 
-      {checkoutState === 'success' ? (
+      {checkoutState === 'success' && hasAccess ? (
         <div className="membership-checkout-message is-success" role="status">
           <Check size={19} aria-hidden="true" />
-          Platba prebehla. Hneď ako ju Stripe potvrdí, prihláste sa nižšie e-mailom použitým pri platbe.
+          Platba je potvrdená. Členský obsah je odomknutý.
         </div>
       ) : null}
       {checkoutState === 'cancelled' ? (
@@ -593,83 +551,289 @@ const Membership = () => {
           Platba nebola dokončená. Keď budete pripravený/á, môžete to skúsiť znova.
         </div>
       ) : null}
-      {status ? <div className="membership-status" role="status">{status}</div> : null}
+      <div className="membership-live-region" role="status" aria-live="polite">
+        {status ? <div className="membership-status">{status}</div> : null}
+      </div>
 
-      <section className="membership-login" aria-labelledby="membership-login-title">
-        <div className="membership-login__intro">
-          <div className="membership-login__icon" aria-hidden="true">
-            <CircleUserRound size={26} />
+      {isAuthenticated ? (
+        <section
+          className={`membership-access-card ${
+            hasAccess ? 'is-active' : paymentPending ? 'is-pending' : 'is-inactive'
+          }`}
+          aria-busy={paymentPending || undefined}
+        >
+          <div className="membership-access-card__icon" aria-hidden="true">
+            {hasAccess ? (
+              <Check size={22} />
+            ) : paymentPending ? (
+              <LoaderCircle className="membership-spinner" size={22} />
+            ) : (
+              <LockKeyhole size={22} />
+            )}
           </div>
           <div>
-            <span className="membership-eyebrow">Už ste členom?</span>
-            <h2 id="membership-login-title">Prihlásenie do členskej zóny</h2>
-            <p>Zadajte e-mail použitý pri platbe. Prihlásenie je bez hesla — pošleme vám jednorazový kód.</p>
+            <strong>
+              {testAccess
+                ? 'Testovací prístup je aktívny'
+                : hasAccess
+                  ? 'Členstvo je aktívne'
+                  : paymentPending
+                    ? 'Potvrdzujeme platbu'
+                    : 'Členstvo nie je aktívne'}
+            </strong>
+            <p>
+              {testAccess
+                ? 'Môžete skontrolovať celý publikačný, mediálny a komunitný tok bez platby.'
+                : hasAccess
+                  ? subscription?.cancelAtPeriodEnd
+                    ? `Obsah zostáva dostupný do ${formatDate(subscription.currentPeriodEnd) || 'konca zaplateného obdobia'}.`
+                    : `Ďalšie obdobie do ${formatDate(subscription?.currentPeriodEnd) || 'najbližšieho obnovenia'}.`
+                  : paymentPending
+                    ? 'Zvyčajne to trvá iba niekoľko sekúnd.'
+                    : 'Aktivujte členstvo a otvoríte celé príspevky a chránené médiá.'}
+            </p>
           </div>
-        </div>
-
-        {!loginCodeRequested ? (
-          <form onSubmit={sendCode} className="membership-form membership-login__form">
-            <label htmlFor="membership-login-email">Členský e-mail</label>
-            <div className="membership-form__row">
-              <input
-                id="membership-login-email"
-                name="login-email"
-                type="email"
-                autoComplete="email"
-                value={loginEmail}
-                onChange={(event) => setLoginEmail(event.target.value)}
-                placeholder="vas@email.sk"
-                required
-              />
-              <button
-                type="submit"
-                className="membership-button membership-button--secondary"
-                disabled={busy === 'request-code'}
-              >
-                {busy === 'request-code' ? 'Posielam…' : 'Poslať kód'}
-              </button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={verifyCode} className="membership-form membership-login__form">
-            <label htmlFor="membership-login-code">6-miestny kód z e-mailu</label>
-            <div className="membership-form__row">
-              <input
-                id="membership-login-code"
-                name="one-time-code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/[^\d]/g, '').slice(0, 6))}
-                placeholder="000000"
-                pattern="\d{6}"
-                required
-                autoFocus
-              />
+          {!hasAccess && !paymentPending ? (
+            <form onSubmit={startCheckout}>
               <button
                 type="submit"
                 className="membership-button membership-button--primary"
-                disabled={busy === 'verify-code'}
+                disabled={busy === 'checkout' || !offer?.available}
               >
-                {busy === 'verify-code' ? 'Overujem…' : 'Overiť a pokračovať'}
+                Aktivovať členstvo
+                <ArrowRight size={17} aria-hidden="true" />
               </button>
-            </div>
+            </form>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className="membership-feed-shell" aria-labelledby="membership-feed-title">
+        <aside className="membership-feed-sidebar">
+          <h2 id="membership-feed-title">Kategórie</h2>
+          <button
+            type="button"
+            className={!filters.category ? 'is-active' : ''}
+            onClick={() =>
+              setFilters((current) => ({ ...current, category: '' }))
+            }
+          >
+            <LayoutGrid size={18} aria-hidden="true" />
+            Všetko
+          </button>
+          {categories.map((category) => (
             <button
               type="button"
-              className="membership-text-button"
-              onClick={() => {
-                setCodePurpose('');
-                setCode('');
-                setStatus('');
-              }}
+              key={category.id}
+              className={filters.category === category.slug ? 'is-active' : ''}
+              onClick={() =>
+                setFilters((current) => ({
+                  ...current,
+                  category: category.slug,
+                }))
+              }
             >
-              Použiť iný e-mail alebo poslať nový kód
+              {category.name}
             </button>
-          </form>
-        )}
+          ))}
+          {hasAccess ? (
+            <button
+              type="button"
+              className={filters.saved ? 'is-active' : ''}
+              onClick={() =>
+                setFilters((current) => ({
+                  ...current,
+                  saved: !current.saved,
+                }))
+              }
+            >
+              <Bookmark size={18} aria-hidden="true" />
+              Uložené
+            </button>
+          ) : null}
+        </aside>
+
+        <div className="membership-feed">
+          <div className="membership-feed__toolbar">
+            <form onSubmit={submitSearch} role="search">
+              <label className="membership-search">
+                <span className="sr-only">Hľadať v klube</span>
+                <Search size={18} aria-hidden="true" />
+                <input
+                  type="search"
+                  value={queryInput}
+                  onChange={(event) => setQueryInput(event.target.value)}
+                  placeholder="Hľadať v klube"
+                />
+              </label>
+            </form>
+            <div className="membership-feed__filters" aria-label="Typ obsahu">
+              {mediaFilters.map((filter) => (
+                <button
+                  type="button"
+                  key={filter.label}
+                  className={filters.type === filter.key ? 'is-active' : ''}
+                  onClick={() =>
+                    setFilters((current) => ({ ...current, type: filter.key }))
+                  }
+                  aria-pressed={filters.type === filter.key}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selectedCategory || filters.saved || filters.q ? (
+            <div className="membership-feed__context">
+              <span>
+                {filters.saved
+                  ? 'Uložené príspevky'
+                  : selectedCategory?.name || `Výsledky pre „${filters.q}“`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setQueryInput('');
+                  setFilters({ q: '', category: '', type: '', saved: false });
+                }}
+              >
+                Zrušiť filtre
+              </button>
+            </div>
+          ) : null}
+
+          {feedLoading ? (
+            <div className="membership-feed__loading" role="status">
+              <LoaderCircle className="membership-spinner" size={20} aria-hidden="true" />
+              Načítavam príspevky…
+            </div>
+          ) : posts.length ? (
+            <div className="membership-feed__posts">
+              {posts.map((post, index) => (
+                <MembershipPostCard
+                  post={post}
+                  featured={index === 0}
+                  key={post.id}
+                  onSave={hasAccess ? toggleSaved : undefined}
+                  saveBusy={saveBusy === post.id}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="membership-empty">
+              <Sparkles size={28} aria-hidden="true" />
+              <h2>
+                {filters.q || filters.category || filters.type || filters.saved
+                  ? 'Žiadny príspevok nezodpovedá filtrom'
+                  : 'Prvý klubový príspevok pripravujeme'}
+              </h2>
+              <p>
+                {filters.q || filters.category || filters.type || filters.saved
+                  ? 'Skúste zmeniť vyhľadávanie alebo zrušiť niektorý filter.'
+                  : 'Hneď ako pribudne nový obsah, nájdete ho na tomto mieste.'}
+              </p>
+            </div>
+          )}
+
+          {nextCursor ? (
+            <button
+              type="button"
+              className="membership-button membership-button--secondary membership-feed__more"
+              onClick={loadMore}
+              disabled={busy === 'more'}
+            >
+              {busy === 'more' ? 'Načítavam…' : 'Načítať ďalšie príspevky'}
+            </button>
+          ) : null}
+        </div>
       </section>
-    </div>
+
+      {!isAuthenticated ? (
+        <section
+          className="membership-login"
+          id="prihlasenie"
+          aria-labelledby="membership-login-title"
+        >
+          <div className="membership-login__intro">
+            <div className="membership-login__icon" aria-hidden="true">
+              <CircleUserRound size={26} />
+            </div>
+            <div>
+              <h2 id="membership-login-title">Prihlásenie do členskej zóny</h2>
+              <p>
+                Zadajte e-mail použitý pri platbe. Pošleme vám jednorazový kód —
+                heslo nepotrebujete.
+              </p>
+            </div>
+          </div>
+
+          {!loginCodeRequested ? (
+            <form onSubmit={sendCode} className="membership-form membership-login__form">
+              <label htmlFor="membership-login-email">Členský e-mail</label>
+              <div className="membership-form__row">
+                <input
+                  id="membership-login-email"
+                  name="login-email"
+                  type="email"
+                  autoComplete="email"
+                  value={loginEmail}
+                  onChange={(event) => setLoginEmail(event.target.value)}
+                  placeholder="vas@email.sk"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="membership-button membership-button--secondary"
+                  disabled={busy === 'request-code'}
+                >
+                  {busy === 'request-code' ? 'Posielam…' : 'Poslať kód'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={verifyCode} className="membership-form membership-login__form">
+              <label htmlFor="membership-login-code">6-miestny kód z e-mailu</label>
+              <div className="membership-form__row">
+                <input
+                  id="membership-login-code"
+                  name="one-time-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={code}
+                  onChange={(event) =>
+                    setCode(event.target.value.replace(/[^\d]/g, '').slice(0, 6))
+                  }
+                  placeholder="000000"
+                  pattern="\d{6}"
+                  required
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="membership-button membership-button--primary"
+                  disabled={busy === 'verify-code'}
+                >
+                  {busy === 'verify-code' ? 'Overujem…' : 'Overiť a pokračovať'}
+                </button>
+              </div>
+              <button
+                type="button"
+                className="membership-text-button"
+                onClick={() => {
+                  setCodePurpose('');
+                  setCode('');
+                  setStatus('');
+                }}
+              >
+                Použiť iný e-mail alebo poslať nový kód
+              </button>
+            </form>
+          )}
+        </section>
+      ) : null}
+    </main>
   );
 };
 

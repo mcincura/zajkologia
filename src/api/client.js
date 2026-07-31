@@ -170,6 +170,113 @@ export const loadMembershipContent = async () => {
     return data?.content || [];
 };
 
+export const loadMembershipCategories = async () => {
+    const data = await apiFetch('/api/membership/categories');
+    return data?.categories || [];
+};
+
+export const loadMembershipPosts = async ({
+    cursor = '',
+    q = '',
+    category = '',
+    type = '',
+    saved = false,
+    limit = 12,
+} = {}) => {
+    const params = new URLSearchParams();
+    if (cursor) params.set('cursor', cursor);
+    if (q) params.set('q', q);
+    if (category) params.set('category', category);
+    if (type) params.set('type', type);
+    if (saved) params.set('saved', '1');
+    params.set('limit', String(limit));
+    const data = await apiFetch(`/api/membership/posts?${params.toString()}`);
+    return {
+        access: data?.access || 'preview',
+        posts: data?.posts || [],
+        nextCursor: data?.nextCursor || null,
+    };
+};
+
+export const loadMembershipPost = async (slug) => {
+    const data = await apiFetch(`/api/membership/posts/${encodeURIComponent(slug)}`);
+    return {
+        access: data?.access || 'preview',
+        post: data?.post || null,
+    };
+};
+
+export const setMembershipPostSaved = async ({ postId, saved }) =>
+    apiFetch(`/api/membership/posts/${encodeURIComponent(postId)}/saved`, {
+        method: saved ? 'PUT' : 'DELETE',
+    });
+
+export const loadMembershipComments = async (postId) => {
+    const data = await apiFetch(
+        `/api/membership/posts/${encodeURIComponent(postId)}/comments`
+    );
+    return data?.comments || [];
+};
+
+export const createMembershipComment = async ({ postId, body, parentCommentId = null }) => {
+    const data = await apiFetch(
+        `/api/membership/posts/${encodeURIComponent(postId)}/comments`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ body, parentCommentId }),
+        }
+    );
+    return data?.comment || null;
+};
+
+export const deleteMembershipComment = async (commentId) =>
+    apiFetch(`/api/membership/comments/${encodeURIComponent(commentId)}`, {
+        method: 'DELETE',
+    });
+
+export const recordMembershipPostEvent = async ({
+    postId,
+    eventType,
+    assetId = null,
+    metadata = null,
+}) =>
+    apiFetch(`/api/membership/posts/${encodeURIComponent(postId)}/events`, {
+        method: 'POST',
+        body: JSON.stringify({ eventType, assetId, metadata }),
+    });
+
+export const membershipMediaUrl = (path) =>
+    path ? apiUrl(path) : '';
+
+export const downloadMembershipPostAsset = async ({ url, filename }) => {
+    const res = await fetch(apiUrl(url), {
+        method: 'GET',
+        credentials: 'include',
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        let data = null;
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch {
+            data = null;
+        }
+        const error = new Error(data?.error || `http_${res.status}`);
+        error.status = res.status;
+        error.data = data;
+        throw error;
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename || 'zajkologia-file';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+};
+
 export const createMembershipBillingPortal = async () => {
     const data = await apiFetch('/api/membership/billing-portal', { method: 'POST' });
     if (!data?.portalUrl) throw new Error('missing_billing_portal_url');

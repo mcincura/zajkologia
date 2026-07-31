@@ -5,8 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createMembershipCheckout,
-  loadMembershipContent,
+  loadMembershipCategories,
   loadMembershipOffer,
+  loadMembershipPosts,
   loadMembershipSession,
   requestMembershipCode,
   verifyMembershipCode,
@@ -16,12 +17,13 @@ import Membership from './Membership';
 vi.mock('../api/client', () => ({
   createMembershipBillingPortal: vi.fn(),
   createMembershipCheckout: vi.fn(),
-  downloadMembershipFile: vi.fn(),
-  loadMembershipContent: vi.fn(),
+  loadMembershipCategories: vi.fn(),
   loadMembershipOffer: vi.fn(),
+  loadMembershipPosts: vi.fn(),
   loadMembershipSession: vi.fn(),
   logoutMembership: vi.fn(),
   requestMembershipCode: vi.fn(),
+  setMembershipPostSaved: vi.fn(),
   verifyMembershipCode: vi.fn(),
 }));
 
@@ -40,6 +42,12 @@ beforeEach(() => {
     currency: 'eur',
     interval: 'month',
   });
+  vi.mocked(loadMembershipCategories).mockResolvedValue([]);
+  vi.mocked(loadMembershipPosts).mockResolvedValue({
+    access: 'preview',
+    posts: [],
+    nextCursor: null,
+  });
 });
 
 describe('Membership', () => {
@@ -51,7 +59,7 @@ describe('Membership', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: /Istota v starostlivosti/i })).toBeInTheDocument();
-    expect(screen.getByText('4,99 €')).toBeInTheDocument();
+    expect(screen.getByText(/4,99/)).toBeInTheDocument();
 
     const loginEmail = screen.getByLabelText(/Členský e-mail/i);
     await user.type(loginEmail, 'member@example.com');
@@ -127,16 +135,22 @@ describe('Membership', () => {
       member: { id: 12, email: 'mar.cincura@gmail.com', hasStripeCustomer: false },
       subscription: null,
     });
-    vi.mocked(loadMembershipContent).mockResolvedValue([
-      {
-        id: 14,
-        title: 'Testovací členský materiál',
-        description: 'Viditeľný v bezpečnom QA prístupe.',
-        contentType: 'pdf',
-        filename: 'test.pdf',
-        hasFile: true,
-      },
-    ]);
+    vi.mocked(loadMembershipPosts).mockResolvedValue({
+      access: 'full',
+      nextCursor: null,
+      posts: [
+        {
+          id: 14,
+          slug: 'testovaci-clensky-material',
+          title: 'Testovací členský materiál',
+          excerpt: 'Viditeľný v bezpečnom QA prístupe.',
+          assetTypes: ['document'],
+          commentCount: 0,
+          locked: false,
+          isSaved: false,
+        },
+      ],
+    });
 
     renderPage();
 
@@ -171,7 +185,7 @@ describe('Membership', () => {
     renderPage('/klub?checkout=success');
 
     expect(await screen.findByText(/Potvrdzujeme platbu/i)).toBeInTheDocument();
-    expect(screen.getByText(/Túto stránku nemusíte obnovovať/i)).toBeInTheDocument();
+    expect(screen.getByText(/Zvyčajne to trvá iba niekoľko sekúnd/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Aktivovať členstvo/i })).not.toBeInTheDocument();
   });
 
@@ -195,16 +209,22 @@ describe('Membership', () => {
             currentPeriodEnd: '2026-08-29T00:00:00.000Z',
           },
         });
-      vi.mocked(loadMembershipContent).mockResolvedValue([
-        {
-          id: 11,
-          title: 'Čerstvo odomknutý materiál',
-          description: 'Obsah sprístupnený po potvrdení platby.',
-          contentType: 'pdf',
-          filename: 'odomknuty-material.pdf',
-          hasFile: true,
-        },
-      ]);
+      vi.mocked(loadMembershipPosts).mockResolvedValue({
+        access: 'full',
+        nextCursor: null,
+        posts: [
+          {
+            id: 11,
+            slug: 'cerstvo-odomknuty-material',
+            title: 'Čerstvo odomknutý materiál',
+            excerpt: 'Obsah sprístupnený po potvrdení platby.',
+            assetTypes: ['document'],
+            commentCount: 0,
+            locked: false,
+            isSaved: false,
+          },
+        ],
+      });
 
       renderPage('/klub?checkout=success');
 
@@ -236,21 +256,30 @@ describe('Membership', () => {
         currentPeriodEnd: '2026-08-29T00:00:00.000Z',
       },
     });
-    vi.mocked(loadMembershipContent).mockResolvedValue([
-      {
-        id: 4,
-        title: 'Letná starostlivosť',
-        description: 'Praktický členský materiál.',
-        contentType: 'pdf',
-        filename: 'letna-starostlivost.pdf',
-        hasFile: true,
-      },
-    ]);
+    vi.mocked(loadMembershipPosts).mockResolvedValue({
+      access: 'full',
+      nextCursor: null,
+      posts: [
+        {
+          id: 4,
+          slug: 'letna-starostlivost',
+          title: 'Letná starostlivosť',
+          excerpt: 'Praktický členský materiál.',
+          assetTypes: ['document'],
+          commentCount: 0,
+          locked: false,
+          isSaved: false,
+        },
+      ],
+    });
 
     renderPage();
 
     expect(await screen.findByText(/Členstvo je aktívne/i)).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Letná starostlivosť' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Stiahnuť/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Letná starostlivosť/i })).toHaveAttribute(
+      'href',
+      '/klub/letna-starostlivost'
+    );
   });
 });
