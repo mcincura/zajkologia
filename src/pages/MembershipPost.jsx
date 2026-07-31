@@ -216,7 +216,9 @@ const MembershipPost = () => {
           {session?.isAuthenticated ? (
             <div className="membership-post-topbar__member">
               <span>{session.member?.email}</span>
-              {session.member?.hasStripeCustomer && !session.testAccess ? (
+              {session.member?.hasStripeCustomer &&
+              !session.testAccess &&
+              !session.complimentaryAccess ? (
                 <button
                   type="button"
                   onClick={openBilling}

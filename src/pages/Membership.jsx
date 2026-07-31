@@ -43,6 +43,8 @@ const errorMessage = (error) => {
     membership_checkout_unavailable: 'Členstvo sa práve nedá objednať. Skúste to, prosím, neskôr.',
     active_membership_required: 'Obsah je dostupný po aktivácii členstva.',
     billing_customer_missing: 'K tomuto účtu zatiaľ nemáme fakturačný profil.',
+    billing_unavailable_for_complimentary_access:
+      'Bezplatné členstvo nemá platbu, ktorú by bolo potrebné spravovať.',
     billing_portal_not_configured: 'Správa platieb sa pripravuje. Skúste to, prosím, neskôr.',
     membership_publishing_not_migrated: 'Publikačná časť klubu sa práve aktualizuje.',
   };
@@ -113,6 +115,7 @@ const Membership = () => {
   const isAuthenticated = Boolean(session?.isAuthenticated);
   const hasAccess = Boolean(session?.hasAccess);
   const testAccess = Boolean(session?.testAccess);
+  const complimentaryAccess = Boolean(session?.complimentaryAccess);
   const prelaunchTestAccessEnabled = Boolean(
     offer?.testAccessEnabled && !offer?.available
   );
@@ -287,9 +290,11 @@ const Membership = () => {
       setCodePurpose('');
       if (nextSession.hasAccess) {
         setStatus(
-          nextSession.testAccess
-            ? 'Testovací prístup je aktívny. Žiadna platba neprebehla.'
-            : 'Ste prihlásený/á. Vitajte v klube.'
+          nextSession.complimentaryAccess
+            ? 'Bezplatné členstvo je aktívne. Vitajte v klube.'
+            : nextSession.testAccess
+              ? 'Testovací prístup je aktívny. Žiadna platba neprebehla.'
+              : 'Ste prihlásený/á. Vitajte v klube.'
         );
         setFeedRevision((value) => value + 1);
       } else if (nextPurpose === 'checkout') {
@@ -516,7 +521,7 @@ const Membership = () => {
             </div>
           </div>
           <div className="membership-club-header__actions">
-            {session.member?.hasStripeCustomer && !testAccess ? (
+            {session.member?.hasStripeCustomer && !testAccess && !complimentaryAccess ? (
               <button
                 type="button"
                 className="membership-button membership-button--secondary"
@@ -573,21 +578,25 @@ const Membership = () => {
           </div>
           <div>
             <strong>
-              {testAccess
-                ? 'Testovací prístup je aktívny'
-                : hasAccess
-                  ? 'Členstvo je aktívne'
+              {complimentaryAccess
+                ? 'Bezplatné členstvo je aktívne'
+                : testAccess
+                  ? 'Testovací prístup je aktívny'
+                  : hasAccess
+                    ? 'Členstvo je aktívne'
                   : paymentPending
                     ? 'Potvrdzujeme platbu'
                     : 'Členstvo nie je aktívne'}
             </strong>
             <p>
-              {testAccess
-                ? 'Môžete skontrolovať celý publikačný, mediálny a komunitný tok bez platby.'
-                : hasAccess
-                  ? subscription?.cancelAtPeriodEnd
-                    ? `Obsah zostáva dostupný do ${formatDate(subscription.currentPeriodEnd) || 'konca zaplateného obdobia'}.`
-                    : `Ďalšie obdobie do ${formatDate(subscription?.currentPeriodEnd) || 'najbližšieho obnovenia'}.`
+              {complimentaryAccess
+                ? 'Máte trvalý prístup ku klubovému obsahu bez platby.'
+                : testAccess
+                  ? 'Môžete skontrolovať celý publikačný, mediálny a komunitný tok bez platby.'
+                  : hasAccess
+                    ? subscription?.cancelAtPeriodEnd
+                      ? `Obsah zostáva dostupný do ${formatDate(subscription.currentPeriodEnd) || 'konca zaplateného obdobia'}.`
+                      : `Ďalšie obdobie do ${formatDate(subscription?.currentPeriodEnd) || 'najbližšieho obnovenia'}.`
                   : paymentPending
                     ? 'Zvyčajne to trvá iba niekoľko sekúnd.'
                     : 'Aktivujte členstvo a otvoríte celé príspevky a chránené médiá.'}
@@ -762,8 +771,8 @@ const Membership = () => {
             <div>
               <h2 id="membership-login-title">Prihlásenie do členskej zóny</h2>
               <p>
-                Zadajte e-mail použitý pri platbe. Pošleme vám jednorazový kód —
-                heslo nepotrebujete.
+                Zadajte e-mail použitý pri platbe alebo pridelený k členstvu.
+                Pošleme vám jednorazový kód — heslo nepotrebujete.
               </p>
             </div>
           </div>

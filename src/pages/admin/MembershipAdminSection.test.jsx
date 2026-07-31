@@ -103,6 +103,31 @@ describe('MembershipAdminSection', () => {
     expect(screen.getByText('testovací')).toBeInTheDocument();
   });
 
+  it('labels permanent complimentary access separately from Stripe', async () => {
+    const user = userEvent.setup();
+    installApiResponses({
+      ...overviewResponse,
+      members: [
+        {
+          id: 8,
+          email: 'stanka.cirmanova@gmail.com',
+          hasAccess: true,
+          complimentaryAccess: true,
+          testAccess: false,
+          subscription: null,
+        },
+      ],
+      totals: { members: 1, active: 1, canceling: 0 },
+    });
+
+    render(<MembershipAdminSection />);
+    await user.click(await screen.findByRole('button', { name: 'Členovia' }));
+
+    expect(screen.getByText('stanka.cirmanova@gmail.com')).toBeInTheDocument();
+    expect(screen.getByText('Bezplatný člen')).toBeInTheDocument();
+    expect(screen.getByText('trvalý')).toBeInTheDocument();
+  });
+
   it('opens an existing post in the creator editor', async () => {
     const user = userEvent.setup();
     render(<MembershipAdminSection />);

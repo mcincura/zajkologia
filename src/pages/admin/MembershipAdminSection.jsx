@@ -695,18 +695,22 @@ const MembershipAdminSection = () => {
                   <tr key={member.id}>
                     <td>{member.email}</td>
                     <td>
-                      {member.testAccess
-                        ? 'QA tester'
-                        : member.subscription?.status || 'bez predplatného'}
+                      {member.complimentaryAccess
+                        ? 'Bezplatný člen'
+                        : member.testAccess
+                          ? 'QA tester'
+                          : member.subscription?.status || 'bez predplatného'}
                     </td>
                     <td>
-                      {member.testAccess
-                        ? 'testovací'
-                        : member.hasAccess
-                          ? member.subscription?.cancelAtPeriodEnd
-                            ? 'do konca obdobia'
-                            : 'aktívny'
-                          : 'zablokovaný'}
+                      {member.complimentaryAccess
+                        ? 'trvalý'
+                        : member.testAccess
+                          ? 'testovací'
+                          : member.hasAccess
+                            ? member.subscription?.cancelAtPeriodEnd
+                              ? 'do konca obdobia'
+                              : 'aktívny'
+                            : 'zablokovaný'}
                     </td>
                     <td>{formatDate(member.subscription?.currentPeriodEnd)}</td>
                     <td>{formatDate(member.lastLoginAt)}</td>

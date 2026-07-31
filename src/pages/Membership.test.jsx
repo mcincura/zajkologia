@@ -174,6 +174,46 @@ describe('Membership', () => {
     ).toBeInTheDocument();
   });
 
+  it('opens permanent complimentary access through passwordless member login', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+    vi.mocked(requestMembershipCode).mockResolvedValue({ ok: true });
+    vi.mocked(verifyMembershipCode).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: true,
+      complimentaryAccess: true,
+      testAccess: false,
+      member: {
+        id: 18,
+        email: 'stanka.cirmanova@gmail.com',
+        hasStripeCustomer: false,
+      },
+      subscription: null,
+    });
+
+    renderPage();
+
+    await user.type(
+      await screen.findByLabelText(/Členský e-mail/i),
+      'stanka.cirmanova@gmail.com'
+    );
+    await user.click(screen.getByRole('button', { name: 'Poslať kód' }));
+    await user.type(screen.getByLabelText(/6-miestny kód z e-mailu/i), '123456');
+    await user.click(
+      screen.getByRole('button', { name: 'Overiť a pokračovať' })
+    );
+
+    expect(requestMembershipCode).toHaveBeenCalledWith(
+      'stanka.cirmanova@gmail.com'
+    );
+    expect(createMembershipCheckout).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText('Bezplatné členstvo je aktívne. Vitajte v klube.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Máte trvalý prístup ku klubovému obsahu bez platby.'))
+      .toBeInTheDocument();
+  });
+
   it('shows a non-duplicating confirmation state while Stripe access syncs', async () => {
     vi.mocked(loadMembershipSession).mockResolvedValue({
       isAuthenticated: true,
