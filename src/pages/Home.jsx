@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import PostCard from '../components/PostCard';
 import ProductCard from '../components/ProductCard';
@@ -157,26 +157,32 @@ const Home = () => {
             Spájame lásku ku králikom s poznaním.
           </p>
           <SearchBar onSearch={setSearchTerm} />
-          <Link
-            to="/o-nas"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.55rem",
-              color: "var(--color-accent)",
-              border: "2px solid rgba(255, 255, 255, 0.92)",
-              background: "var(--color-white)",
-              borderRadius: "999px",
-              padding: "0.9rem 1.35rem",
-              fontSize: "1rem",
-              fontWeight: 900,
-              boxShadow: "0 12px 30px rgba(0, 0, 0, 0.28)",
-            }}
-          >
-            Zistiť viac o Zajkológii
-            <ArrowRight size={18} strokeWidth={2.6} />
-          </Link>
+          <div className="home-hero-actions">
+            <Link className="home-hero-about-link" to="/o-nas">
+              Zistiť viac o Zajkológii
+              <ArrowRight aria-hidden="true" size={18} strokeWidth={2.6} />
+            </Link>
+
+            <Link
+              className="home-hero-club-link"
+              to="/klub"
+              aria-label="Vstúpiť do Zajkológia klubu"
+            >
+              <span className="home-hero-club-link__icon" aria-hidden="true">
+                <Sparkles size={23} strokeWidth={2.2} />
+              </span>
+              <span className="home-hero-club-link__copy">
+                <span>Exkluzívny obsah</span>
+                <strong>Vstúpiť do Zajkológia klubu</strong>
+              </span>
+              <ArrowRight
+                className="home-hero-club-link__arrow"
+                aria-hidden="true"
+                size={22}
+                strokeWidth={2.5}
+              />
+            </Link>
+          </div>
         </div>
       </section>
 
