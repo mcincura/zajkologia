@@ -380,7 +380,6 @@ const MembershipAdminSection = () => {
       {activeTab === 'posts' ? (
         editorOpen ? (
           <MembershipPostEditor
-            key={selectedPost?.id || 'new'}
             initialPost={selectedPost}
             categories={categories}
             onSaved={onPostSaved}

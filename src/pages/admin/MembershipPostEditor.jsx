@@ -105,6 +105,29 @@ const getResponseError = async (response) => {
   }
 };
 
+const creatorErrorMessages = {
+  missing_membership_post_title: 'Najprv zadajte názov príspevku.',
+  invalid_membership_post_slug:
+    'Z názvu sa nepodarilo vytvoriť URL adresu. Doplňte aspoň písmená alebo čísla.',
+  membership_post_slug_exists:
+    'Táto URL adresa už existuje. Zmeňte ju alebo použite iný názov.',
+  invalid_membership_post_date: 'Dátum publikovania nie je platný.',
+  membership_post_schedule_must_be_future:
+    'Naplánovaný dátum musí byť v budúcnosti.',
+  membership_post_file_too_large: 'Súbor je príliš veľký.',
+  unsupported_membership_post_file_type: 'Tento typ súboru nie je podporovaný.',
+  membership_post_file_type_mismatch:
+    'Prípona súboru nezodpovedá jeho skutočnému typu.',
+  invalid_membership_post_file_signature:
+    'Súbor sa nepodarilo bezpečne overiť. Skúste ho exportovať znova.',
+  unauthorized: 'Prihlásenie do administrácie vypršalo. Prihláste sa znova.',
+};
+
+const getCreatorErrorMessage = (error) =>
+  creatorErrorMessages[error?.message] ||
+  error?.message ||
+  'Nastala neočakávaná chyba.';
+
 const MembershipPostEditor = ({
   initialPost,
   categories,
@@ -119,6 +142,7 @@ const MembershipPostEditor = ({
   const [editorMode, setEditorMode] = useState('write');
   const [busy, setBusy] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [validationMessage, setValidationMessage] = useState('');
   const [notifyMembers, setNotifyMembers] = useState(false);
   const [external, setExternal] = useState({
     assetType: 'link',
@@ -126,62 +150,138 @@ const MembershipPostEditor = ({
     discountCode: '',
     caption: '',
   });
+  const currentPostRef = useRef(initialPost);
+  const draftCreationPromiseRef = useRef(null);
+  const uploadPromiseRef = useRef(null);
+  const titleInputRef = useRef(null);
+  const slugInputRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    const activePostId = currentPostRef.current?.id || null;
+    const nextPostId = initialPost?.id || null;
+    if (activePostId && activePostId === nextPostId) {
+      currentPostRef.current = initialPost;
+      setCurrentPost(initialPost);
+      return;
+    }
+
+    currentPostRef.current = initialPost;
     setCurrentPost(initialPost);
     setForm(formFromPost(initialPost));
     setSlugTouched(Boolean(initialPost));
     setEditorMode('write');
+    setValidationMessage('');
     setNotifyMembers(false);
   }, [initialPost]);
 
   const updateForm = (patch) =>
     setForm((current) => ({ ...current, ...patch }));
 
+  const applyPost = (post, { syncForm = true } = {}) => {
+    currentPostRef.current = post;
+    setCurrentPost(post);
+    if (syncForm) setForm(formFromPost(post));
+    onSaved?.(post);
+  };
+
+  const validatePostIdentity = () => {
+    const title = form.title.trim();
+    if (!title) {
+      const message =
+        'Najprv zadajte názov príspevku. Potom automaticky vytvoríme koncept a nahráme súbor.';
+      setValidationMessage(message);
+      onStatus?.(message);
+      titleInputRef.current?.focus();
+      return false;
+    }
+
+    if (!slugify(form.slug || title)) {
+      const message =
+        'Doplňte platnú URL adresu príspevku – musí obsahovať aspoň písmeno alebo číslo.';
+      setValidationMessage(message);
+      onStatus?.(message);
+      slugInputRef.current?.focus();
+      return false;
+    }
+
+    setValidationMessage('');
+    return true;
+  };
+
   const persist = async ({ statusOverride, quiet = false } = {}) => {
+    const persistedPost = currentPostRef.current;
     const status = statusOverride || form.status;
     const payload = {
       ...form,
       status,
+      autoSlug: !persistedPost && !slugTouched,
       publishedAt: form.publishedAt
         ? new Date(form.publishedAt).toISOString()
         : null,
     };
-    const data = currentPost
-      ? await apiFetch(`/api/membership/admin/posts/${currentPost.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload),
-        })
-      : await apiFetch('/api/membership/admin/posts', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
-    const post = data?.post;
-    setCurrentPost(post);
-    setForm(formFromPost(post));
-    setSlugTouched(true);
-    onSaved?.(post);
-    if (!quiet) {
-      onStatus?.(currentPost ? 'Príspevok je uložený.' : 'Koncept bol vytvorený.');
+    const saveRequest = async () => {
+      const data = persistedPost
+        ? await apiFetch(`/api/membership/admin/posts/${persistedPost.id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          })
+        : await apiFetch('/api/membership/admin/posts', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+      const post = data?.post;
+      if (persistedPost) {
+        applyPost(post);
+      } else {
+        applyPost(post, { syncForm: false });
+        setForm((current) =>
+          current.slug === payload.slug
+            ? { ...current, slug: post.slug }
+            : current
+        );
+      }
+      setSlugTouched(true);
+      if (!quiet) {
+        onStatus?.(
+          persistedPost ? 'Príspevok je uložený.' : 'Koncept bol vytvorený.'
+        );
+      }
+      return post;
+    };
+
+    if (persistedPost) return saveRequest();
+    if (draftCreationPromiseRef.current) {
+      return draftCreationPromiseRef.current;
     }
-    return post;
+
+    const creationPromise = saveRequest();
+    draftCreationPromiseRef.current = creationPromise;
+    try {
+      return await creationPromise;
+    } finally {
+      if (draftCreationPromiseRef.current === creationPromise) {
+        draftCreationPromiseRef.current = null;
+      }
+    }
   };
 
   const save = async (event) => {
     event?.preventDefault();
+    if (!validatePostIdentity()) return;
     setBusy('save');
     try {
       await persist();
     } catch (error) {
-      onStatus?.(`Uloženie zlyhalo: ${error.message}`);
+      onStatus?.(`Uloženie zlyhalo: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
   };
 
   const publish = async () => {
+    if (!validatePostIdentity()) return;
     setBusy('publish');
     try {
       const savedPost = await persist({
@@ -195,9 +295,7 @@ const MembershipPostEditor = ({
           body: JSON.stringify({ notifyMembers }),
         }
       );
-      setCurrentPost(data.post);
-      setForm(formFromPost(data.post));
-      onSaved?.(data.post);
+      applyPost(data.post);
       onStatus?.(
         `Príspevok je publikovaný.${
           data.notificationsQueued
@@ -206,13 +304,14 @@ const MembershipPostEditor = ({
         }`
       );
     } catch (error) {
-      onStatus?.(`Publikovanie zlyhalo: ${error.message}`);
+      onStatus?.(`Publikovanie zlyhalo: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
   };
 
   const schedule = async () => {
+    if (!validatePostIdentity()) return;
     if (!form.publishedAt) {
       onStatus?.('Vyberte dátum a čas naplánovaného publikovania.');
       return;
@@ -229,12 +328,10 @@ const MembershipPostEditor = ({
           }),
         }
       );
-      setCurrentPost(data.post);
-      setForm(formFromPost(data.post));
-      onSaved?.(data.post);
+      applyPost(data.post);
       onStatus?.('Príspevok je naplánovaný.');
     } catch (error) {
-      onStatus?.(`Naplánovanie zlyhalo: ${error.message}`);
+      onStatus?.(`Naplánovanie zlyhalo: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
@@ -248,12 +345,10 @@ const MembershipPostEditor = ({
         `/api/membership/admin/posts/${currentPost.id}/archive`,
         { method: 'POST' }
       );
-      setCurrentPost(data.post);
-      setForm(formFromPost(data.post));
-      onSaved?.(data.post);
+      applyPost(data.post);
       onStatus?.('Príspevok je archivovaný a nie je dostupný členom.');
     } catch (error) {
-      onStatus?.(`Archivovanie zlyhalo: ${error.message}`);
+      onStatus?.(`Archivovanie zlyhalo: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
@@ -275,60 +370,84 @@ const MembershipPostEditor = ({
       onDeleted?.(currentPost.id);
       onStatus?.('Príspevok bol odstránený.');
     } catch (error) {
-      onStatus?.(`Odstránenie zlyhalo: ${error.message}`);
+      onStatus?.(`Odstránenie zlyhalo: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
   };
 
   const ensurePost = async () => {
-    if (currentPost) return currentPost;
+    if (currentPostRef.current) return currentPostRef.current;
     return persist({ statusOverride: 'draft', quiet: true });
   };
 
   const uploadFiles = async (files) => {
     const uploadList = Array.from(files || []);
     if (!uploadList.length) return;
-    setBusy('upload');
-    try {
-      let post = await ensurePost();
-      for (const [index, file] of uploadList.entries()) {
-        onStatus?.(`Nahrávam ${index + 1}/${uploadList.length}: ${file.name}`);
-        const body = new FormData();
-        body.append('file', file);
-        const isFirstCover =
-          !post.coverAssetId && file.type.startsWith('image/');
-        if (isFirstCover) body.append('makeCover', 'true');
-        const response = await fetch(
-          apiUrl(`/api/membership/admin/posts/${post.id}/assets`),
-          {
-            method: 'POST',
-            body,
-            credentials: 'include',
-          }
-        );
-        if (!response.ok) throw new Error(await getResponseError(response));
-        const data = await response.json();
-        post = data.post;
-        setCurrentPost(post);
-        setForm(formFromPost(post));
-        onSaved?.(post);
-      }
-      onStatus?.(
-        uploadList.length === 1
-          ? 'Súbor je nahraný.'
-          : `${uploadList.length} súborov je nahraných.`
-      );
-    } catch (error) {
-      onStatus?.(`Nahrávanie zlyhalo: ${error.message}`);
-    } finally {
-      setBusy('');
+    if (!validatePostIdentity()) {
       if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
+    if (uploadPromiseRef.current) {
+      onStatus?.('Nahrávanie už prebieha. Počkajte na jeho dokončenie.');
+      return uploadPromiseRef.current;
+    }
+
+    const uploadPromise = (async () => {
+      setBusy('upload');
+      try {
+        let post = await ensurePost();
+        for (const [index, file] of uploadList.entries()) {
+          onStatus?.(`Nahrávam ${index + 1}/${uploadList.length}: ${file.name}`);
+          const body = new FormData();
+          body.append('file', file);
+          const isFirstCover =
+            !post.coverAssetId && file.type.startsWith('image/');
+          if (isFirstCover) body.append('makeCover', 'true');
+          const response = await fetch(
+            apiUrl(`/api/membership/admin/posts/${post.id}/assets`),
+            {
+              method: 'POST',
+              body,
+              credentials: 'include',
+            }
+          );
+          if (!response.ok) throw new Error(await getResponseError(response));
+          const data = await response.json();
+          post = data.post;
+          applyPost(post, { syncForm: false });
+        }
+        onStatus?.(
+          uploadList.length === 1
+            ? 'Súbor je nahraný.'
+            : `${uploadList.length} súborov je nahraných.`
+        );
+      } catch (error) {
+        onStatus?.(`Nahrávanie zlyhalo: ${getCreatorErrorMessage(error)}`);
+      } finally {
+        setBusy('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    })();
+
+    uploadPromiseRef.current = uploadPromise;
+    try {
+      return await uploadPromise;
+    } finally {
+      if (uploadPromiseRef.current === uploadPromise) {
+        uploadPromiseRef.current = null;
+      }
+    }
+  };
+
+  const openFilePicker = () => {
+    if (!validatePostIdentity()) return;
+    fileInputRef.current?.click();
   };
 
   const addExternal = async (event) => {
     event.preventDefault();
+    if (!validatePostIdentity()) return;
     setBusy('external');
     try {
       const post = await ensurePost();
@@ -339,9 +458,7 @@ const MembershipPostEditor = ({
           body: JSON.stringify(external),
         }
       );
-      setCurrentPost(data.post);
-      setForm(formFromPost(data.post));
-      onSaved?.(data.post);
+      applyPost(data.post, { syncForm: false });
       setExternal({
         assetType: 'link',
         externalUrl: '',
@@ -350,7 +467,7 @@ const MembershipPostEditor = ({
       });
       onStatus?.('Externý obsah bol pridaný.');
     } catch (error) {
-      onStatus?.(`Pridanie zlyhalo: ${error.message}`);
+      onStatus?.(`Pridanie zlyhalo: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
@@ -366,11 +483,10 @@ const MembershipPostEditor = ({
           body: JSON.stringify(patch),
         }
       );
-      setCurrentPost(data.post);
-      onSaved?.(data.post);
+      applyPost(data.post, { syncForm: false });
       onStatus?.('Popis súboru je uložený.');
     } catch (error) {
-      onStatus?.(`Úprava súboru zlyhala: ${error.message}`);
+      onStatus?.(`Úprava súboru zlyhala: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
@@ -386,11 +502,10 @@ const MembershipPostEditor = ({
         `/api/membership/admin/posts/${currentPost.id}/assets/${asset.id}`,
         { method: 'DELETE' }
       );
-      setCurrentPost(data.post);
-      onSaved?.(data.post);
+      applyPost(data.post, { syncForm: false });
       onStatus?.('Súbor bol odstránený.');
     } catch (error) {
-      onStatus?.(`Odstránenie súboru zlyhalo: ${error.message}`);
+      onStatus?.(`Odstránenie súboru zlyhalo: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
@@ -412,10 +527,9 @@ const MembershipPostEditor = ({
           body: JSON.stringify({ assetIds: ordered }),
         }
       );
-      setCurrentPost(data.post);
-      onSaved?.(data.post);
+      applyPost(data.post, { syncForm: false });
     } catch (error) {
-      onStatus?.(`Zmena poradia zlyhala: ${error.message}`);
+      onStatus?.(`Zmena poradia zlyhala: ${getCreatorErrorMessage(error)}`);
     } finally {
       setBusy('');
     }
@@ -431,11 +545,12 @@ const MembershipPostEditor = ({
           body: JSON.stringify({ assetId: asset.id }),
         }
       );
-      setCurrentPost(data.post);
-      onSaved?.(data.post);
+      applyPost(data.post, { syncForm: false });
       onStatus?.('Titulný obrázok je nastavený.');
     } catch (error) {
-      onStatus?.(`Titulný obrázok sa nepodarilo nastaviť: ${error.message}`);
+      onStatus?.(
+        `Titulný obrázok sa nepodarilo nastaviť: ${getCreatorErrorMessage(error)}`
+      );
     } finally {
       setBusy('');
     }
@@ -472,7 +587,7 @@ const MembershipPostEditor = ({
             <p>
               {currentPost
                 ? `Naposledy upravené ${new Date(currentPost.updatedAt).toLocaleString('sk-SK')}`
-                : 'Najprv uložte koncept, potom môžete nahrať médiá.'}
+                : 'Zadajte názov. Pri prvom nahratí súboru automaticky vytvoríme koncept.'}
             </p>
           </div>
           <button type="button" className="admin-membership__secondary" onClick={onCancel}>
@@ -485,14 +600,17 @@ const MembershipPostEditor = ({
           <label>
             <span>Názov *</span>
             <input
+              ref={titleInputRef}
               value={form.title}
               onChange={(event) => {
                 const title = event.target.value;
+                if (title.trim()) setValidationMessage('');
                 updateForm({
                   title,
                   ...(!slugTouched ? { slug: slugify(title) } : {}),
                 });
               }}
+              aria-invalid={Boolean(validationMessage && !form.title.trim())}
               required
               maxLength={255}
             />
@@ -500,15 +618,22 @@ const MembershipPostEditor = ({
           <label>
             <span>URL adresa *</span>
             <input
+              ref={slugInputRef}
               value={form.slug}
               onChange={(event) => {
                 setSlugTouched(true);
+                setValidationMessage('');
                 updateForm({ slug: slugify(event.target.value) });
               }}
               required
               maxLength={191}
             />
           </label>
+          {validationMessage ? (
+            <p className="creator-editor__validation" role="alert">
+              {validationMessage}
+            </p>
+          ) : null}
           <label className="is-wide">
             <span>Krátky úvod</span>
             <textarea
@@ -760,7 +885,7 @@ const MembershipPostEditor = ({
             <span>Obrázky, video, audio, PDF a ďalšie súbory</span>
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={openFilePicker}
               disabled={busy === 'upload'}
             >
               <Plus size={16} aria-hidden="true" />

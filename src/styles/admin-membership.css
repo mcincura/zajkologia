@@ -622,6 +622,23 @@
   grid-column: 1 / -1;
 }
 
+.creator-editor__validation {
+  grid-column: 1 / -1;
+  margin: -0.15rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e6b8b8;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #8a1c2b;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.creator-editor__fields input[aria-invalid='true'] {
+  border-color: #b63d4a;
+  box-shadow: 0 0 0 3px rgba(182, 61, 74, 0.1);
+}
+
 .creator-editor__fields input,
 .creator-editor__fields textarea,
 .creator-publish-panel input,
