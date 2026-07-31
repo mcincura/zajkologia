@@ -824,11 +824,100 @@
   accent-color: #2f6f5b;
 }
 
+.creator-editor__thumbnail-mode {
+  margin-top: 0.9rem;
+  padding: 0.8rem;
+  border: 1px solid #eadfd5;
+  border-radius: 10px;
+  background: #fffaf7;
+}
+
+.creator-editor__thumbnail-mode legend {
+  padding: 0 0.35rem;
+  color: #503a43;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.creator-editor__thumbnail-mode > p {
+  margin: 0 0 0.65rem;
+  color: #705862;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.creator-editor__thumbnail-mode > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.creator-editor__thumbnail-mode label {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 18px 20px minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  padding: 0.7rem;
+  border: 1px solid #eadfd5;
+  border-radius: 9px;
+  background: #fff;
+  color: #705862;
+  cursor: pointer;
+  transition-property: border-color, background-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.creator-editor__thumbnail-mode label.is-selected {
+  border-color: rgba(47, 111, 91, 0.5);
+  background: #f1faf5;
+  color: #2f6f5b;
+  box-shadow: 0 0 0 2px rgba(47, 111, 91, 0.08);
+}
+
+.creator-editor__thumbnail-mode input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #2f6f5b;
+}
+
+.creator-editor__thumbnail-mode svg {
+  margin-top: -1px;
+}
+
+.creator-editor__thumbnail-mode span,
+.creator-editor__thumbnail-mode strong,
+.creator-editor__thumbnail-mode small {
+  display: block;
+  min-width: 0;
+}
+
+.creator-editor__thumbnail-mode strong {
+  color: #341320;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.creator-editor__thumbnail-mode small {
+  margin-top: 0.2rem;
+  color: #705862;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
 .creator-editor__toggles {
   display: flex;
   gap: 0.55rem;
   flex-wrap: wrap;
   margin-top: 0.9rem;
+}
+
+@media (max-width: 680px) {
+  .creator-editor__thumbnail-mode > div {
+    grid-template-columns: 1fr;
+  }
 }
 
 .creator-editor__inspector {

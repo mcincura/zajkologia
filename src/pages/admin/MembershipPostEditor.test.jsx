@@ -19,6 +19,7 @@ const createPost = (overrides = {}) => ({
   status: 'draft',
   isPinned: false,
   allowComments: true,
+  publicThumbnailMode: 'blurred',
   publishedAt: null,
   updatedAt: '2026-07-31T10:00:00.000Z',
   categories: [],
@@ -123,6 +124,7 @@ describe('MembershipPostEditor media upload', () => {
       slug: draft.slug,
       status: 'draft',
       autoSlug: true,
+      publicThumbnailMode: 'blurred',
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -241,6 +243,27 @@ describe('MembershipPostEditor media upload', () => {
     expect(JSON.parse(vi.mocked(apiFetch).mock.calls[0][1].body)).toMatchObject({
       slug: 'moja-vlastna-url',
       autoSlug: false,
+    });
+  });
+
+  it('loads and saves the public thumbnail visibility setting', async () => {
+    const post = createPost({ publicThumbnailMode: 'visible' });
+    vi.mocked(apiFetch).mockResolvedValue({
+      post: { ...post, publicThumbnailMode: 'blurred' },
+    });
+    renderEditor({ initialPost: post });
+
+    expect(
+      screen.getByRole('radio', { name: /zobraziť obrázok/i })
+    ).toBeChecked();
+    fireEvent.click(
+      screen.getByRole('radio', { name: /rozmazať obrázok/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Uložiť koncept' }));
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
+    expect(JSON.parse(vi.mocked(apiFetch).mock.calls[0][1].body)).toMatchObject({
+      publicThumbnailMode: 'blurred',
     });
   });
 });

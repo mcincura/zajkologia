@@ -30,7 +30,7 @@ const ClubComingSoon = () => (
 
       <div className="club-coming-soon__visual" aria-hidden="true">
         <span className="club-coming-soon__halo" />
-        <img src="/club-rabbit-book.png" width="720" height="788" alt="" />
+        <img src="/club-rabbit-book.png" width="720" height="763" alt="" />
       </div>
     </div>
   </section>

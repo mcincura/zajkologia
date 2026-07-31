@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarClock,
   Eye,
+  EyeOff,
   File,
   FileText,
   Heading2,
@@ -41,6 +42,7 @@ const EMPTY_FORM = {
   status: 'draft',
   isPinned: false,
   allowComments: true,
+  publicThumbnailMode: 'blurred',
   publishedAt: '',
   categoryIds: [],
 };
@@ -73,6 +75,7 @@ const formFromPost = (post) =>
         status: post.status || 'draft',
         isPinned: Boolean(post.isPinned),
         allowComments: Boolean(post.allowComments),
+        publicThumbnailMode: post.publicThumbnailMode || 'blurred',
         publishedAt: toDateTimeLocal(post.publishedAt),
         categoryIds: post.categories?.map((category) => category.id) || [],
       }
@@ -112,6 +115,8 @@ const creatorErrorMessages = {
   membership_post_slug_exists:
     'Táto URL adresa už existuje. Zmeňte ju alebo použite iný názov.',
   invalid_membership_post_date: 'Dátum publikovania nie je platný.',
+  invalid_membership_public_thumbnail_mode:
+    'Vyberte, či má byť titulný obrázok v ukážke rozmazaný alebo viditeľný.',
   membership_post_schedule_must_be_future:
     'Naplánovaný dátum musí byť v budúcnosti.',
   membership_post_file_too_large: 'Súbor je príliš veľký.',
@@ -745,6 +750,56 @@ const MembershipPostEditor = ({
           ) : (
             <p>Najprv vytvorte kategóriu v časti Kategórie.</p>
           )}
+        </fieldset>
+
+        <fieldset className="creator-editor__thumbnail-mode">
+          <legend>Titulný obrázok vo verejnej ukážke</legend>
+          <p>
+            Vyberte, čo uvidia návštevníci bez aktívneho členstva. Členovia vždy
+            uvidia obrázok ostro.
+          </p>
+          <div>
+            <label
+              className={
+                form.publicThumbnailMode === 'blurred' ? 'is-selected' : ''
+              }
+            >
+              <input
+                type="radio"
+                name="public-thumbnail-mode"
+                value="blurred"
+                checked={form.publicThumbnailMode === 'blurred'}
+                onChange={() =>
+                  updateForm({ publicThumbnailMode: 'blurred' })
+                }
+              />
+              <EyeOff size={19} aria-hidden="true" />
+              <span>
+                <strong>Rozmazať obrázok</strong>
+                <small>Návštevník uvidí iba rozmazaný náhľad.</small>
+              </span>
+            </label>
+            <label
+              className={
+                form.publicThumbnailMode === 'visible' ? 'is-selected' : ''
+              }
+            >
+              <input
+                type="radio"
+                name="public-thumbnail-mode"
+                value="visible"
+                checked={form.publicThumbnailMode === 'visible'}
+                onChange={() =>
+                  updateForm({ publicThumbnailMode: 'visible' })
+                }
+              />
+              <Eye size={19} aria-hidden="true" />
+              <span>
+                <strong>Zobraziť obrázok</strong>
+                <small>Obrázok bude ostrý aj pred prihlásením.</small>
+              </span>
+            </label>
+          </div>
         </fieldset>
 
         <div className="creator-editor__toggles">

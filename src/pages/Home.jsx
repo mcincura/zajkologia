@@ -179,7 +179,7 @@ const Home = () => {
                 className="home-hero-club-card__rabbit"
                 src="/club-rabbit-book.png"
                 width="720"
-                height="788"
+                height="763"
                 alt=""
                 aria-hidden="true"
               />

@@ -285,12 +285,28 @@ const MembershipPost = () => {
                 onStatus={setStatus}
               />
             ) : post.cover?.url ? (
-              <figure className="membership-post-article__cover">
+              <figure
+                className={`membership-post-article__cover ${
+                  post.locked && post.publicThumbnailMode === 'blurred'
+                    ? 'membership-post-article__cover--blurred'
+                    : ''
+                }`}
+              >
                 <img
                   src={membershipMediaUrl(post.cover.url)}
-                  alt={post.cover.altText || ''}
+                  alt={
+                    post.locked && post.publicThumbnailMode === 'blurred'
+                      ? ''
+                      : post.cover.altText || ''
+                  }
                   crossOrigin={post.locked ? undefined : 'use-credentials'}
                 />
+                {post.locked && post.publicThumbnailMode === 'blurred' ? (
+                  <figcaption className="membership-post-article__cover-lock">
+                    <LockKeyhole size={18} aria-hidden="true" />
+                    Titulný obrázok je dostupný členom
+                  </figcaption>
+                ) : null}
               </figure>
             ) : null}
 
