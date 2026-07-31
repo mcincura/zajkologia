@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -227,6 +227,90 @@ describe('Membership', () => {
     expect(await screen.findByText(/Potvrdzujeme platbu/i)).toBeInTheDocument();
     expect(screen.getByText(/Zvyčajne to trvá iba niekoľko sekúnd/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Aktivovať členstvo/i })).not.toBeInTheDocument();
+  });
+
+  it('does not render discovery controls for a logged-in member without content access', async () => {
+    vi.mocked(loadMembershipSession).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: false,
+      member: { id: 21, email: 'sorkasorinka@gmail.com', hasStripeCustomer: true },
+      subscription: null,
+    });
+    vi.mocked(loadMembershipCategories).mockResolvedValue([
+      { id: 2, name: 'Začíname', slug: 'zaciname' },
+    ]);
+    vi.mocked(loadMembershipPosts).mockResolvedValue({
+      access: 'preview',
+      nextCursor: null,
+      posts: [],
+    });
+
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Zajkológia klub' })).toBeInTheDocument();
+    expect(screen.queryByRole('search')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Všetko' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Začíname' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Videá' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Audio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'PDF a knihy' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Obrázky' })).not.toBeInTheDocument();
+  });
+
+  it('keeps full-access discovery controls visible and applies search and filters', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipSession).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: true,
+      member: { id: 22, email: 'member@example.com', hasStripeCustomer: true },
+      subscription: { status: 'active', grantsAccess: true },
+    });
+    vi.mocked(loadMembershipCategories).mockResolvedValue([
+      { id: 2, name: 'Začíname', slug: 'zaciname' },
+    ]);
+    vi.mocked(loadMembershipPosts).mockResolvedValue({
+      access: 'full',
+      nextCursor: null,
+      posts: [],
+    });
+
+    renderPage();
+
+    const search = await screen.findByRole('searchbox', { name: 'Hľadať v klube' });
+    expect(screen.getAllByRole('button', { name: 'Všetko' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Začíname' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Videá' })).toBeInTheDocument();
+
+    await user.type(search, 'králik');
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(loadMembershipPosts).toHaveBeenLastCalledWith({
+        q: 'králik',
+        category: '',
+        type: '',
+        saved: false,
+      })
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Videá' }));
+    await waitFor(() =>
+      expect(loadMembershipPosts).toHaveBeenLastCalledWith({
+        q: 'králik',
+        category: '',
+        type: 'video',
+        saved: false,
+      })
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Začíname' }));
+    await waitFor(() =>
+      expect(loadMembershipPosts).toHaveBeenLastCalledWith({
+        q: 'králik',
+        category: 'zaciname',
+        type: 'video',
+        saved: false,
+      })
+    );
   });
 
   it('unlocks the portal when the Stripe confirmation poll grants access', async () => {

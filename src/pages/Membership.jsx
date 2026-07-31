@@ -114,6 +114,9 @@ const Membership = () => {
   const checkoutState = searchParams.get('checkout');
   const isAuthenticated = Boolean(session?.isAuthenticated);
   const hasAccess = Boolean(session?.hasAccess);
+  // `/api/membership/me` is the entitlement source of truth. The network
+  // preview gate only decides whether the club route can be opened at all.
+  const canDiscoverContent = hasAccess;
   const testAccess = Boolean(session?.testAccess);
   const complimentaryAccess = Boolean(session?.complimentaryAccess);
   const prelaunchTestAccessEnabled = Boolean(
@@ -327,7 +330,8 @@ const Membership = () => {
     try {
       await logoutMembership();
       setSession({ isAuthenticated: false });
-      setFilters((current) => ({ ...current, saved: false }));
+      setQueryInput('');
+      setFilters({ q: '', category: '', type: '', saved: false });
       setFeedRevision((value) => value + 1);
       setConfirmingPayment(false);
       setStatus('Odhlásenie prebehlo úspešne.');
@@ -617,35 +621,41 @@ const Membership = () => {
         </section>
       ) : null}
 
-      <section className="membership-feed-shell" aria-labelledby="membership-feed-title">
-        <aside className="membership-feed-sidebar">
-          <h2 id="membership-feed-title">Kategórie</h2>
-          <button
-            type="button"
-            className={!filters.category ? 'is-active' : ''}
-            onClick={() =>
-              setFilters((current) => ({ ...current, category: '' }))
-            }
-          >
-            <LayoutGrid size={18} aria-hidden="true" />
-            Všetko
-          </button>
-          {categories.map((category) => (
+      <section
+        className={`membership-feed-shell ${
+          canDiscoverContent ? '' : 'membership-feed-shell--preview'
+        }`}
+        aria-label={canDiscoverContent ? undefined : 'Ukážky klubu'}
+        aria-labelledby={canDiscoverContent ? 'membership-feed-title' : undefined}
+      >
+        {canDiscoverContent ? (
+          <aside className="membership-feed-sidebar">
+            <h2 id="membership-feed-title">Kategórie</h2>
             <button
               type="button"
-              key={category.id}
-              className={filters.category === category.slug ? 'is-active' : ''}
+              className={!filters.category ? 'is-active' : ''}
               onClick={() =>
-                setFilters((current) => ({
-                  ...current,
-                  category: category.slug,
-                }))
+                setFilters((current) => ({ ...current, category: '' }))
               }
             >
-              {category.name}
+              <LayoutGrid size={18} aria-hidden="true" />
+              Všetko
             </button>
-          ))}
-          {hasAccess ? (
+            {categories.map((category) => (
+              <button
+                type="button"
+                key={category.id}
+                className={filters.category === category.slug ? 'is-active' : ''}
+                onClick={() =>
+                  setFilters((current) => ({
+                    ...current,
+                    category: category.slug,
+                  }))
+                }
+              >
+                {category.name}
+              </button>
+            ))}
             <button
               type="button"
               className={filters.saved ? 'is-active' : ''}
@@ -659,41 +669,43 @@ const Membership = () => {
               <Bookmark size={18} aria-hidden="true" />
               Uložené
             </button>
-          ) : null}
-        </aside>
+          </aside>
+        ) : null}
 
         <div className="membership-feed">
-          <div className="membership-feed__toolbar">
-            <form onSubmit={submitSearch} role="search">
-              <label className="membership-search">
-                <span className="sr-only">Hľadať v klube</span>
-                <Search size={18} aria-hidden="true" />
-                <input
-                  type="search"
-                  value={queryInput}
-                  onChange={(event) => setQueryInput(event.target.value)}
-                  placeholder="Hľadať v klube"
-                />
-              </label>
-            </form>
-            <div className="membership-feed__filters" aria-label="Typ obsahu">
-              {mediaFilters.map((filter) => (
-                <button
-                  type="button"
-                  key={filter.label}
-                  className={filters.type === filter.key ? 'is-active' : ''}
-                  onClick={() =>
-                    setFilters((current) => ({ ...current, type: filter.key }))
-                  }
-                  aria-pressed={filters.type === filter.key}
-                >
-                  {filter.label}
-                </button>
-              ))}
+          {canDiscoverContent ? (
+            <div className="membership-feed__toolbar">
+              <form onSubmit={submitSearch} role="search">
+                <label className="membership-search">
+                  <span className="sr-only">Hľadať v klube</span>
+                  <Search size={18} aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={queryInput}
+                    onChange={(event) => setQueryInput(event.target.value)}
+                    placeholder="Hľadať v klube"
+                  />
+                </label>
+              </form>
+              <div className="membership-feed__filters" aria-label="Typ obsahu">
+                {mediaFilters.map((filter) => (
+                  <button
+                    type="button"
+                    key={filter.label}
+                    className={filters.type === filter.key ? 'is-active' : ''}
+                    onClick={() =>
+                      setFilters((current) => ({ ...current, type: filter.key }))
+                    }
+                    aria-pressed={filters.type === filter.key}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {selectedCategory || filters.saved || filters.q ? (
+          {canDiscoverContent && (selectedCategory || filters.saved || filters.q) ? (
             <div className="membership-feed__context">
               <span>
                 {filters.saved

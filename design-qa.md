@@ -54,3 +54,54 @@
 ## Final result
 
 final result: passed
+
+---
+
+# Membership club mobile containment and discovery controls — design QA
+
+## Comparison target
+
+- Source visual truth: `/var/folders/dr/gd89g9_n1971xnx583b8qng80000gn/T/codex-clipboard-b2ac4470-ffae-4abc-896a-b0858cfa2ed6.png` (locked-card overflow) and `/var/folders/dr/gd89g9_n1971xnx583b8qng80000gn/T/codex-clipboard-136e3eef-402e-4512-8bb5-909f3a6a91cd.png` (controls exposed to a non-member).
+- Browser-rendered mobile implementation: `design-qa-assets/membership-preview-mobile-390x844.png`.
+- Browser-rendered desktop implementation: `design-qa-assets/membership-preview-desktop-1440x900.png`.
+- Combined mobile comparison evidence: `design-qa-assets/membership-mobile-reference-comparison.png` (source on the left, corrected local implementation on the right).
+- Route and state: `/klub`, logged-out preview state for visual QA. The automated unit test separately covers a logged-in session with `hasAccess: false`; live browser QA verified the full-access state with the backend-provided test entitlement.
+
+## Viewport and normalization
+
+- Source screenshots: `942 × 2048` pixels, mobile device captures. The comparison image normalizes the overflow source to `375 × 812` before placing it beside the browser capture.
+- Mobile browser viewport: `390 × 844` CSS pixels; the visible document area was `375 × 812` CSS pixels because of browser chrome/scrollbar capture.
+- Desktop browser viewport: `1440 × 900` CSS pixels; the visible document area was `1425 × 891` CSS pixels.
+- Focused comparison: the locked first-card cover and its containing card are visible at equal normalized width in the combined image. No device frame or browser chrome was treated as product UI.
+
+## Required fidelity surfaces
+
+- Fonts and typography: Existing typography, line-height, and locked-cover label styling are unchanged; the overlay remains centered over the same 16:9 media region.
+- Spacing and layout rhythm: On mobile, covers now follow the available card width rather than forcing a 210px minimum height. Card padding, media radius, and desktop media proportions remain unchanged.
+- Colors and visual tokens: Existing cream, burgundy, green, blur treatment, and lock overlay colors are unchanged.
+- Image quality and asset fidelity: Existing cover assets remain in use. The blur stays clipped to the existing media radius; no assets were replaced or generated.
+- Copy and content: Existing Slovak copy is unchanged. Preview users retain posts and their `Náhľad pre členov` overlay, while discovery controls are absent rather than disabled.
+
+## Comparison history
+
+### Pass 1
+
+- [P1] Mobile cover escaped its own card. Source evidence shows the first locked cover running past the card’s right edge. Browser measurement before the fix confirmed a `373.33px` cover inside a `351px` card at the narrow viewport.
+  - Fix: removed the mobile `210px` minimum height that, combined with `aspect-ratio: 16 / 9`, forced the cover wider than its grid track; added width/min-width/max-width containment to the card media and grid item.
+  - Post-fix evidence: the local mobile capture measures a `317px` cover inside a `351px` card, and the combined comparison shows the media fully inset and clipped to its rounded frame.
+- [P1] IP-preview users saw discovery controls even without content entitlement. The supplied screenshot shows categories, search, and media filters above locked previews.
+  - Fix: render the entire category navigation, search, media filters, saved filter, and filter context only when `/api/membership/me` returns `hasAccess: true`; preview cards continue to render in a single-column feed shell.
+  - Post-fix evidence: local mobile and desktop DOM checks found zero category/filter buttons and no search form in the preview state. The logged-in no-access unit test confirms the same DOM absence.
+- [P2] Removing the sidebar initially left the preview feed in the sidebar grid column on desktop.
+  - Fix: the preview feed now uses its own single-column grid modifier.
+  - Post-fix evidence: desktop capture measures the preview card from `16px` to `1409px`, with its cover fully within that card, and no horizontal document overflow.
+
+### Final pass
+
+- Full-view and focused comparison completed with the supplied mobile defect screenshot and browser-rendered local implementation.
+- Mobile and desktop checks found no horizontal page overflow, no media escaping its card, no relevant console warnings/errors, and no actionable P0/P1/P2 visual differences in the requested scope.
+- Interaction evidence: live full-access session showed categories, search, and all media filters; activating `Videá` updated the filter to `aria-pressed="true"`.
+
+## Final result
+
+final result: passed

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 import MembershipPostCard from './MembershipPostCard';
 
@@ -57,5 +58,22 @@ describe('MembershipPostCard thumbnail previews', () => {
     expect(
       container.querySelector('.membership-post-card__cover')
     ).not.toHaveClass('membership-post-card__cover--blurred');
+  });
+
+  it('keeps mobile card covers constrained by the card width instead of their minimum height', () => {
+    const stylesheet = readFileSync(
+      'src/styles/membership.css',
+      'utf8'
+    );
+
+    expect(stylesheet).toMatch(
+      /\.membership-post-card__main\s*\{[\s\S]*?min-width:\s*0;/
+    );
+    expect(stylesheet).toMatch(
+      /\.membership-post-card__cover\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/
+    );
+    expect(stylesheet).toMatch(
+      /@media \(max-width: 720px\)\s*\{[\s\S]*?\.membership-post-card__cover,[\s\S]*?min-height:\s*0;[\s\S]*?aspect-ratio:\s*16\s*\/\s*9;/
+    );
   });
 });
