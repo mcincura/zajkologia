@@ -1,9 +1,10 @@
 import { act, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadMembershipPreviewAccess } from '../api/client';
 import ClubPreviewGate from './ClubPreviewGate';
+import { CLUB_PREVIEW_UNLOCK_STORAGE_KEY } from '../utils/clubPreviewUnlock';
 
 vi.mock('../api/client', () => ({
   loadMembershipPreviewAccess: vi.fn(),
@@ -30,6 +31,7 @@ const createDeferred = () => {
 describe('ClubPreviewGate', () => {
   beforeEach(() => {
     vi.mocked(loadMembershipPreviewAccess).mockReset();
+    window.localStorage.removeItem(CLUB_PREVIEW_UNLOCK_STORAGE_KEY);
   });
 
   it('fails closed while the network check is still loading', () => {
@@ -99,6 +101,33 @@ describe('ClubPreviewGate', () => {
     });
 
     expect(screen.getByRole('heading', { name: /klub pre vás práve pripravujeme/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /súkromný náhľad klubu/i })).not.toBeInTheDocument();
+  });
+
+  it('uses an existing local presentation unlock only for the login route after an API failure', async () => {
+    window.localStorage.setItem(
+      CLUB_PREVIEW_UNLOCK_STORAGE_KEY,
+      JSON.stringify({ expiresAt: Date.now() + 60_000 }),
+    );
+    vi.mocked(loadMembershipPreviewAccess).mockRejectedValue(new Error('network_error'));
+
+    render(
+      <MemoryRouter initialEntries={['/klub']}>
+        <Routes>
+          <Route
+            path="/klub"
+            element={(
+              <ClubPreviewGate>
+                <h1>Súkromný náhľad klubu</h1>
+              </ClubPreviewGate>
+            )}
+          />
+          <Route path="/klub/prihlasenie" element={<h1>Len prihlásenie</h1>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Len prihlásenie' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /súkromný náhľad klubu/i })).not.toBeInTheDocument();
   });
 });
