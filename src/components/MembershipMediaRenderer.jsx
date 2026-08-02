@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check,
   Copy,
@@ -20,6 +20,142 @@ const formatBytes = (value) => {
   return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
 };
 
+const mediaSessionActions = ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'];
+
+const setMediaSessionAction = (session, action, handler) => {
+  try {
+    session.setActionHandler(action, handler);
+  } catch {
+    // Older browsers may expose Media Session without every action.
+  }
+};
+
+const updateMediaSessionPlaybackState = (state) => {
+  try {
+    if (navigator.mediaSession) navigator.mediaSession.playbackState = state;
+  } catch {
+    // Some partial Media Session implementations reject playback-state updates.
+  }
+};
+
+const AudioPostPlayer = ({
+  asset,
+  postId,
+  onMediaEvent,
+  onDurationChange,
+  artworkUrl,
+  recordStart,
+}) => {
+  const audioRef = useRef(null);
+
+  const clearMediaSession = useCallback(() => {
+    const session = navigator.mediaSession;
+    if (!session) return;
+    try {
+      session.metadata = null;
+      session.playbackState = 'none';
+    } catch {
+      // Media Session is optional browser enhancement.
+    }
+    mediaSessionActions.forEach((action) => setMediaSessionAction(session, action, null));
+  }, []);
+
+  const configureMediaSession = useCallback(() => {
+    const session = navigator.mediaSession;
+    if (!session) return;
+    const title = asset.caption || asset.filename || 'Podcast Zajkológia';
+    try {
+      if (typeof window.MediaMetadata === 'function') {
+        session.metadata = new window.MediaMetadata({
+          title,
+          artist: 'Zajkológia',
+          album: 'Zajkológia klub',
+          ...(artworkUrl ? { artwork: [{ src: artworkUrl }] } : {}),
+        });
+      }
+      session.playbackState = audioRef.current?.paused ? 'paused' : 'playing';
+    } catch {
+      // Keep native controls working when metadata cannot be configured.
+    }
+    setMediaSessionAction(session, 'play', () => {
+      const playResult = audioRef.current?.play();
+      if (playResult?.catch) playResult.catch(() => {});
+    });
+    setMediaSessionAction(session, 'pause', () => audioRef.current?.pause());
+    setMediaSessionAction(session, 'seekbackward', (details = {}) => {
+      const audio = audioRef.current;
+      if (audio) audio.currentTime = Math.max(0, audio.currentTime - (details.seekOffset || 10));
+    });
+    setMediaSessionAction(session, 'seekforward', (details = {}) => {
+      const audio = audioRef.current;
+      if (audio && Number.isFinite(audio.duration)) {
+        audio.currentTime = Math.min(audio.duration, audio.currentTime + (details.seekOffset || 10));
+      }
+    });
+    setMediaSessionAction(session, 'seekto', (details = {}) => {
+      const audio = audioRef.current;
+      if (audio && Number.isFinite(details.seekTime)) audio.currentTime = details.seekTime;
+    });
+  }, [artworkUrl, asset.caption, asset.filename]);
+
+  useEffect(() => clearMediaSession, [asset.id, clearMediaSession]);
+
+  const syncPosition = () => {
+    const session = navigator.mediaSession;
+    const audio = audioRef.current;
+    if (!session?.setPositionState || !audio || !Number.isFinite(audio.duration) || audio.duration <= 0) {
+      return;
+    }
+    try {
+      session.setPositionState({
+        duration: audio.duration,
+        playbackRate: audio.playbackRate || 1,
+        position: Math.min(audio.currentTime, audio.duration),
+      });
+    } catch {
+      // Position state is not available on all Media Session implementations.
+    }
+  };
+
+  return (
+    <section className="membership-post-media__audio" data-primary-audio={onDurationChange ? 'true' : undefined}>
+      <div className="membership-post-media__icon" aria-hidden="true">
+        <Headphones size={25} />
+      </div>
+      <div>
+        <strong>{asset.caption || asset.filename || 'Audio nahrávka'}</strong>
+        <audio
+          ref={audioRef}
+          controls
+          preload="metadata"
+          crossOrigin="use-credentials"
+          onLoadedMetadata={(event) => {
+            onDurationChange?.(event.currentTarget.duration);
+            syncPosition();
+          }}
+          onPlay={() => {
+            recordStart(asset);
+            configureMediaSession();
+            syncPosition();
+          }}
+          onPause={() => {
+            updateMediaSessionPlaybackState('paused');
+            syncPosition();
+          }}
+          onTimeUpdate={syncPosition}
+          onEnded={() => {
+            updateMediaSessionPlaybackState('none');
+            onMediaEvent?.({ postId, assetId: asset.id, eventType: 'media_complete' });
+          }}
+        >
+          <source src={membershipMediaUrl(asset.streamUrl)} type={asset.mimeType} />
+          Váš prehliadač nepodporuje prehrávanie audia.
+        </audio>
+      </div>
+    </section>
+  );
+};
+
 const MembershipMediaRenderer = ({
   postId,
   assets = [],
@@ -27,6 +163,8 @@ const MembershipMediaRenderer = ({
   onMediaEvent,
   downloadBusy = null,
   onStatus,
+  onAudioDurationChange,
+  artworkUrl = '',
 }) => {
   const startedAssets = useRef(new Set());
   const [copiedAssetId, setCopiedAssetId] = useState(null);
@@ -97,30 +235,15 @@ const MembershipMediaRenderer = ({
 
         if (asset.assetType === 'audio' && asset.streamUrl) {
           return (
-            <section className="membership-post-media__audio" key={asset.id}>
-              <div className="membership-post-media__icon" aria-hidden="true">
-                <Headphones size={25} />
-              </div>
-              <div>
-                <strong>{asset.caption || asset.filename || 'Audio nahrávka'}</strong>
-                <audio
-                  controls
-                  preload="metadata"
-                  crossOrigin="use-credentials"
-                  onPlay={() => recordStart(asset)}
-                  onEnded={() =>
-                    onMediaEvent?.({
-                      postId,
-                      assetId: asset.id,
-                      eventType: 'media_complete',
-                    })
-                  }
-                >
-                  <source src={membershipMediaUrl(asset.streamUrl)} type={asset.mimeType} />
-                  Váš prehliadač nepodporuje prehrávanie audia.
-                </audio>
-              </div>
-            </section>
+            <AudioPostPlayer
+              asset={asset}
+              artworkUrl={artworkUrl}
+              key={asset.id}
+              onDurationChange={onAudioDurationChange}
+              onMediaEvent={onMediaEvent}
+              postId={postId}
+              recordStart={recordStart}
+            />
           );
         }
 

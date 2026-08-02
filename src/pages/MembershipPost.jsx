@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   Share2,
+  Timer,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Link, useParams } from 'react-router-dom';
@@ -40,6 +41,25 @@ const formatDate = (value) => {
   }
 };
 
+const formatEpisodeDuration = (value) => {
+  const seconds = Math.round(Number(value));
+  if (!Number.isFinite(seconds) || seconds <= 0) return '';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  if (hours) {
+    return [
+      `${hours} h`,
+      minutes ? `${minutes} min` : '',
+      remainingSeconds ? `${remainingSeconds} s` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (minutes) return `${minutes} min${remainingSeconds ? ` ${remainingSeconds} s` : ''}`;
+  return `${remainingSeconds} s`;
+};
+
 const MembershipPost = () => {
   const { slug = '' } = useParams();
   const [post, setPost] = useState(null);
@@ -50,12 +70,14 @@ const MembershipPost = () => {
   const [downloadBusy, setDownloadBusy] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [loadedEpisodeDuration, setLoadedEpisodeDuration] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       setError('');
+      setLoadedEpisodeDuration(null);
       try {
         const [postResult, nextSession, feedResult] = await Promise.all([
           loadMembershipPost(slug),
@@ -105,9 +127,19 @@ const MembershipPost = () => {
     () => contentAssets.find((asset) => asset.assetType === 'video') || null,
     [contentAssets]
   );
+  const primaryAudio = useMemo(
+    () => contentAssets.find((asset) => asset.assetType === 'audio') || null,
+    [contentAssets]
+  );
   const remainingAssets = useMemo(
-    () => contentAssets.filter((asset) => asset.id !== primaryVideo?.id),
-    [contentAssets, primaryVideo]
+    () =>
+      contentAssets.filter(
+        (asset) => asset.id !== primaryVideo?.id && asset.id !== primaryAudio?.id
+      ),
+    [contentAssets, primaryAudio, primaryVideo]
+  );
+  const episodeDuration = formatEpisodeDuration(
+    primaryAudio?.durationSeconds || loadedEpisodeDuration
   );
 
   const toggleSaved = async () => {
@@ -251,6 +283,12 @@ const MembershipPost = () => {
                 {post.categories?.map((category) => (
                   <span key={category.id}>{category.name}</span>
                 ))}
+                {episodeDuration ? (
+                  <span className="membership-post-article__episode-duration">
+                    <Timer size={16} aria-hidden="true" />
+                    Dĺžka epizódy: {episodeDuration}
+                  </span>
+                ) : null}
               </div>
               {!post.locked ? (
                 <div className="membership-post-article__actions">
@@ -274,6 +312,19 @@ const MembershipPost = () => {
                 </div>
               ) : null}
             </header>
+
+            {primaryAudio ? (
+              <MembershipMediaRenderer
+                postId={post.id}
+                assets={[primaryAudio]}
+                onDownload={download}
+                onMediaEvent={mediaEvent}
+                downloadBusy={downloadBusy}
+                onStatus={setStatus}
+                onAudioDurationChange={setLoadedEpisodeDuration}
+                artworkUrl={post.cover?.url ? membershipMediaUrl(post.cover.url) : ''}
+              />
+            ) : null}
 
             {primaryVideo ? (
               <MembershipMediaRenderer
@@ -347,6 +398,7 @@ const MembershipPost = () => {
                   onMediaEvent={mediaEvent}
                   downloadBusy={downloadBusy}
                   onStatus={setStatus}
+                  artworkUrl={post.cover?.url ? membershipMediaUrl(post.cover.url) : ''}
                 />
                 <MembershipComments
                   postId={post.id}
