@@ -144,6 +144,21 @@ describe('Membership', () => {
     expect(screen.queryByText(/jedno jednoduché členstvo/i)).not.toBeInTheDocument();
   });
 
+  it('does not redirect-loop an authenticated account without active access', async () => {
+    vi.mocked(loadMembershipSession).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: false,
+      member: { id: 18, email: 'inactive@example.com' },
+    });
+
+    renderPage('/klub/prihlasenie', { loginOnly: true });
+
+    expect(
+      await screen.findByRole('heading', { name: /členstvo nie je aktívne/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /použiť iný e-mail/i })).toBeInTheDocument();
+  });
+
   it('starts the purchase with email verification before Stripe', async () => {
     const user = userEvent.setup();
     vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });

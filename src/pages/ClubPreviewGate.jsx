@@ -9,9 +9,9 @@ import {
 } from '../utils/clubPreviewUnlock';
 
 const ClubPreviewGate = ({ children, loginOnly = false }) => {
-  const [isAllowed, setIsAllowed] = useState(false);
+  const [isAllowed, setIsAllowed] = useState(null);
   const [presentationUnlocked, setPresentationUnlocked] = useState(
-    () => hasClubPreviewPresentationUnlock(),
+    () => !loginOnly && hasClubPreviewPresentationUnlock(),
   );
 
   useEffect(() => {
@@ -31,11 +31,23 @@ const ClubPreviewGate = ({ children, loginOnly = false }) => {
     };
   }, [loginOnly]);
 
-  if (loginOnly || isAllowed) return children;
+  if (loginOnly || isAllowed === true) return children;
 
-  // The stored value is deliberately a presentation-only escape hatch. It
-  // sends a visitor to the OTP surface; protected APIs still require a server
-  // session and an active membership.
+  // Do not redirect while entitlement is being resolved. Redirecting between
+  // /klub and /klub/prihlasenie created a loop for already-authenticated users.
+  // The API still protects every member-only post and asset.
+  if (isAllowed === null) {
+    return (
+      <main className="membership-page" id="main-content">
+        <section className="membership-empty" aria-live="polite">
+          <p>Načítavam Zajkológia Klub…</p>
+        </section>
+      </main>
+    );
+  }
+
+  // The five-tap flag is only a path to the real login. It never bypasses the
+  // server decision or exposes the club UI to an unauthenticated visitor.
   if (presentationUnlocked) return <Navigate to="/klub/prihlasenie" replace />;
 
   return (

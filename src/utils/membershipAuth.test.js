@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   clearMembershipSession,
@@ -8,6 +8,7 @@ import {
 
 describe('portable membership browser session', () => {
   beforeEach(() => {
+    clearMembershipSession();
     window.localStorage.clear();
   });
 
@@ -32,5 +33,25 @@ describe('portable membership browser session', () => {
     });
     clearMembershipSession();
     expect(getMembershipSessionToken()).toBe('');
+  });
+
+  it('keeps the verified token for the current visit when Safari rejects storage access', () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Storage is unavailable', 'SecurityError');
+    });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage is unavailable', 'SecurityError');
+    });
+
+    try {
+      expect(storeMembershipSession({
+        token: 'iphone-token',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      })).toBe(true);
+      expect(getMembershipSessionToken()).toBe('iphone-token');
+    } finally {
+      getItem.mockRestore();
+      setItem.mockRestore();
+    }
   });
 });

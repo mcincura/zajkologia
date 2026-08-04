@@ -242,10 +242,10 @@ const Membership = ({ loginOnly = false }) => {
   }, [feedRevision, filters, loginOnly]);
 
   useEffect(() => {
-    if (loginOnly && session?.isAuthenticated) {
+    if (loginOnly && session?.hasAccess) {
       navigate('/klub', { replace: true });
     }
-  }, [loginOnly, navigate, session?.isAuthenticated]);
+  }, [loginOnly, navigate, session?.hasAccess]);
 
   useEffect(() => {
     if (!confirmingPayment || !isAuthenticated || hasAccess) return undefined;
@@ -585,8 +585,27 @@ const Membership = ({ loginOnly = false }) => {
               </form>
             )}
           </section>
-        ) : (
+        ) : hasAccess ? (
           <div className="membership-loading" role="status">Overujem váš prístup…</div>
+        ) : (
+          <section className="membership-login" aria-labelledby="membership-inactive-title">
+            <div className="membership-login__intro">
+              <div>
+                <h1 id="membership-inactive-title">Členstvo nie je aktívne</h1>
+                <p>
+                  Tento e-mail je overený, ale nemá aktívne platené ani bezplatné členstvo.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="membership-button membership-button--secondary"
+              onClick={logout}
+              disabled={busy === 'logout'}
+            >
+              {busy === 'logout' ? 'Odhlasujem…' : 'Použiť iný e-mail'}
+            </button>
+          </section>
         )}
       </main>
     );

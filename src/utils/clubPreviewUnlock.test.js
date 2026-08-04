@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CLUB_PREVIEW_UNLOCK_STORAGE_KEY,
@@ -8,7 +8,10 @@ import {
 } from './clubPreviewUnlock';
 
 describe('club preview presentation unlock', () => {
-  afterEach(() => window.localStorage.clear());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+  });
 
   it('persists only a local, expiring presentation flag', () => {
     const now = 1_000;
@@ -25,5 +28,21 @@ describe('club preview presentation unlock', () => {
 
     expect(hasClubPreviewPresentationUnlock(1_000 + CLUB_PREVIEW_UNLOCK_TTL_MS)).toBe(false);
     expect(window.localStorage.getItem(CLUB_PREVIEW_UNLOCK_STORAGE_KEY)).toBeNull();
+  });
+
+  it('fails safely instead of crashing when Safari blocks storage reads', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Storage is unavailable', 'SecurityError');
+    });
+
+    expect(hasClubPreviewPresentationUnlock()).toBe(false);
+  });
+
+  it('keeps the page usable when Safari blocks storage writes', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage is unavailable', 'SecurityError');
+    });
+
+    expect(unlockClubPreviewPresentation()).toBe(false);
   });
 });

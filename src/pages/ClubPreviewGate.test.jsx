@@ -34,12 +34,12 @@ describe('ClubPreviewGate', () => {
     window.localStorage.removeItem(CLUB_PREVIEW_UNLOCK_STORAGE_KEY);
   });
 
-  it('fails closed while the network check is still loading', () => {
+  it('shows a stable loading state while access is being resolved', () => {
     vi.mocked(loadMembershipPreviewAccess).mockReturnValue(new Promise(() => {}));
 
     renderGate();
 
-    expect(screen.getByRole('heading', { name: /klub pre vás práve pripravujeme/i })).toBeInTheDocument();
+    expect(screen.getByText(/načítavam zajkológia klub/i)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /súkromný náhľad klubu/i })).not.toBeInTheDocument();
   });
 
@@ -74,6 +74,24 @@ describe('ClubPreviewGate', () => {
     expect(screen.queryByRole('heading', { name: /klub pre vás práve pripravujeme/i })).not.toBeInTheDocument();
   });
 
+  it('does not touch preview storage on the dedicated login route', () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Storage is unavailable', 'SecurityError');
+    });
+
+    render(
+      <MemoryRouter>
+        <ClubPreviewGate loginOnly>
+          <h1>Len prihlásenie</h1>
+        </ClubPreviewGate>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('heading', { name: 'Len prihlásenie' })).toBeInTheDocument();
+    expect(getItem).not.toHaveBeenCalled();
+    getItem.mockRestore();
+  });
+
   it('keeps showing the construction page after a denied response settles', async () => {
     const access = createDeferred();
     vi.mocked(loadMembershipPreviewAccess).mockReturnValue(access.promise);
@@ -104,7 +122,7 @@ describe('ClubPreviewGate', () => {
     expect(screen.queryByRole('heading', { name: /súkromný náhľad klubu/i })).not.toBeInTheDocument();
   });
 
-  it('uses an existing local presentation unlock only for the login route after an API failure', async () => {
+  it('waits for the server before using the presentation unlock as a path to login', async () => {
     window.localStorage.setItem(
       CLUB_PREVIEW_UNLOCK_STORAGE_KEY,
       JSON.stringify({ expiresAt: Date.now() + 60_000 }),
@@ -129,5 +147,17 @@ describe('ClubPreviewGate', () => {
 
     expect(await screen.findByRole('heading', { name: 'Len prihlásenie' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /súkromný náhľad klubu/i })).not.toBeInTheDocument();
+  });
+
+  it('lets a server-authorized member through even when the presentation flag exists', async () => {
+    window.localStorage.setItem(
+      CLUB_PREVIEW_UNLOCK_STORAGE_KEY,
+      JSON.stringify({ expiresAt: Date.now() + 60_000 }),
+    );
+    vi.mocked(loadMembershipPreviewAccess).mockResolvedValue(true);
+
+    renderGate();
+
+    expect(await screen.findByRole('heading', { name: /súkromný náhľad klubu/i })).toBeInTheDocument();
   });
 });
