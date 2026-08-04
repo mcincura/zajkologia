@@ -14,7 +14,6 @@ import ProductPreviewPage from './pages/admin/ProductPreviewPage';
 import { CartProvider } from './cart/CartContext';
 
 const Admin = lazy(() => import('./pages/Admin'));
-const ClubPreviewGate = lazy(() => import('./pages/ClubPreviewGate'));
 const Membership = lazy(() => import('./pages/Membership'));
 const MembershipPost = lazy(() => import('./pages/MembershipPost'));
 const Discussion = lazy(() => import('./pages/Discussion'));
@@ -54,32 +53,11 @@ function App() {
               <Route path="cart" element={<CartPage />} />
               <Route path="checkout/success" element={<CheckoutSuccess />} />
               <Route path="downloads/:token" element={<DigitalDownloads />} />
-              <Route
-                path="klub"
-                element={(
-                  <ClubPreviewGate>
-                    <Membership />
-                  </ClubPreviewGate>
-                )}
-              />
-              <Route
-                path="klub/prihlasenie"
-                element={(
-                  <ClubPreviewGate loginOnly>
-                    <Membership loginOnly />
-                  </ClubPreviewGate>
-                )}
-              />
-              <Route path="klub/diskusia" element={<ClubPreviewGate><Discussion /></ClubPreviewGate>} />
-              <Route path="klub/diskusia/:threadId" element={<ClubPreviewGate><Discussion /></ClubPreviewGate>} />
-              <Route
-                path="klub/:slug"
-                element={(
-                  <ClubPreviewGate>
-                    <MembershipPost />
-                  </ClubPreviewGate>
-                )}
-              />
+              <Route path="klub" element={<Membership />} />
+              <Route path="klub/prihlasenie" element={<Membership loginOnly />} />
+              <Route path="klub/diskusia" element={<Discussion />} />
+              <Route path="klub/diskusia/:threadId" element={<Discussion />} />
+              <Route path="klub/:slug" element={<MembershipPost />} />
               <Route path="o-nas" element={<About />} />
               <Route path="obchodne-podmienky" element={<Terms />} />
               <Route path="odstupenie-od-zmluvy" element={<WithdrawalRequest />} />

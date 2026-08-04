@@ -164,11 +164,6 @@ export const loadDiscussionReplies = async (threadId, { limit = 20, offset = 0 }
 export const createDiscussionThread = async ({ title, body }) => (await apiFetch('/api/membership/discussions', { method: 'POST', body: JSON.stringify({ title, body }) }))?.thread || null;
 export const createDiscussionReply = async ({ threadId, body }) => (await apiFetch(`/api/membership/discussions/${encodeURIComponent(threadId)}/replies`, { method: 'POST', body: JSON.stringify({ body }) }))?.reply || null;
 
-export const loadMembershipPreviewAccess = async () => {
-    const data = await apiFetch('/api/membership/preview-access');
-    return data?.allowed === true;
-};
-
 export const createMembershipCheckout = async (email) => {
     const data = await apiFetch('/api/membership/checkout', {
         method: 'POST',
