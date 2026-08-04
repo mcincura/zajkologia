@@ -138,6 +138,23 @@ export const loadMembershipOffer = async () => {
     return data?.offer || null;
 };
 
+export const loadMembershipMemberCount = async () => {
+    const data = await apiFetch('/api/membership/member-count');
+    return Number.isFinite(Number(data?.memberCount)) ? Number(data.memberCount) : 0;
+};
+
+export const loadDiscussionThreads = async ({ limit = 20, offset = 0 } = {}) => {
+    const data = await apiFetch(`/api/membership/discussions?${new URLSearchParams({ limit: String(limit), offset: String(offset) })}`);
+    return { threads: data?.threads || [], nextOffset: data?.nextOffset ?? null };
+};
+export const loadDiscussionThread = async (threadId) => (await apiFetch(`/api/membership/discussions/${encodeURIComponent(threadId)}`))?.thread || null;
+export const loadDiscussionReplies = async (threadId, { limit = 20, offset = 0 } = {}) => {
+    const data = await apiFetch(`/api/membership/discussions/${encodeURIComponent(threadId)}/replies?${new URLSearchParams({ limit: String(limit), offset: String(offset) })}`);
+    return { replies: data?.replies || [], nextOffset: data?.nextOffset ?? null };
+};
+export const createDiscussionThread = async ({ title, body }) => (await apiFetch('/api/membership/discussions', { method: 'POST', body: JSON.stringify({ title, body }) }))?.thread || null;
+export const createDiscussionReply = async ({ threadId, body }) => (await apiFetch(`/api/membership/discussions/${encodeURIComponent(threadId)}/replies`, { method: 'POST', body: JSON.stringify({ body }) }))?.reply || null;
+
 export const loadMembershipPreviewAccess = async () => {
     const data = await apiFetch('/api/membership/preview-access');
     return data?.allowed === true;

@@ -7,6 +7,7 @@ import {
   createMembershipCheckout,
   loadMembershipCategories,
   loadMembershipOffer,
+  loadMembershipMemberCount,
   loadMembershipPosts,
   loadMembershipSession,
   requestMembershipCode,
@@ -20,6 +21,7 @@ vi.mock('../api/client', () => ({
   createMembershipCheckout: vi.fn(),
   loadMembershipCategories: vi.fn(),
   loadMembershipOffer: vi.fn(),
+  loadMembershipMemberCount: vi.fn(),
   loadMembershipPosts: vi.fn(),
   loadMembershipSession: vi.fn(),
   logoutMembership: vi.fn(),
@@ -39,11 +41,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadMembershipOffer).mockResolvedValue({
     available: true,
-    unitAmount: 499,
+    unitAmount: 399,
     currency: 'eur',
     interval: 'month',
   });
   vi.mocked(loadMembershipCategories).mockResolvedValue([]);
+  vi.mocked(loadMembershipMemberCount).mockResolvedValue(0);
   vi.mocked(loadMembershipPosts).mockResolvedValue({
     access: 'preview',
     posts: [],
@@ -60,7 +63,10 @@ describe('Membership', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: /Istota v starostlivosti/i })).toBeInTheDocument();
-    expect(screen.getByText(/4,99/)).toBeInTheDocument();
+    expect(screen.getByText(/^3,99/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Prvý mesiac zaplatíte 3,99 €, druhý mesiac máte zdarma/i)
+    ).toBeInTheDocument();
 
     const loginEmail = screen.getByLabelText(/Členský e-mail/i);
     await user.type(loginEmail, 'member@example.com');
@@ -380,6 +386,61 @@ describe('Membership', () => {
         saved: false,
       })
     );
+  });
+
+  it('resets paginated results for a new Slovak search and only renders the new page', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipSession).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: true,
+      member: { id: 22, email: 'member@example.com', hasStripeCustomer: true },
+      subscription: { status: 'active', grantsAccess: true },
+    });
+    vi.mocked(loadMembershipPosts)
+      .mockResolvedValueOnce({
+        access: 'full',
+        nextCursor: 'next-page',
+        posts: [{ id: 1, slug: 'stary', title: 'Starý výsledok', assetTypes: [], locked: false }],
+      })
+      .mockResolvedValueOnce({
+        access: 'full',
+        nextCursor: null,
+        posts: [{ id: 2, slug: 'zajačik', title: 'Zajačik a výživa', assetTypes: [], locked: false }],
+      });
+
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Starý výsledok' })).toBeInTheDocument();
+    await user.type(screen.getByRole('searchbox', { name: 'Hľadať v klube' }), 'zajačik');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('heading', { name: 'Zajačik a výživa' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Starý výsledok' })).not.toBeInTheDocument();
+    expect(loadMembershipPosts).toHaveBeenLastCalledWith({
+      q: 'zajačik',
+      category: '',
+      type: '',
+      saved: false,
+    });
+  });
+
+  it('shows a retryable error state when a member search fails', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipSession).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: true,
+      member: { id: 22, email: 'member@example.com', hasStripeCustomer: true },
+      subscription: { status: 'active', grantsAccess: true },
+    });
+    vi.mocked(loadMembershipPosts)
+      .mockRejectedValueOnce({ data: { error: 'membership_publishing_not_migrated' } })
+      .mockResolvedValueOnce({ access: 'full', nextCursor: null, posts: [] });
+
+    renderPage();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Príspevky sa nepodarilo načítať/i);
+    await user.click(screen.getByRole('button', { name: 'Skúsiť znova' }));
+    await waitFor(() => expect(loadMembershipPosts).toHaveBeenCalledTimes(2));
   });
 
   it('unlocks the portal when the Stripe confirmation poll grants access', async () => {

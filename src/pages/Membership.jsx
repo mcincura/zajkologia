@@ -19,6 +19,7 @@ import {
   createMembershipCheckout,
   loadMembershipCategories,
   loadMembershipOffer,
+  loadMembershipMemberCount,
   loadMembershipPosts,
   loadMembershipSession,
   logoutMembership,
@@ -90,12 +91,14 @@ const Membership = ({ loginOnly = false }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [offer, setOffer] = useState(null);
+  const [memberCount, setMemberCount] = useState(null);
   const [session, setSession] = useState(null);
   const [categories, setCategories] = useState([]);
   const [posts, setPosts] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState('');
   const [feedRevision, setFeedRevision] = useState(0);
   const [queryInput, setQueryInput] = useState('');
   const [filters, setFilters] = useState({
@@ -199,6 +202,13 @@ const Membership = ({ loginOnly = false }) => {
   }, [loginOnly]);
 
   useEffect(() => {
+    if (loginOnly) return undefined;
+    let cancelled = false;
+    loadMembershipMemberCount().then((value) => { if (!cancelled) setMemberCount(value); }).catch(() => { if (!cancelled) setMemberCount(-1); });
+    return () => { cancelled = true; };
+  }, [loginOnly]);
+
+  useEffect(() => {
     if (loginOnly) {
       setFeedLoading(false);
       return undefined;
@@ -206,6 +216,10 @@ const Membership = ({ loginOnly = false }) => {
     let cancelled = false;
     const loadFeed = async () => {
       setFeedLoading(true);
+      setFeedError('');
+      // A changed query/filter is a new result set: never retain the prior
+      // cursor or cards while the first page is being resolved.
+      setNextCursor(null);
       try {
         const result = await loadMembershipPosts(filters);
         if (!cancelled) {
@@ -213,7 +227,10 @@ const Membership = ({ loginOnly = false }) => {
           setNextCursor(result.nextCursor);
         }
       } catch (error) {
-        if (!cancelled) setStatus(errorMessage(error));
+        if (!cancelled) {
+          setPosts([]);
+          setFeedError(errorMessage(error));
+        }
       } finally {
         if (!cancelled) setFeedLoading(false);
       }
@@ -409,7 +426,8 @@ const Membership = ({ loginOnly = false }) => {
 
   const submitSearch = (event) => {
     event.preventDefault();
-    setFilters((current) => ({ ...current, q: queryInput.trim() }));
+    const q = queryInput.trim();
+    setFilters((current) => (current.q === q ? current : { ...current, q }));
   };
 
   const loadMore = async () => {
@@ -420,7 +438,10 @@ const Membership = ({ loginOnly = false }) => {
         ...filters,
         cursor: nextCursor,
       });
-      setPosts((current) => [...current, ...result.posts]);
+      setPosts((current) => {
+        const seen = new Set(current.map((post) => post.id));
+        return [...current, ...result.posts.filter((post) => !seen.has(post.id))];
+      });
       setNextCursor(result.nextCursor);
     } catch (error) {
       setStatus(errorMessage(error));
@@ -583,6 +604,9 @@ const Membership = ({ loginOnly = false }) => {
               Praktické príspevky, videá, audio nahrávky, PDF príručky a členské
               výhody na jednom bezpečnom mieste.
             </p>
+            <p className="membership-member-proof" role="status">
+              {memberCount === null ? 'Overujeme počet členov klubu…' : memberCount < 0 ? 'Počet členov sa teraz nepodarilo načítať.' : memberCount === 0 ? 'Klub sa práve otvára pre prvých členov.' : `${memberCount} ${memberCount === 1 ? 'člen je' : memberCount < 5 ? 'členovia sú' : 'členov je'} už v klube.`}
+            </p>
             <ul className="membership-benefits">
               <li><Check size={17} aria-hidden="true" /> Nový a aktualizovaný obsah počas mesiaca</li>
               <li><Check size={17} aria-hidden="true" /> Komentáre a uložené príspevky pre členov</li>
@@ -596,7 +620,10 @@ const Membership = ({ loginOnly = false }) => {
               <strong>{formatMoney(offer?.unitAmount, offer?.currency)}</strong>
               {typeof offer?.unitAmount === 'number' ? <span>/ mesiac</span> : null}
             </div>
-            <p>Bez dlhodobej viazanosti. Platba a obnova prebiehajú bezpečne cez Stripe.</p>
+            <p>
+              Prvý mesiac zaplatíte 3,99 €, druhý mesiac máte zdarma, potom
+              3,99 € mesačne. Bez dlhodobej viazanosti.
+            </p>
             {!checkoutCodeRequested ? (
               <form onSubmit={beginCheckoutVerification} className="membership-form">
                 <label htmlFor="membership-signup-email">E-mail pre členstvo</label>
@@ -731,6 +758,7 @@ const Membership = ({ loginOnly = false }) => {
                 Spravovať členstvo
               </button>
             ) : null}
+            {(complimentaryAccess || testAccess) ? <span className="membership-billing-note">Tento prístup nemá platbu v Stripe.</span> : null}
             <button
               type="button"
               className="membership-icon-button"
@@ -923,6 +951,18 @@ const Membership = ({ loginOnly = false }) => {
             <div className="membership-feed__loading" role="status">
               <LoaderCircle className="membership-spinner" size={20} aria-hidden="true" />
               Načítavam príspevky…
+            </div>
+          ) : feedError ? (
+            <div className="membership-empty membership-empty--error" role="alert">
+              <h2>Príspevky sa nepodarilo načítať</h2>
+              <p>{feedError}</p>
+              <button
+                type="button"
+                className="membership-button membership-button--secondary"
+                onClick={() => setFeedRevision((value) => value + 1)}
+              >
+                Skúsiť znova
+              </button>
             </div>
           ) : posts.length ? (
             <div className="membership-feed__posts">

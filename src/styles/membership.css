@@ -671,6 +671,17 @@
   }
 }
 
+.membership-discussion { width: min(780px, 100%); margin-inline: auto; }
+.membership-discussion h1 { font-family: Georgia, 'Times New Roman', serif; color: var(--membership-ink); font-size: clamp(2rem, 6vw, 3.5rem); }
+.membership-club-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.5rem; }
+.membership-club-nav a { min-height: 44px; display: inline-flex; align-items: center; padding: .55rem .85rem; border-radius: 999px; color: var(--membership-green); font-weight: 800; text-decoration: none; }
+.membership-club-nav a[aria-current='page'] { background: var(--membership-green); color: #fff; }
+.membership-discussion textarea { min-height: 9rem; resize: vertical; }
+.membership-discussion__form { margin: 1.5rem 0; padding: 1rem; border: 1px solid rgba(52,19,32,.12); border-radius: 18px; background: rgba(255,255,255,.7); }
+.membership-discussion__list, .membership-discussion__replies { display: grid; gap: .75rem; }
+.membership-discussion__list a, .membership-discussion__thread, .membership-discussion__replies article { display: grid; gap: .35rem; padding: 1rem; border: 1px solid rgba(52,19,32,.12); border-radius: 16px; background: rgba(255,255,255,.74); color: var(--membership-ink); text-decoration: none; }
+.membership-discussion__list span, .membership-discussion__meta, .membership-discussion time { color: var(--membership-muted); font-size: .84rem; }
+
 @media (forced-colors: active) {
   .membership-button:focus-visible,
   .membership-icon-button:focus-visible,
@@ -904,9 +915,10 @@
 
 .membership-feed__filters {
   display: flex;
+  flex-wrap: wrap;
   max-width: 100%;
   gap: 0.55rem;
-  overflow-x: auto;
+  overflow-x: visible;
   padding: 0.15rem 0.15rem 0.35rem;
   scrollbar-width: thin;
 }
@@ -1818,7 +1830,8 @@
     display: flex;
     max-width: 100%;
     gap: 0.45rem;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow-x: visible;
     padding-bottom: 0.35rem;
   }
 
@@ -1832,8 +1845,8 @@
 
   .membership-feed-sidebar button {
     width: auto;
-    flex: 0 0 auto;
-    white-space: nowrap;
+    flex: 1 1 max-content;
+    white-space: normal;
   }
 }
 
