@@ -3,6 +3,11 @@ import {
     getStoredWelcomeDiscountToken,
 } from '../utils/welcomeDiscount';
 import { getCheckoutAttribution } from '../utils/attribution';
+import {
+    clearMembershipSession,
+    getMembershipSessionToken,
+    storeMembershipSession,
+} from '../utils/membershipAuth';
 
 // No runtime app-config.js dependency.
 // - Dev default: relative "/api" so Vite proxy avoids browser CORS.
@@ -22,10 +27,14 @@ export const apiUrl = (path) => {
 };
 
 export const apiFetch = async (path, options = {}) => {
+    const memberSessionToken = path.startsWith('/api/membership')
+        ? getMembershipSessionToken()
+        : '';
     const res = await fetch(apiUrl(path), {
         ...options,
         headers: {
             'Content-Type': 'application/json',
+            ...(memberSessionToken ? { Authorization: `Bearer ${memberSessionToken}` } : {}),
             ...(options.headers || {}),
         },
         credentials: 'include',
@@ -169,8 +178,11 @@ export const createMembershipCheckout = async (email) => {
     return data;
 };
 
-export const loadMembershipSession = async () =>
-    apiFetch('/api/membership/me');
+export const loadMembershipSession = async () => {
+    const data = await apiFetch('/api/membership/me');
+    if (!data?.isAuthenticated) clearMembershipSession();
+    return data;
+};
 
 export const requestMembershipCode = async (email) =>
     apiFetch('/api/membership/auth/request-code', {
@@ -178,14 +190,27 @@ export const requestMembershipCode = async (email) =>
         body: JSON.stringify({ email }),
     });
 
-export const verifyMembershipCode = async ({ email, code }) =>
-    apiFetch('/api/membership/auth/verify', {
+export const verifyMembershipCode = async ({ email, code }) => {
+    const data = await apiFetch('/api/membership/auth/verify', {
         method: 'POST',
         body: JSON.stringify({ email, code }),
     });
+    if (data?.memberSessionToken && data?.memberSessionExpiresAt) {
+        storeMembershipSession({
+            token: data.memberSessionToken,
+            expiresAt: data.memberSessionExpiresAt,
+        });
+    }
+    return data;
+};
 
-export const logoutMembership = async () =>
-    apiFetch('/api/membership/auth/logout', { method: 'POST' });
+export const logoutMembership = async () => {
+    try {
+        return await apiFetch('/api/membership/auth/logout', { method: 'POST' });
+    } finally {
+        clearMembershipSession();
+    }
+};
 
 export const loadMembershipContent = async () => {
     const data = await apiFetch('/api/membership/content');
@@ -271,9 +296,13 @@ export const membershipMediaUrl = (path) =>
     path ? apiUrl(path) : '';
 
 export const downloadMembershipPostAsset = async ({ url, filename }) => {
+    const memberSessionToken = getMembershipSessionToken();
     const res = await fetch(apiUrl(url), {
         method: 'GET',
         credentials: 'include',
+        headers: memberSessionToken
+            ? { Authorization: `Bearer ${memberSessionToken}` }
+            : {},
     });
     if (!res.ok) {
         const text = await res.text();
@@ -306,9 +335,13 @@ export const createMembershipBillingPortal = async () => {
 };
 
 export const downloadMembershipFile = async ({ contentId, filename }) => {
+    const memberSessionToken = getMembershipSessionToken();
     const res = await fetch(apiUrl(`/api/membership/content/${encodeURIComponent(contentId)}/download`), {
         method: 'GET',
         credentials: 'include',
+        headers: memberSessionToken
+            ? { Authorization: `Bearer ${memberSessionToken}` }
+            : {},
     });
     if (!res.ok) {
         const text = await res.text();
