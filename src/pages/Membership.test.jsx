@@ -41,7 +41,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadMembershipOffer).mockResolvedValue({
     available: true,
-    unitAmount: 399,
+    unitAmount: 299,
     currency: 'eur',
     interval: 'month',
   });
@@ -63,9 +63,9 @@ describe('Membership', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: /Istota v starostlivosti/i })).toBeInTheDocument();
-    expect(screen.getByText(/^3,99/)).toBeInTheDocument();
+    expect(screen.getByText(/^2,99/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Prvý mesiac zaplatíte 3,99 €, druhý mesiac máte zdarma/i)
+      screen.getByText(/Prvý mesiac zaplatíte 2,99 €, druhý mesiac máte zdarma/i)
     ).toBeInTheDocument();
 
     const loginEmail = screen.getByLabelText(/Členský e-mail/i);
@@ -212,7 +212,7 @@ describe('Membership', () => {
     vi.mocked(loadMembershipOffer).mockResolvedValue({
       available: false,
       testAccessEnabled: true,
-      unitAmount: 499,
+      unitAmount: 299,
       currency: 'eur',
       interval: 'month',
     });
@@ -367,6 +367,7 @@ describe('Membership', () => {
     renderPage();
 
     const search = await screen.findByRole('searchbox', { name: 'Hľadať v klube' });
+    expect(screen.getByRole('link', { name: /Diskusia v klube/i })).toHaveAttribute('href', '/klub/diskusia');
     expect(screen.getAllByRole('button', { name: 'Všetko' })).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Začíname' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Videá' })).toBeInTheDocument();

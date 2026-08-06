@@ -184,6 +184,11 @@ const Home = () => {
                 aria-hidden="true"
               />
 
+              <p className="home-hero-club-card__offer">
+                <strong>1 + 1 mesiac v Klube</strong>
+                <span>Zaplaťte prvý mesiac, druhý máte zdarma.</span>
+              </p>
+
               <ul className="home-hero-club-card__features" aria-label="Obsah v Zajkológia Klube">
                 {CLUB_FEATURES.map(({ label, icon }) => (
                   <li key={label}>

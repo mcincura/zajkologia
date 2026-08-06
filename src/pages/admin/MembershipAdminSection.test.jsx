@@ -18,7 +18,7 @@ const overviewResponse = {
     configured: true,
     salesEnabled: false,
     billingPortalConfigured: true,
-    unitAmount: 499,
+    unitAmount: 299,
     currency: 'eur',
   },
   content: [],
@@ -64,7 +64,7 @@ describe('MembershipAdminSection', () => {
     render(<MembershipAdminSection />);
 
     expect(await screen.findByText('Súkromná príprava')).toBeInTheDocument();
-    expect(screen.getByText(/4,99/)).toBeInTheDocument();
+    expect(screen.getByText(/2,99/)).toBeInTheDocument();
     expect(screen.getByText('Koncept')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Nový príspevok' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Draft guide' })).toBeInTheDocument();

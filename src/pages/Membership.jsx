@@ -9,10 +9,11 @@ import {
   LoaderCircle,
   LockKeyhole,
   LogOut,
+  MessageCircle,
   Search,
   Sparkles,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   createMembershipBillingPortal,
@@ -640,8 +641,8 @@ const Membership = ({ loginOnly = false }) => {
               {typeof offer?.unitAmount === 'number' ? <span>/ mesiac</span> : null}
             </div>
             <p>
-              Prvý mesiac zaplatíte 3,99 €, druhý mesiac máte zdarma, potom
-              3,99 € mesačne. Bez dlhodobej viazanosti.
+              Prvý mesiac zaplatíte 2,99 €, druhý mesiac máte zdarma, potom
+              2,99 € mesačne. Bez dlhodobej viazanosti.
             </p>
             {!checkoutCodeRequested ? (
               <form onSubmit={beginCheckoutVerification} className="membership-form">
@@ -766,6 +767,15 @@ const Membership = ({ loginOnly = false }) => {
             </div>
           </div>
           <div className="membership-club-header__actions">
+            {hasAccess ? (
+              <Link
+                className="membership-button membership-button--secondary membership-club-header__discussion-link"
+                to="/klub/diskusia"
+              >
+                <MessageCircle size={18} aria-hidden="true" />
+                Diskusia v klube
+              </Link>
+            ) : null}
             {session.member?.hasStripeCustomer && !testAccess && !complimentaryAccess ? (
               <button
                 type="button"
