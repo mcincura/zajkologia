@@ -186,7 +186,7 @@ const Home = () => {
 
               <p className="home-hero-club-card__offer">
                 <strong>1 + 1 mesiac v Klube</strong>
-                <span>Zaplaťte prvý mesiac, druhý máte zdarma.</span>
+                <span>Zaplatíte prvý mesiac a druhý získate zadarmo.</span>
               </p>
 
               <ul className="home-hero-club-card__features" aria-label="Obsah v Zajkológia Klube">

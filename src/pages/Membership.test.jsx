@@ -65,7 +65,7 @@ describe('Membership', () => {
     expect(await screen.findByRole('heading', { name: /Istota v starostlivosti/i })).toBeInTheDocument();
     expect(screen.getByText(/^2,99/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Prvý mesiac zaplatíte 2,99 €, druhý mesiac máte zdarma/i)
+      screen.getByText(/Zaplatíte prvý mesiac a druhý získate zadarmo/i)
     ).toBeInTheDocument();
 
     const loginEmail = screen.getByLabelText(/Členský e-mail/i);

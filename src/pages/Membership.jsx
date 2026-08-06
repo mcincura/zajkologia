@@ -641,7 +641,7 @@ const Membership = ({ loginOnly = false }) => {
               {typeof offer?.unitAmount === 'number' ? <span>/ mesiac</span> : null}
             </div>
             <p>
-              Prvý mesiac zaplatíte 2,99 €, druhý mesiac máte zdarma, potom
+              Zaplatíte prvý mesiac a druhý získate zadarmo. Potom platíte
               2,99 € mesačne. Bez dlhodobej viazanosti.
             </p>
             {!checkoutCodeRequested ? (
