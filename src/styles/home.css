@@ -122,7 +122,7 @@
   position: relative;
   z-index: 2;
   display: grid;
-  width: 72%;
+  width: 100%;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.35rem;
   margin: 0.8rem 0 1.15rem;
@@ -305,7 +305,6 @@
   }
 
   .home-hero-club-card__features {
-    width: 74%;
     gap: 0.2rem;
     margin: 0.45rem 0 0.65rem;
   }
@@ -354,7 +353,6 @@
   }
 
   .home-hero-club-card__features {
-    width: 76%;
     gap: 0.05rem;
   }
 
