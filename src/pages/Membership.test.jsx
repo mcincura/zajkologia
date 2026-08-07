@@ -55,6 +55,20 @@ beforeEach(() => {
 });
 
 describe('Membership', () => {
+  it('presents the member count as an icon badge', async () => {
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+    vi.mocked(loadMembershipMemberCount).mockResolvedValue(12);
+
+    renderPage();
+
+    const memberProof = await screen.findByRole('status', {
+      name: '12 členov je už v klube.',
+    });
+    expect(memberProof).toHaveClass('membership-member-proof');
+    expect(memberProof.querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+  });
+
   it('shows the offer and requests a passwordless login code', async () => {
     const user = userEvent.setup();
     vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });

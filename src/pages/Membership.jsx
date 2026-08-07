@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Search,
   Sparkles,
+  UsersRound,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -613,6 +614,17 @@ const Membership = ({ loginOnly = false }) => {
   }
 
   const subscription = session?.subscription;
+  const hasVisibleMemberCount = memberCount > 0;
+  const memberProofText = memberCount === null
+    ? 'Overujeme počet členov klubu…'
+    : memberCount < 0
+      ? 'Počet členov sa teraz nepodarilo načítať.'
+      : memberCount === 0
+        ? 'Klub sa práve otvára pre prvých členov.'
+        : `${memberCount} ${memberCount === 1 ? 'člen je' : memberCount < 5 ? 'členovia sú' : 'členov je'} už v klube.`;
+  const memberProofLabel = hasVisibleMemberCount
+    ? `${memberCount === 1 ? 'člen je' : memberCount < 5 ? 'členovia sú' : 'členov je'} už v klube.`
+    : memberProofText;
 
   return (
     <main className="membership-page" id="main-content">
@@ -624,9 +636,20 @@ const Membership = ({ loginOnly = false }) => {
               Praktické príspevky, videá, audio nahrávky, PDF príručky a členské
               výhody na jednom bezpečnom mieste.
             </p>
-            <p className="membership-member-proof" role="status">
-              {memberCount === null ? 'Overujeme počet členov klubu…' : memberCount < 0 ? 'Počet členov sa teraz nepodarilo načítať.' : memberCount === 0 ? 'Klub sa práve otvára pre prvých členov.' : `${memberCount} ${memberCount === 1 ? 'člen je' : memberCount < 5 ? 'členovia sú' : 'členov je'} už v klube.`}
-            </p>
+            <div
+              className={`membership-member-proof${memberCount < 0 ? ' is-unavailable' : ''}`}
+              role="status"
+              aria-live="polite"
+              aria-label={memberProofText}
+            >
+              <span className="membership-member-proof__icon" aria-hidden="true">
+                <UsersRound size={22} strokeWidth={2} />
+              </span>
+              <span className="membership-member-proof__copy">
+                {hasVisibleMemberCount ? <strong>{memberCount}</strong> : null}
+                <span>{memberProofLabel}</span>
+              </span>
+            </div>
             <ul className="membership-benefits">
               <li><Check size={17} aria-hidden="true" /> Nový a aktualizovaný obsah počas mesiaca</li>
               <li><Check size={17} aria-hidden="true" /> Komentáre a uložené príspevky pre členov</li>
