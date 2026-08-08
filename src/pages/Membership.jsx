@@ -9,7 +9,6 @@ import {
   LoaderCircle,
   LockKeyhole,
   LogOut,
-  MessageCircle,
   Search,
   Sparkles,
   UsersRound,
@@ -790,15 +789,6 @@ const Membership = ({ loginOnly = false }) => {
             </div>
           </div>
           <div className="membership-club-header__actions">
-            {hasAccess ? (
-              <Link
-                className="membership-button membership-button--secondary membership-club-header__discussion-link"
-                to="/klub/diskusia"
-              >
-                <MessageCircle size={18} aria-hidden="true" />
-                Diskusia v klube
-              </Link>
-            ) : null}
             {session.member?.hasStripeCustomer && !testAccess && !complimentaryAccess ? (
               <button
                 type="button"
@@ -967,7 +957,9 @@ const Membership = ({ loginOnly = false }) => {
                   <button
                     type="button"
                     key={filter.label}
-                    className={filters.type === filter.key ? 'is-active' : ''}
+                    className={`membership-feed__filter ${
+                      filters.type === filter.key ? 'is-active' : ''
+                    }`}
                     onClick={() =>
                       setFilters((current) => ({ ...current, type: filter.key }))
                     }
@@ -976,6 +968,12 @@ const Membership = ({ loginOnly = false }) => {
                     {filter.label}
                   </button>
                 ))}
+                <Link
+                  className="membership-feed__filter"
+                  to="/klub/diskusia"
+                >
+                  Diskusia
+                </Link>
               </div>
             </div>
           ) : null}

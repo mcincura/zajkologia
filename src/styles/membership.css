@@ -986,20 +986,25 @@
   scrollbar-width: thin;
 }
 
-.membership-feed__filters button {
+.membership-feed__filter {
+  display: inline-flex;
   min-height: 40px;
   padding: 0.55rem 0.9rem;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(52, 19, 32, 0.12);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.58);
   color: var(--membership-muted);
   font-size: 0.88rem;
   font-weight: 750;
+  line-height: normal;
+  text-decoration: none;
 }
 
-.membership-feed__filters button:hover,
-.membership-feed__filters button.is-active {
+.membership-feed__filter:hover,
+.membership-feed__filter.is-active {
   border-color: var(--membership-green);
   background: var(--membership-green);
   color: #fff;

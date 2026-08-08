@@ -359,6 +359,7 @@ describe('Membership', () => {
     expect(screen.queryByRole('button', { name: 'Audio' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'PDF a knihy' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Obrázky' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Diskusia' })).not.toBeInTheDocument();
   });
 
   it('keeps full-access discovery controls visible and applies search and filters', async () => {
@@ -381,7 +382,10 @@ describe('Membership', () => {
     renderPage();
 
     const search = await screen.findByRole('searchbox', { name: 'Hľadať v klube' });
-    expect(screen.getByRole('link', { name: /Diskusia v klube/i })).toHaveAttribute('href', '/klub/diskusia');
+    const discussionLink = screen.getByRole('link', { name: 'Diskusia' });
+    expect(discussionLink).toHaveAttribute('href', '/klub/diskusia');
+    expect(discussionLink).toHaveClass('membership-feed__filter');
+    expect(discussionLink.closest('.membership-feed__filters')).not.toBeNull();
     expect(screen.getAllByRole('button', { name: 'Všetko' })).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Začíname' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Videá' })).toBeInTheDocument();
