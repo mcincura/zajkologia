@@ -986,7 +986,7 @@
   scrollbar-width: thin;
 }
 
-.membership-feed__filter {
+.membership-feed__filters .membership-feed__filter {
   display: inline-flex;
   min-height: 40px;
   padding: 0.55rem 0.9rem;
@@ -1003,8 +1003,8 @@
   text-decoration: none;
 }
 
-.membership-feed__filter:hover,
-.membership-feed__filter.is-active {
+.membership-feed__filters .membership-feed__filter:hover,
+.membership-feed__filters .membership-feed__filter.is-active {
   border-color: var(--membership-green);
   background: var(--membership-green);
   color: #fff;
