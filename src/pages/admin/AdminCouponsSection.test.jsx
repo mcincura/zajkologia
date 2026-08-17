@@ -62,6 +62,16 @@ const errorCoupon = {
   syncErrorCode: 'stripe_coupon_sync_failed',
 };
 
+const archivedCoupon = {
+  ...activeCoupon,
+  id: 3,
+  code: 'OLD10',
+  name: 'Archivovaný kupón',
+  status: 'archived',
+  lifecycleState: 'archived',
+  archivedAt: '2026-08-17T09:00:00.000Z',
+};
+
 const detailFor = (coupon) => ({
   coupon,
   versions: [{ id: `${coupon.id}-v`, version: coupon.version, syncStatus: coupon.syncStatus, createdAt: '2026-08-17T10:00:00.000Z' }],
@@ -74,8 +84,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(apiFetch).mockResolvedValue({ products: [{ slug: 'guide', name: 'Guide', colorVariants: [] }] });
   vi.mocked(loadAdminCoupons).mockResolvedValue({
-    coupons: [activeCoupon, errorCoupon],
-    stateCounts: { active: 1, sync_error: 1 },
+    coupons: [activeCoupon, errorCoupon, archivedCoupon],
+    stateCounts: { active: 1, sync_error: 1, archived: 1 },
   });
   vi.mocked(loadAdminCoupon).mockImplementation(async (id) => detailFor(id === 2 ? errorCoupon : activeCoupon));
 });
@@ -85,12 +95,15 @@ describe('AdminCouponsSection', () => {
     render(<AdminCouponsSection />);
     expect(await screen.findByRole('button', { name: /JAR10/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /VIP20/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /OLD10/ })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Stav kupónu')).toHaveValue('current');
 
     await userEvent.selectOptions(screen.getByLabelText('Stav kupónu'), 'sync_error');
     expect(screen.queryByRole('button', { name: /JAR10/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /VIP20/ })).toBeInTheDocument();
 
     await userEvent.selectOptions(screen.getByLabelText('Stav kupónu'), 'all');
+    expect(screen.getByRole('button', { name: /OLD10/ })).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Hľadať kupón'), 'jarná');
     expect(screen.getByRole('button', { name: /JAR10/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /VIP20/ })).not.toBeInTheDocument();

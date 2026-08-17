@@ -22,6 +22,7 @@ import {
 import '../../styles/admin-coupons.css';
 
 const LIFECYCLE_OPTIONS = [
+  ['current', 'Aktuálne'],
   ['all', 'Všetky'],
   ['draft', 'Koncept'],
   ['scheduled', 'Naplánované'],
@@ -173,7 +174,7 @@ const AdminCouponsSection = () => {
   const [stateCounts, setStateCounts] = useState({});
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
-  const [stateFilter, setStateFilter] = useState('all');
+  const [stateFilter, setStateFilter] = useState('current');
   const [draft, setDraft] = useState(emptyDraft);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -233,7 +234,8 @@ const AdminCouponsSection = () => {
   const visibleCoupons = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('sk');
     return coupons.filter((coupon) => {
-      if (stateFilter !== 'all' && coupon.lifecycleState !== stateFilter) return false;
+      if (stateFilter === 'current' && coupon.lifecycleState === 'archived') return false;
+      if (!['all', 'current'].includes(stateFilter) && coupon.lifecycleState !== stateFilter) return false;
       if (!needle) return true;
       return `${coupon.code} ${coupon.name} ${coupon.productSlug || ''}`.toLocaleLowerCase('sk').includes(needle);
     });
@@ -407,7 +409,7 @@ const AdminCouponsSection = () => {
         <section className="admin-coupons__catalog" aria-label="Zoznam kupónov">
           <div className="admin-coupons__tools">
             <label><span className="sr-only">Hľadať kupón</span><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Kód, názov alebo produkt" /></label>
-            <label><span className="sr-only">Stav kupónu</span><select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>{LIFECYCLE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}{value === 'all' ? ` (${coupons.length})` : ` (${stateCounts[value] || 0})`}</option>)}</select></label>
+            <label><span className="sr-only">Stav kupónu</span><select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>{LIFECYCLE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}{value === 'all' ? ` (${coupons.length})` : value === 'current' ? ` (${coupons.filter((coupon) => coupon.lifecycleState !== 'archived').length})` : ` (${stateCounts[value] || 0})`}</option>)}</select></label>
           </div>
 
           {loading && <div className="admin-coupons__empty" role="status">Načítavam kupóny…</div>}
