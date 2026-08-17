@@ -26,9 +26,13 @@ export const CartProvider = ({ children }) => {
   );
   const replaceCart = useCallback((items) => dispatch({ type: 'replaceCart', items }), []);
   const clearCart = useCallback(() => dispatch({ type: 'clearCart' }), []);
+  const applyCoupon = useCallback((coupon) => dispatch({ type: 'applyCoupon', coupon }), []);
+  const removeCoupon = useCallback(() => dispatch({ type: 'removeCoupon' }), []);
+  const clearCheckout = useCallback(() => dispatch({ type: 'clearCheckout' }), []);
 
   const value = useMemo(() => ({
     items: state.items,
+    coupon: state.coupon,
     itemCount: getCartItemCount(state.items),
     physicalItemCount: getPhysicalCartItemCount(state.items),
     addItem,
@@ -36,7 +40,21 @@ export const CartProvider = ({ children }) => {
     updateQuantity,
     replaceCart,
     clearCart,
-  }), [addItem, clearCart, removeItem, replaceCart, state.items, updateQuantity]);
+    applyCoupon,
+    removeCoupon,
+    clearCheckout,
+  }), [
+    addItem,
+    applyCoupon,
+    clearCart,
+    clearCheckout,
+    removeCoupon,
+    removeItem,
+    replaceCart,
+    state.coupon,
+    state.items,
+    updateQuantity,
+  ]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

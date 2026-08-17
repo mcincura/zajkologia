@@ -110,16 +110,18 @@ describe('cart storage', () => {
       setItem: () => {},
     };
 
-    expect(loadCartStateFromStorage(storage)).toEqual({ items: [] });
+    expect(loadCartStateFromStorage(storage)).toEqual({ items: [], coupon: null });
   });
 
   it('saves only source-of-truth cart fields', () => {
     const saved = {};
+    const removed = [];
     const storage = {
       getItem: () => null,
       setItem: (key, value) => {
         saved[key] = value;
       },
+      removeItem: (key) => removed.push(key),
     };
 
     saveCartStateToStorage({
@@ -134,13 +136,53 @@ describe('cart storage', () => {
     }, storage);
 
     expect(JSON.parse(saved[CART_STORAGE_KEY])).toEqual({
-      version: 1,
+      version: 2,
       items: [{
         productSlug: 'physical-ball',
         variantCode: 'black',
         quantity: 1,
         addedAt: '2026-06-25T12:00:00.000Z',
       }],
+      coupon: null,
     });
+    expect(removed).toEqual(expect.arrayContaining([
+      'zajkologia_cart_v1',
+      'zajkologia.welcomeDiscountCode',
+      'zajkologia.welcomeDiscountToken',
+    ]));
+  });
+
+  it('migrates legacy welcome state once without resurrecting an explicit removal', () => {
+    const values = new Map([
+      ['zajkologia.welcomeDiscountCode', 'welcome25'],
+      ['zajkologia.welcomeDiscountToken', 'signed-token'],
+    ]);
+    const storage = { getItem: (key) => values.get(key) ?? null };
+
+    expect(loadCartStateFromStorage(storage).coupon).toEqual(expect.objectContaining({
+      code: 'WELCOME25',
+      claimToken: 'signed-token',
+    }));
+
+    values.set(CART_STORAGE_KEY, JSON.stringify({ version: 2, items: [], coupon: null }));
+    expect(loadCartStateFromStorage(storage).coupon).toBeNull();
+  });
+
+  it('persists one coupon across cart changes and clears it only explicitly', () => {
+    let state = { items: [], coupon: null };
+    state = cartReducer(state, {
+      type: 'applyCoupon',
+      coupon: { code: ' welcome25 ', claimToken: 'signed-token', source: 'welcome' },
+    });
+    expect(state.coupon).toEqual(expect.objectContaining({
+      code: 'WELCOME25',
+      claimToken: 'signed-token',
+      source: 'welcome',
+    }));
+
+    state = cartReducer(state, { type: 'clearCart' });
+    expect(state.coupon.code).toBe('WELCOME25');
+    state = cartReducer(state, { type: 'removeCoupon' });
+    expect(state.coupon).toBeNull();
   });
 });

@@ -63,6 +63,7 @@ function App() {
               <Route path="odstupenie-od-zmluvy" element={<WithdrawalRequest />} />
               <Route path="admin" element={<Navigate to="/admin/orders" replace />} />
               <Route path="admin/orders" element={<Admin section="orders" />} />
+              <Route path="admin/coupons" element={<Admin section="coupons" />} />
               <Route path="admin/products" element={<Admin section="products" />} />
               <Route path="admin/posts" element={<Admin section="posts" />} />
               <Route path="admin/membership" element={<Admin section="membership" />} />

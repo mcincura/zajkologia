@@ -3,19 +3,10 @@ export const WELCOME_DISCOUNT_TOKEN_STORAGE_KEY = 'zajkologia.welcomeDiscountTok
 export const EMAIL_CAPTURE_SUPPRESSED_STORAGE_KEY = 'zajkologia.emailCaptureSuppressed';
 export const WELCOME_DISCOUNT_OFFER_CHANGED_EVENT = 'zajkologia:welcome-discount-offer-changed';
 export const EMAIL_CAPTURE_VISIBILITY_CHANGED_EVENT = 'zajkologia:email-capture-visibility-changed';
-export const WELCOME_DISCOUNT_CODE = 'ZAJKOLOGIA25';
-
-const LEGACY_WELCOME_DISCOUNT_CODES = new Set(['ZAJKOLOGIA30']);
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
-export const normalizeWelcomeDiscountCode = (discountCode) => {
-  const normalizedCode = String(discountCode || '').trim();
-  if (LEGACY_WELCOME_DISCOUNT_CODES.has(normalizedCode.toUpperCase())) {
-    return WELCOME_DISCOUNT_CODE;
-  }
-
-  return normalizedCode;
-};
+export const normalizeWelcomeDiscountCode = (discountCode) =>
+  String(discountCode || '').trim().toUpperCase().slice(0, 64);
 
 const notifyWelcomeDiscountOfferChanged = () => {
   if (typeof window === 'undefined') return;

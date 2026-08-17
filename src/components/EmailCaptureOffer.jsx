@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { CheckCircle2, Copy, Mail, Tag, X } from 'lucide-react';
-import { signupForWelcomeDiscount } from '../api/client';
+import { loadWelcomeDiscountOffer, signupForWelcomeDiscount } from '../api/client';
+import { useCart } from '../cart/useCart';
 import {
   EMAIL_CAPTURE_VISIBILITY_CHANGED_EVENT,
   WELCOME_DISCOUNT_OFFER_CHANGED_EVENT,
@@ -15,65 +16,90 @@ import '../styles/email-capture.css';
 export const MARKETING_CONSENT_TEXT =
   'Súhlasím, aby mi Zajkológia na zadanú e-mailovú adresu posielala marketingové a newsletterové e-maily. Môžu obsahovať užitočné informácie o starostlivosti o králiky, novinky, produktové tipy a občasné ponuky. Súhlas môžem kedykoľvek odvolať.';
 
-const baseCopy = {
-  eyebrow: '25% zľava na prvý nákup',
-  headline: '',
-  subheadline:
-    'Chceš dostávať užitočné tipy o starostlivosti, novinky a občasné ponuky? Ako poďakovanie od nás získaš 25% zľavu na prvý nákup.',
-  benefit: '',
-  emailLabel: 'E-mailová adresa',
-  emailPlaceholder: 'tvoj@email.sk',
-  cta: 'Získať 25% zľavu',
-  successTitle: 'Ďakujeme',
-  success:
-    'Zľavový kód uplatníme automaticky pri nákupe.',
-  emailSent:
-    'Hotovo, poslali sme ti e-mail so zľavou. Klikni na tlačidlo v e-maile a zľavu aktivujeme pre nákup v tomto prehliadači.',
-  discountIntro: 'Tvoj uvítací kód na 25%:',
-  invalidEmail: 'Zadaj prosím platnú e-mailovú adresu.',
-  missingConsent:
-    'Na získanie zľavy je potrebný súhlas so zasielaním marketingových/newsletterových e-mailov.',
-  emailFailed:
-    'E-mail so zľavou sa nepodarilo odoslať. Skús to prosím znova o chvíľu.',
-  alreadySubscribed:
-    'Tento e-mail už máme v zozname. Uvítacia zľava je pripravená:',
-  discountUsed:
-    'Tento e-mail už máme v zozname a uvítacia zľava preň už bola použitá. Tipy a novinky ti budeme posielať ďalej.',
-  discountReserved:
-    'Uvítacia zľava je už pripravená v otvorenej pokladni. Dokonči otvorenú platbu alebo to skús neskôr.',
-  discountIpLimit:
-    'Z tejto siete už bolo vytvorených viac uvítacích zliav. Ak si myslíš, že ide o omyl, napíš nám na kontakt@zajkologia.com.',
+const formatOfferAmount = (offer) => {
+  if (offer?.discountType === 'percent_off' && Number(offer.percentOff) > 0) {
+    return `${Number(offer.percentOff)}%`;
+  }
+  if (offer?.discountType === 'amount_off' && Number(offer.amountOff) > 0) {
+    return new Intl.NumberFormat('sk-SK', {
+      style: 'currency',
+      currency: String(offer.currency || 'EUR').toUpperCase(),
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(Number(offer.amountOff) / 100);
+  }
+  return '';
 };
 
-const placementCopy = {
-  home: baseCopy,
-  product: {
-    ...baseCopy,
-    eyebrow: 'Uvítacia zľava',
-    headline: 'Získaj 25% zľavu na tento produkt',
+const createPlacementCopy = (offer) => {
+  const offerAmount = formatOfferAmount(offer);
+  const discountAccusative = offerAmount ? `${offerAmount} zľavu` : 'uvítaciu zľavu';
+  const discountNominative = offerAmount ? `${offerAmount} zľava` : 'Uvítacia zľava';
+
+  const baseCopy = {
+    eyebrow: `${discountNominative} na prvý nákup`,
+    headline: '',
     subheadline:
-      'Ak chceš praktické rady k starostlivosti o králika aj občasné novinky zo Zajkológie, prihlás sa do e-mailového zoznamu a získaj uvítací kód.',
-    benefit: 'Zľavu uplatníme automaticky pri prechode do pokladne.',
-    cta: 'Chcem zľavový kód',
-  },
-  article: {
-    ...baseCopy,
-    eyebrow: 'Pokračuj so Zajkológiou',
-    headline: 'Páčia sa ti praktické rady ku králikom?',
-    subheadline:
-      'Pridaj sa do e-mailového zoznamu a dostaneš ďalšie užitočné tipy, novinky a občasné ponuky. Ako poďakovanie ti pošleme 25% zľavu na prvý nákup.',
-    benefit: 'Pokojnejšia starostlivosť začína pri dobrých informáciách.',
-    cta: 'Pridať sa a získať zľavu',
-  },
+      `Chceš dostávať užitočné tipy o starostlivosti, novinky a občasné ponuky? Ako poďakovanie od nás získaš ${discountAccusative} na prvý nákup.`,
+    benefit: '',
+    emailLabel: 'E-mailová adresa',
+    emailPlaceholder: 'tvoj@email.sk',
+    cta: `Získať ${discountAccusative}`,
+    successTitle: 'Ďakujeme',
+    success:
+      'Zľavový kód uplatníme automaticky pri nákupe.',
+    emailSent:
+      'Hotovo, poslali sme ti e-mail so zľavou. Klikni na tlačidlo v e-maile a zľavu aktivujeme pre nákup v tomto prehliadači.',
+    discountIntro: offerAmount ? `Tvoj uvítací kód na ${offerAmount}:` : 'Tvoj uvítací kód:',
+    invalidEmail: 'Zadaj prosím platnú e-mailovú adresu.',
+    missingConsent:
+      'Na získanie zľavy je potrebný súhlas so zasielaním marketingových/newsletterových e-mailov.',
+    emailFailed:
+      'E-mail so zľavou sa nepodarilo odoslať. Skús to prosím znova o chvíľu.',
+    alreadySubscribed:
+      'Tento e-mail už máme v zozname. Uvítacia zľava je pripravená:',
+    discountUsed:
+      'Tento e-mail už máme v zozname a uvítacia zľava preň už bola použitá. Tipy a novinky ti budeme posielať ďalej.',
+    discountReserved:
+      'Uvítacia zľava je už pripravená v otvorenej pokladni. Dokonči otvorenú platbu alebo to skús neskôr.',
+    discountIpLimit:
+      'Z tejto siete už bolo vytvorených viac uvítacích zliav. Ak si myslíš, že ide o omyl, napíš nám na kontakt@zajkologia.com.',
+  };
+
+  return {
+    home: baseCopy,
+    product: {
+      ...baseCopy,
+      eyebrow: 'Uvítacia zľava',
+      headline: `Získaj ${discountAccusative} na tento produkt`,
+      subheadline:
+        'Ak chceš praktické rady k starostlivosti o králika aj občasné novinky zo Zajkológie, prihlás sa do e-mailového zoznamu a získaj uvítací kód.',
+      benefit: 'Zľavu uplatníme automaticky pri prechode do pokladne.',
+      cta: 'Chcem zľavový kód',
+    },
+    article: {
+      ...baseCopy,
+      eyebrow: 'Pokračuj so Zajkológiou',
+      headline: 'Páčia sa ti praktické rady ku králikom?',
+      subheadline:
+        `Pridaj sa do e-mailového zoznamu a dostaneš ďalšie užitočné tipy, novinky a občasné ponuky. Ako poďakovanie ti pošleme ${discountAccusative} na prvý nákup.`,
+      benefit: 'Pokojnejšia starostlivosť začína pri dobrých informáciách.',
+      cta: 'Pridať sa a získať zľavu',
+    },
+  };
 };
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
 const EmailCaptureOffer = ({ placement = 'home' }) => {
+  const { applyCoupon } = useCart();
   const emailId = useId();
   const consentId = useId();
   const consentDetailsTitleId = useId();
-  const copy = placementCopy[placement] || baseCopy;
+  const [offer, setOffer] = useState(null);
+  const [offerAvailability, setOfferAvailability] = useState('loading');
+  const placementCopy = createPlacementCopy(offer);
+  const copy = placementCopy[placement] || placementCopy.home;
 
   const [email, setEmail] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
@@ -88,6 +114,22 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
   const [copied, setCopied] = useState(false);
   const [isConsentDetailsOpen, setIsConsentDetailsOpen] = useState(false);
   const [isSuppressed, setIsSuppressed] = useState(() => isEmailCaptureSuppressed());
+
+  useEffect(() => {
+    let active = true;
+    loadWelcomeDiscountOffer()
+      .then((nextOffer) => {
+        if (!active) return;
+        setOffer(nextOffer);
+        setOfferAvailability(nextOffer ? 'available' : 'unavailable');
+      })
+      .catch(() => {
+        if (active) setOfferAvailability('unknown');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const syncStoredOffer = () => {
@@ -160,6 +202,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
         consentAccepted,
         source: placement,
       });
+      if (data?.offer) setOffer(data.offer);
       const normalizedDiscountCode = normalizeWelcomeDiscountCode(data?.discountCode);
 
       if (data?.discountAvailable && data?.emailSent && !data?.discountToken) {
@@ -193,6 +236,11 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
       storeWelcomeDiscountOffer({
         discountCode: normalizedDiscountCode,
         discountToken: data.discountToken,
+      });
+      applyCoupon({
+        code: normalizedDiscountCode,
+        claimToken: data.discountToken,
+        source: 'welcome',
       });
       setDiscountCode(normalizedDiscountCode);
       setDiscountToken(data.discountToken);
@@ -243,7 +291,7 @@ const EmailCaptureOffer = ({ placement = 'home' }) => {
       : unavailableMessage;
   const successTitle = hasDiscountCode && !alreadySubscribed ? copy.successTitle : '';
 
-  if (isSuppressed && status !== 'success') return null;
+  if ((isSuppressed || offerAvailability === 'unavailable') && status !== 'success') return null;
 
   return (
     <>

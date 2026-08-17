@@ -2,13 +2,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCartCheckoutSession, createCheckoutSession } from '../api/client';
+import { createCartCheckoutSession, createCheckoutSession, quoteCheckout } from '../api/client';
 import { CartProvider } from '../cart/CartContext';
+import { CART_STORAGE_KEY } from '../cart/cartState';
 import { ProductDetailView } from './ProductDetails';
 
 vi.mock('../api/client', () => ({
   createCartCheckoutSession: vi.fn(),
   createCheckoutSession: vi.fn(),
+  quoteCheckout: vi.fn(),
   loadVisitorCountry: vi.fn(async () => 'SK'),
 }));
 
@@ -56,14 +58,30 @@ const renderProductDetail = (product = mixedProduct) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
 });
 
 describe('ProductDetailView', () => {
   it('routes mixed bundle buy-now through one-item cart checkout', async () => {
     vi.mocked(createCartCheckoutSession).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(quoteCheckout).mockResolvedValue({
+      currency: 'eur',
+      subtotal: 1299,
+      discountAmount: 130,
+      total: 1319,
+      normalizedCode: 'MIX10',
+      coupon: { code: 'MIX10', name: 'Mix discount' },
+      items: [{ discountAmount: 130, netAmount: 1169 }],
+    });
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
+      version: 2,
+      items: [],
+      coupon: { code: 'MIX10', source: 'manual' },
+    }));
     renderProductDetail();
 
-    await userEvent.type(screen.getByPlaceholderText(/zľavový kód/i), 'mix10');
+    await waitFor(() => expect(quoteCheckout).toHaveBeenCalled());
+    expect(await screen.findByText('MIX10')).toBeInTheDocument();
     await userEvent.click(screen.getAllByRole('button', { name: /predobjednať za/i })[0]);
 
     await waitFor(() => {

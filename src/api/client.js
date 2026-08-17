@@ -1,7 +1,3 @@
-import {
-    clearStoredWelcomeDiscountOffer,
-    getStoredWelcomeDiscountToken,
-} from '../utils/welcomeDiscount';
 import { getCheckoutAttribution } from '../utils/attribution';
 import {
     clearMembershipSession,
@@ -61,39 +57,20 @@ export const apiFetch = async (path, options = {}) => {
 };
 
 export const createCheckoutSession = async (productSlug, options = {}) => {
-    const explicitDiscountToken = options.discountToken;
-    const storedDiscountToken =
-        explicitDiscountToken || options.disableStoredDiscount
-            ? ''
-            : getStoredWelcomeDiscountToken();
-    const discountToken = explicitDiscountToken || storedDiscountToken;
     const attribution = options.attribution || getCheckoutAttribution();
-    const requestCheckoutSession = (token) => apiFetch('/api/stripe/checkout-session', {
+    const data = await apiFetch('/api/stripe/checkout-session', {
         method: 'POST',
         body: JSON.stringify({
             productSlug,
             ...(options.variantCode ? { variantCode: options.variantCode } : {}),
             ...(options.quantity ? { quantity: options.quantity } : {}),
             ...(options.couponCode ? { couponCode: options.couponCode } : {}),
-            ...(token ? { discountToken: token } : {}),
+            ...(options.claimToken || options.discountToken
+                ? { claimToken: options.claimToken || options.discountToken }
+                : {}),
             attribution,
         }),
     });
-
-    let data;
-    try {
-        data = await requestCheckoutSession(discountToken);
-    } catch (err) {
-        if (
-            storedDiscountToken &&
-            err?.data?.error?.startsWith?.('welcome_discount_')
-        ) {
-            clearStoredWelcomeDiscountOffer();
-            data = await requestCheckoutSession('');
-        } else {
-            throw err;
-        }
-    }
 
     if (!data?.checkoutUrl) {
         throw new Error('missing_checkout_url');
@@ -109,6 +86,7 @@ export const createCartCheckoutSession = async (items, options = {}) => {
         body: JSON.stringify({
             items,
             ...(options.couponCode ? { couponCode: options.couponCode } : {}),
+            ...(options.claimToken ? { claimToken: options.claimToken } : {}),
             attribution,
         }),
     });
@@ -120,11 +98,54 @@ export const createCartCheckoutSession = async (items, options = {}) => {
     return data;
 };
 
+export const quoteCheckout = async (items, options = {}) => {
+    const data = await apiFetch('/api/coupons/quote', {
+        method: 'POST',
+        body: JSON.stringify({
+            items,
+            ...(options.couponCode ? { couponCode: options.couponCode } : {}),
+            ...(options.claimToken ? { claimToken: options.claimToken } : {}),
+        }),
+    });
+    return data?.quote || null;
+};
+
+export const loadAdminCoupons = async ({ search = '', state = 'all' } = {}) => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (state && state !== 'all') params.set('state', state);
+    const data = await apiFetch(`/api/coupons/admin${params.size ? `?${params}` : ''}`);
+    return { coupons: data?.coupons || [], stateCounts: data?.stateCounts || {} };
+};
+
+export const loadAdminCoupon = async (couponId) =>
+    apiFetch(`/api/coupons/admin/${encodeURIComponent(couponId)}`);
+
+export const createAdminCoupon = async (payload) =>
+    apiFetch('/api/coupons/admin', { method: 'POST', body: JSON.stringify(payload) });
+
+export const updateAdminCoupon = async (couponId, payload) =>
+    apiFetch(`/api/coupons/admin/${encodeURIComponent(couponId)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+
+export const runAdminCouponAction = async (couponId, action, payload = {}) =>
+    apiFetch(`/api/coupons/admin/${encodeURIComponent(couponId)}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
 export const signupForWelcomeDiscount = async ({ email, consentAccepted, source }) => {
     return apiFetch('/api/newsletter/discount-signup', {
         method: 'POST',
         body: JSON.stringify({ email, consentAccepted, source }),
     });
+};
+
+export const loadWelcomeDiscountOffer = async () => {
+    const data = await apiFetch('/api/newsletter/discount-offer');
+    return data?.offer || null;
 };
 
 export const loadProducts = async () => {

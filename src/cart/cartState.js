@@ -1,6 +1,9 @@
 import { PRODUCT_TYPE, hasPhysicalDelivery, hasDigitalDelivery } from '../utils/productTypes';
 
-export const CART_STORAGE_KEY = 'zajkologia_cart_v1';
+export const CART_STORAGE_KEY = 'zajkologia_cart_v2';
+export const LEGACY_CART_STORAGE_KEY = 'zajkologia_cart_v1';
+const LEGACY_WELCOME_CODE_KEY = 'zajkologia.welcomeDiscountCode';
+const LEGACY_WELCOME_TOKEN_KEY = 'zajkologia.welcomeDiscountToken';
 
 const getCartLineKey = ({ productSlug, variantCode = null }) =>
   `${productSlug}::${variantCode || ''}`;
@@ -27,17 +30,39 @@ const sanitizeStoredItem = (item) => {
   };
 };
 
+const sanitizeCoupon = (coupon) => {
+  const code = String(coupon?.code || coupon?.couponCode || '').trim().toUpperCase().slice(0, 64);
+  const claimToken = String(coupon?.claimToken || coupon?.discountToken || '').trim().slice(0, 256);
+  if (!code && !claimToken) return null;
+  return {
+    code,
+    ...(claimToken ? { claimToken } : {}),
+    source: coupon?.source === 'welcome' || claimToken ? 'welcome' : 'manual',
+    appliedAt: String(coupon?.appliedAt || '').trim() || new Date().toISOString(),
+  };
+};
+
+const getLegacyWelcomeCoupon = (storage) => {
+  const code = storage.getItem(LEGACY_WELCOME_CODE_KEY) || '';
+  const claimToken = storage.getItem(LEGACY_WELCOME_TOKEN_KEY) || '';
+  return sanitizeCoupon({ code, claimToken, source: 'welcome' });
+};
+
 export const loadCartStateFromStorage = (storage = typeof window !== 'undefined' ? window.localStorage : null) => {
-  if (!storage) return { items: [] };
+  if (!storage) return { items: [], coupon: null };
 
   try {
-    const parsed = JSON.parse(storage.getItem(CART_STORAGE_KEY) || 'null');
+    const currentState = storage.getItem(CART_STORAGE_KEY);
+    const parsed = JSON.parse(currentState || storage.getItem(LEGACY_CART_STORAGE_KEY) || 'null');
     const rawItems = Array.isArray(parsed?.items) ? parsed.items : [];
     return {
       items: rawItems.map(sanitizeStoredItem).filter(Boolean),
+      // Import the old welcome keys only before v2 has been written. Once v2
+      // exists, an explicit null means the customer removed or consumed it.
+      coupon: sanitizeCoupon(parsed?.coupon) || (currentState ? null : getLegacyWelcomeCoupon(storage)),
     };
   } catch {
-    return { items: [] };
+    return { items: [], coupon: null };
   }
 };
 
@@ -46,18 +71,26 @@ export const saveCartStateToStorage = (
   storage = typeof window !== 'undefined' ? window.localStorage : null
 ) => {
   if (!storage) return;
-  storage.setItem(
-    CART_STORAGE_KEY,
-    JSON.stringify({
-      version: 1,
-      items: (state.items || []).map(({ productSlug, variantCode, quantity, addedAt }) => ({
-        productSlug,
-        ...(variantCode ? { variantCode } : {}),
-        quantity,
-        addedAt,
-      })),
-    })
-  );
+  try {
+    storage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        items: (state.items || []).map(({ productSlug, variantCode, quantity, addedAt }) => ({
+          productSlug,
+          ...(variantCode ? { variantCode } : {}),
+          quantity,
+          addedAt,
+        })),
+        coupon: sanitizeCoupon(state.coupon),
+      })
+    );
+    storage.removeItem(LEGACY_CART_STORAGE_KEY);
+    storage.removeItem(LEGACY_WELCOME_CODE_KEY);
+    storage.removeItem(LEGACY_WELCOME_TOKEN_KEY);
+  } catch {
+    // Storage can be disabled or full; the in-memory checkout state remains usable.
+  }
 };
 
 const normalizeAddItemPayload = (payload = {}) => {
@@ -161,8 +194,23 @@ export const cartReducer = (state, action) => {
         items: (Array.isArray(action.items) ? action.items : []).map(sanitizeStoredItem).filter(Boolean),
       };
 
+    case 'applyCoupon':
+      return {
+        ...state,
+        coupon: sanitizeCoupon(action.coupon),
+      };
+
+    case 'removeCoupon':
+      return {
+        ...state,
+        coupon: null,
+      };
+
     case 'clearCart':
       return { ...state, items: [] };
+
+    case 'clearCheckout':
+      return { ...state, items: [], coupon: null };
 
     default:
       return state;

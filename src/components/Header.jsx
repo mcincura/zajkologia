@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { CircleUserRound, ShoppingCart } from 'lucide-react';
 import { useCart } from '../cart/useCart';
 import '../styles/header.css';
@@ -8,6 +8,9 @@ const membershipPublic = import.meta.env.VITE_MEMBERSHIP_PUBLIC === 'true';
 
 const Header = () => {
     const { itemCount } = useCart();
+    const location = useLocation();
+
+    if (location.pathname.startsWith('/admin')) return null;
 
     return (
         <header className="site-header" aria-label="Rýchla navigácia">

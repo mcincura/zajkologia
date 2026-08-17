@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Ban, Download, FileText, Package, PackageCheck, RefreshCw, Send, ShieldCheck, UsersRound } from 'lucide-react';
+import { Ban, Download, FileText, Package, PackageCheck, RefreshCw, Send, ShieldCheck, Tag, UsersRound } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
+import AdminCouponsSection from './admin/AdminCouponsSection';
 import MembershipAdminSection from './admin/MembershipAdminSection';
 import { isShippableOrder } from '../utils/orderTypes';
 import {
@@ -154,6 +155,7 @@ const Admin = ({ section = 'orders' }) => {
 
     const selectedPost = useMemo(() => posts.find(p => p.id === selectedId) || null, [posts, selectedId]);
     const isOrdersSection = section === 'orders';
+    const isCouponsSection = section === 'coupons';
     const isProductsSection = section === 'products';
     const isPostsSection = section === 'posts';
     const isMembershipSection = section === 'membership';
@@ -761,12 +763,12 @@ const Admin = ({ section = 'orders' }) => {
 
     return (
         <div
-            className={`container admin-page-layout ${isMembershipSection ? 'is-membership' : ''}`}
+            className={`container admin-page-layout ${isMembershipSection || isCouponsSection ? 'is-membership' : ''}`}
             style={{
                 display: 'grid',
-                gridTemplateColumns: isMembershipSection ? '260px minmax(0, 1fr)' : '320px minmax(0, 1fr)',
+                gridTemplateColumns: isMembershipSection || isCouponsSection ? '260px minmax(0, 1fr)' : '320px minmax(0, 1fr)',
                 gap: '1.5rem',
-                maxWidth: isMembershipSection ? '1800px' : undefined,
+                maxWidth: isMembershipSection || isCouponsSection ? '1800px' : undefined,
             }}
         >
             <aside style={{
@@ -790,6 +792,10 @@ const Admin = ({ section = 'orders' }) => {
                     <NavLink to="/admin/orders" style={adminNavLinkStyle}>
                         <PackageCheck size={18} strokeWidth={2.4} />
                         Orders
+                    </NavLink>
+                    <NavLink to="/admin/coupons" style={adminNavLinkStyle}>
+                        <Tag size={18} strokeWidth={2.4} />
+                        Coupons
                     </NavLink>
                     <NavLink to="/admin/products" style={adminNavLinkStyle}>
                         <Package size={18} strokeWidth={2.4} />
@@ -895,6 +901,17 @@ const Admin = ({ section = 'orders' }) => {
                         fontSize: '0.88rem',
                     }}>
                         Stripe-synchronized members and protected club content.
+                    </div>
+                ) : isCouponsSection ? (
+                    <div style={{
+                        border: '1px solid #eee',
+                        borderRadius: '10px',
+                        padding: '0.75rem',
+                        background: '#fafafa',
+                        color: '#55463d',
+                        fontSize: '0.88rem',
+                    }}>
+                        Canonical coupon rules, claims, Stripe projection, and redemption history.
                     </div>
                 ) : (
                     <div style={{
@@ -1457,6 +1474,8 @@ const Admin = ({ section = 'orders' }) => {
                     </div>
                 </div>
                     </>
+                ) : isCouponsSection ? (
+                    <AdminCouponsSection />
                 ) : isProductsSection ? (
                     <ProductCmsSection />
                 ) : isMembershipSection ? (

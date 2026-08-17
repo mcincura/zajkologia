@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -24,12 +24,13 @@ import {
   Tag,
   Truck,
 } from 'lucide-react';
-import { createCartCheckoutSession, createCheckoutSession, loadVisitorCountry } from '../api/client';
+import { createCartCheckoutSession, createCheckoutSession, loadVisitorCountry, quoteCheckout } from '../api/client';
 import { useCart } from '../cart/useCart';
 import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import ProductCard from '../components/ProductCard';
 import ProductLanguageBadges from '../components/ProductLanguageBadges';
 import { useProduct, useProducts } from '../hooks/useProducts';
+import { getCouponErrorMessage } from '../utils/couponErrors';
 import {
   PRODUCT_PAGE_TEMPLATE,
   inferProductPageTemplate,
@@ -41,8 +42,12 @@ import {
   hasPhysicalDelivery,
   isMixedProduct,
 } from '../utils/productTypes';
-import { clearStoredWelcomeDiscountOffer } from '../utils/welcomeDiscount';
 import '../styles/product-details.css';
+
+const formatMoneyMinor = (amountMinor, currency = 'eur') => new Intl.NumberFormat('sk-SK', {
+  style: 'currency',
+  currency: String(currency || 'eur').toUpperCase(),
+}).format(Number(amountMinor || 0) / 100);
 
 const iconMap = {
   CalendarDays,
@@ -177,15 +182,18 @@ export const ProductDetailView = ({
   const backTo = backToOverride || location.state?.from || '/?category=Produkty';
   const { product: loadedProduct, loading: productLoading } = useProduct(slug, shouldLoadRouteProduct);
   const { products } = useProducts(shouldLoadRouteProduct && !relatedProductsOverride);
-  const { addItem } = useCart();
+  const { addItem, coupon } = useCart();
   const product = productOverride || loadedProduct;
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const checkoutErrorRef = useRef(null);
   const [cartAdded, setCartAdded] = useState(false);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [selectedVariantCode, setSelectedVariantCode] = useState('');
   const [visitorCountryCode, setVisitorCountryCode] = useState('');
-  const [couponCode, setCouponCode] = useState('');
+  const [couponQuote, setCouponQuote] = useState(null);
+  const [couponQuoteState, setCouponQuoteState] = useState('idle');
+  const [couponQuoteError, setCouponQuoteError] = useState('');
   const isPreviewProduct = isAdminPreview || Boolean(product?.isMock);
 
   useEffect(() => {
@@ -242,6 +250,50 @@ export const ProductDetailView = ({
     return selectedVariant;
   };
 
+  useEffect(() => {
+    if (!coupon || !product || isPreviewProduct || isAdminPreview) {
+      return undefined;
+    }
+
+    const isPhysicalCheckout = hasPhysicalDelivery(product);
+    const selectedVariant = isPhysicalCheckout
+      ? (product.colorVariants || []).find((variant) => variant.code === selectedVariantCode) ||
+        getDefaultAvailableVariant(product.colorVariants || [])
+      : null;
+    if (isPhysicalCheckout && !selectedVariant) return undefined;
+
+    let cancelled = false;
+    const loadQuote = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setCouponQuoteState('loading');
+      setCouponQuoteError('');
+      try {
+        const quote = await quoteCheckout([{
+          productSlug: product.slug,
+          ...(selectedVariant?.code ? { variantCode: selectedVariant.code } : {}),
+          quantity: 1,
+        }], {
+          ...(coupon.code ? { couponCode: coupon.code } : {}),
+          ...(coupon.claimToken ? { claimToken: coupon.claimToken } : {}),
+        });
+        if (cancelled) return;
+        setCouponQuote(quote);
+        setCouponQuoteState('loaded');
+      } catch (error) {
+        if (cancelled) return;
+        setCouponQuote(null);
+        setCouponQuoteState('error');
+        setCouponQuoteError(getCouponErrorMessage(error));
+      }
+    };
+    loadQuote();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [coupon, isAdminPreview, isPreviewProduct, product, selectedVariantCode]);
+
   const handleAddToCart = () => {
     if (isPreviewProduct || isAdminPreview || !product) return;
     const isPhysicalCheckout = hasPhysicalDelivery(product);
@@ -265,11 +317,14 @@ export const ProductDetailView = ({
     const isPhysicalCheckout = hasPhysicalDelivery(product);
     const selectedVariant = validateSelectedVariant();
     if (isPhysicalCheckout && !selectedVariant) return;
+    if (coupon && (couponQuoteState !== 'loaded' || !couponQuote?.coupon)) {
+      setCheckoutError(couponQuoteError || 'Počkajte prosím, kým overíme zľavu a konečnú cenu.');
+      return;
+    }
 
     setCheckoutLoading(true);
     setCheckoutError('');
     try {
-      const normalizedCouponCode = couponCode.trim();
       const session = isMixedProduct(product)
         ? await createCartCheckoutSession([
             {
@@ -278,11 +333,12 @@ export const ProductDetailView = ({
               quantity: 1,
             },
           ], {
-            ...(normalizedCouponCode ? { couponCode: normalizedCouponCode } : {}),
+            ...(coupon?.code ? { couponCode: coupon.code } : {}),
+            ...(coupon?.claimToken ? { claimToken: coupon.claimToken } : {}),
           })
         : await createCheckoutSession(product.slug, {
-            ...(normalizedCouponCode ? { couponCode: normalizedCouponCode } : {}),
-            disableStoredDiscount: isPhysicalCheckout || Boolean(normalizedCouponCode),
+            ...(coupon?.code ? { couponCode: coupon.code } : {}),
+            ...(coupon?.claimToken ? { claimToken: coupon.claimToken } : {}),
             ...(isPhysicalCheckout
               ? {
                   variantCode: selectedVariant.code,
@@ -297,19 +353,18 @@ export const ProductDetailView = ({
         setCheckoutError('Vyberte si prosím farebnú kombináciu.');
       } else if (err?.data?.error === 'inventory_not_ready') {
         setCheckoutError('Predobjednávku ešte pripravujeme. Skúste to prosím neskôr.');
-      } else if (err?.data?.error === 'welcome_discount_reserved') {
-        setCheckoutError('Uvítacia zľava je už pripravená v otvorenej pokladni. Dokončite otvorenú platbu alebo to skúste neskôr.');
-      } else if (err?.data?.error?.startsWith?.('welcome_discount_')) {
-        clearStoredWelcomeDiscountOffer();
-        setCheckoutError('Uvítacia zľava už bola použitá alebo nie je platná. Obnovte stránku a skúste nákup bez nej.');
       } else if (err?.data?.error?.startsWith?.('coupon_')) {
-        setCheckoutError('Zľavový kód nie je platný pre tento nákup alebo sa nedá kombinovať s aktuálnou akciou.');
+        setCheckoutError(getCouponErrorMessage(err));
       } else {
         setCheckoutError('Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.');
       }
       setCheckoutLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (checkoutError) checkoutErrorRef.current?.focus();
+  }, [checkoutError]);
 
   const pageData = useMemo(() => {
     if (!product) return null;
@@ -622,17 +677,19 @@ export const ProductDetailView = ({
                 </div>
 
                 <div className="product-page__checkout-controls">
-                  {!isPreviewProduct && !isAdminPreview && (
-                    <label className="product-page__coupon-field">
-                      <Tag size={16} />
-                      <span className="sr-only">Zľavový kód</span>
-                      <input
-                        value={couponCode}
-                        onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
-                        placeholder="Zľavový kód"
-                        autoComplete="off"
-                      />
-                    </label>
+                  {!isPreviewProduct && !isAdminPreview && coupon && (
+                    <div className={`product-page__coupon-applied${couponQuoteState === 'error' ? ' is-error' : ''}`} role={couponQuoteState === 'error' ? 'alert' : 'status'} aria-live="polite">
+                      <Tag size={17} />
+                      {couponQuoteState === 'loading' && <span>Overujem kód {coupon.code}…</span>}
+                      {couponQuoteState === 'loaded' && couponQuote?.coupon && (
+                        <span className="product-page__coupon-copy">
+                          <span>Kód <strong>{couponQuote.normalizedCode}</strong> je použitý · ušetríte <strong>{formatMoneyMinor(couponQuote.discountAmount, couponQuote.currency)}</strong></span>
+                          <span>Cena po zľave <strong>{formatMoneyMinor(couponQuote.netSubtotal, couponQuote.currency)}</strong>{couponQuote.shippingAmount > 0 ? ` · spolu s dopravou ${formatMoneyMinor(couponQuote.total, couponQuote.currency)}` : ''}</span>
+                        </span>
+                      )}
+                      {couponQuoteState === 'error' && <span>{couponQuoteError}</span>}
+                      <Link to="/cart">Spravovať v košíku</Link>
+                    </div>
                   )}
                   <button
                     type="button"
@@ -646,7 +703,7 @@ export const ProductDetailView = ({
                   <button
                     type="button"
                     onClick={handleCheckout}
-                    disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable}
+                    disabled={checkoutLoading || isPreviewProduct || selectedVariantUnavailable || (coupon && couponQuoteState !== 'loaded')}
                     className={`product-page__cta${isPreviewProduct ? ' product-page__cta--preview' : ''}`}
                   >
                     <ArrowRight size={18} />
@@ -758,7 +815,15 @@ export const ProductDetailView = ({
               )}
 
               {checkoutError && (
-                <div className="product-page__error">{checkoutError}</div>
+                <div
+                  ref={checkoutErrorRef}
+                  className="product-page__error"
+                  role="alert"
+                  aria-live="assertive"
+                  tabIndex={-1}
+                >
+                  {checkoutError}
+                </div>
               )}
 
             </div>

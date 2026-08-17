@@ -1,0 +1,137 @@
+.checkout-success {
+  display: grid;
+  justify-items: start;
+  gap: 0.8rem;
+  width: min(760px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4rem 0;
+  color: #260c1a;
+}
+
+.checkout-success > svg {
+  color: #2f7d32;
+}
+
+.checkout-success h1,
+.checkout-success p {
+  margin: 0;
+}
+
+.checkout-success p {
+  color: rgba(38, 12, 26, 0.7);
+  font-size: 1.02rem;
+  line-height: 1.65;
+}
+
+.checkout-success__order {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 0.7rem;
+  padding: 1rem;
+  border: 1px solid #eadfd5;
+  border-radius: 12px;
+  background: #fffdf9;
+  box-shadow: 0 16px 36px rgba(56, 30, 8, 0.08);
+}
+
+.checkout-success__header,
+.checkout-success__item,
+.checkout-success__totals > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.checkout-success__header > div,
+.checkout-success__item > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.checkout-success__header span,
+.checkout-success__item span {
+  color: rgba(38, 12, 26, 0.62);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.checkout-success__status {
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: #edf8ee;
+  color: #2f6f38 !important;
+  text-transform: uppercase;
+}
+
+.checkout-success__items,
+.checkout-success__totals {
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #eadfd5;
+}
+
+.checkout-success__item > div:last-child {
+  justify-items: end;
+}
+
+.checkout-success__discount {
+  color: #2f6f38;
+}
+
+.checkout-success__discount span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.checkout-success__total {
+  padding-top: 0.65rem;
+  border-top: 1px solid #eadfd5;
+  font-size: 1.1rem;
+}
+
+.checkout-success__guidance {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid #eccfc3;
+  border-radius: 12px;
+  background: #fdf6f6;
+  color: #6b4c3b;
+}
+
+.checkout-success__guidance div {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.checkout-success__guidance span {
+  line-height: 1.55;
+}
+
+.checkout-success__error {
+  color: #8a1c2b !important;
+  font-weight: 800;
+}
+
+.checkout-success__back {
+  margin-top: 0.5rem;
+  color: #6b4c3b;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .checkout-success {
+    padding: 2.5rem 0;
+  }
+
+  .checkout-success__item {
+    align-items: flex-start;
+  }
+}

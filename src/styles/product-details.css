@@ -560,11 +560,50 @@
 
 .product-page__checkout-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  grid-template-columns: max-content max-content;
   flex: 1 1 18.5rem;
   gap: 0.55rem;
   align-items: center;
   min-width: min(100%, 17rem);
+}
+
+.product-page__coupon-applied {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid rgba(55, 100, 84, 0.28);
+  border-radius: 10px;
+  background: rgba(242, 250, 242, 0.92);
+  color: #214f28;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.product-page__coupon-applied.is-error {
+  border-color: rgba(138, 28, 43, 0.28);
+  background: #fff5f5;
+  color: #8a1c2b;
+}
+
+.product-page__coupon-applied a {
+  color: currentColor;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.product-page__coupon-copy {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.product-page__coupon-copy > span:last-child {
+  font-size: 0.75rem;
 }
 
 .product-page__closing-buttons {
