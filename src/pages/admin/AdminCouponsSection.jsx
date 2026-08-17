@@ -35,6 +35,30 @@ const LIFECYCLE_OPTIONS = [
 
 const LIFECYCLE_LABELS = Object.fromEntries(LIFECYCLE_OPTIONS);
 
+const ACTION_CONFIRMATIONS = {
+  archive: {
+    title: 'Archivovať kupón?',
+    confirmLabel: 'Archivovať kupón',
+    message: (code) => `Kupón ${code} prestane byť použiteľný. História a objednávky zostanú zachované.`,
+    destructive: true,
+  },
+  pause: {
+    title: 'Pozastaviť kupón?',
+    confirmLabel: 'Pozastaviť kupón',
+    message: (code) => `Zákazníci prestanú môcť používať kupón ${code}, kým ho znovu neaktivujete.`,
+  },
+  activate: {
+    title: 'Aktivovať kupón?',
+    confirmLabel: 'Aktivovať kupón',
+    message: (code) => `Kupón ${code} bude použiteľný až po úspešnej synchronizácii so Stripe.`,
+  },
+  duplicate: {
+    title: 'Vytvoriť kópiu kupónu?',
+    confirmLabel: 'Vytvoriť kópiu',
+    message: (code) => `Vytvorí sa nový koncept podľa kupónu ${code}. Pôvodný kupón sa nezmení.`,
+  },
+};
+
 const emptyDraft = () => ({
   id: null,
   code: '',
@@ -157,7 +181,11 @@ const AdminCouponsSection = () => {
   const [busyAction, setBusyAction] = useState('');
   const [announcement, setAnnouncement] = useState('');
   const [announcementKind, setAnnouncementKind] = useState('status');
+  const [pendingAction, setPendingAction] = useState(null);
   const editorHeadingRef = useRef(null);
+  const actionTriggerRef = useRef(null);
+  const actionCancelRef = useRef(null);
+  const actionConfirmRef = useRef(null);
 
   const loadWorkspace = async ({ preserveSelection = true } = {}) => {
     setLoading(true);
@@ -185,6 +213,22 @@ const AdminCouponsSection = () => {
     loadWorkspace({ preserveSelection: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!pendingAction) return undefined;
+    const focusFrame = requestAnimationFrame(() => actionCancelRef.current?.focus());
+    const handleEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setPendingAction(null);
+      requestAnimationFrame(() => actionTriggerRef.current?.focus());
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [pendingAction]);
 
   const visibleCoupons = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('sk');
@@ -278,13 +322,6 @@ const AdminCouponsSection = () => {
   };
 
   const performAction = async (coupon, action) => {
-    const confirmations = {
-      archive: `Archivovať kupón ${coupon.code}? História a objednávky zostanú zachované.`,
-      pause: `Pozastaviť kupón ${coupon.code}? Zákazníci ho prestanú môcť použiť.`,
-      activate: `Aktivovať kupón ${coupon.code} po úspešnej Stripe synchronizácii?`,
-      duplicate: `Vytvoriť koncept ako kópiu kupónu ${coupon.code}?`,
-    };
-    if (confirmations[action] && !window.confirm(confirmations[action])) return;
     setBusyAction(`${coupon.id}:${action}`);
     setAnnouncement('Spracúvam zmenu…');
     setAnnouncementKind('status');
@@ -318,6 +355,39 @@ const AdminCouponsSection = () => {
       await loadWorkspace();
     } finally {
       setBusyAction('');
+    }
+  };
+
+  const requestAction = (coupon, action, trigger = null) => {
+    const confirmation = ACTION_CONFIRMATIONS[action];
+    if (!confirmation) {
+      performAction(coupon, action);
+      return;
+    }
+    actionTriggerRef.current = trigger;
+    setPendingAction({ coupon, action, ...confirmation });
+  };
+
+  const closeActionDialog = () => {
+    setPendingAction(null);
+    requestAnimationFrame(() => actionTriggerRef.current?.focus());
+  };
+
+  const confirmPendingAction = () => {
+    if (!pendingAction) return;
+    const { coupon, action } = pendingAction;
+    setPendingAction(null);
+    performAction(coupon, action);
+  };
+
+  const handleActionDialogKeyDown = (event) => {
+    if (event.key !== 'Tab') return;
+    if (event.shiftKey && document.activeElement === actionCancelRef.current) {
+      event.preventDefault();
+      actionConfirmRef.current?.focus();
+    } else if (!event.shiftKey && document.activeElement === actionConfirmRef.current) {
+      event.preventDefault();
+      actionCancelRef.current?.focus();
     }
   };
 
@@ -357,7 +427,7 @@ const AdminCouponsSection = () => {
         <section className="admin-coupons__editor" aria-labelledby="coupon-editor-title">
           <div className="admin-coupons__editor-heading">
             <div><span>{draft.id ? `Verzia ${draft.version}` : 'Nový koncept'}</span><h2 id="coupon-editor-title" ref={editorHeadingRef} tabIndex="-1">{draft.id ? draft.code : 'Vytvoriť kupón'}</h2></div>
-            {draft.id && <div className="admin-coupons__actions"><button type="button" onClick={() => performAction(draft, 'duplicate')} disabled={Boolean(busyAction)}><Copy size={16} />Duplikovať</button>{['active', 'scheduled'].includes(draft.lifecycleState) ? <button type="button" onClick={() => performAction(draft, 'pause')} disabled={Boolean(busyAction)}><CirclePause size={16} />Pozastaviť</button> : !isArchived && <button type="button" onClick={() => performAction(draft, 'activate')} disabled={Boolean(busyAction)}><RotateCcw size={16} />Aktivovať</button>}{!isArchived && <button type="button" className="is-danger" onClick={() => performAction(draft, 'archive')} disabled={Boolean(busyAction)}><Archive size={16} />Archivovať</button>}</div>}
+            {draft.id && <div className="admin-coupons__actions"><button type="button" onClick={(event) => requestAction(draft, 'duplicate', event.currentTarget)} disabled={Boolean(busyAction)}><Copy size={16} />Duplikovať</button>{['active', 'scheduled'].includes(draft.lifecycleState) ? <button type="button" onClick={(event) => requestAction(draft, 'pause', event.currentTarget)} disabled={Boolean(busyAction)}><CirclePause size={16} />Pozastaviť</button> : !isArchived && <button type="button" onClick={(event) => requestAction(draft, 'activate', event.currentTarget)} disabled={Boolean(busyAction)}><RotateCcw size={16} />Aktivovať</button>}{!isArchived && <button type="button" className="is-danger" onClick={(event) => requestAction(draft, 'archive', event.currentTarget)} disabled={Boolean(busyAction)}><Archive size={16} />Archivovať</button>}</div>}
           </div>
 
           {draft.id && draft.lifecycleState === 'scheduled' && !draft.isCurrentVersionSynced && !isArchived && (
@@ -365,7 +435,7 @@ const AdminCouponsSection = () => {
           )}
 
           {draft.id && draft.lifecycleState !== 'scheduled' && !draft.isCurrentVersionSynced && !isArchived && (
-            <div className="admin-coupons__sync-error" role="alert"><TriangleAlert size={18} /><div><strong>Aktuálna verzia nie je použiteľná v pokladni.</strong><span>{draft.syncErrorCode || 'Synchronizácia čaká alebo zlyhala.'}{draft.syncErrorDetail ? ` · ${draft.syncErrorDetail}` : ''}</span></div><button type="button" onClick={() => performAction(draft, 'retry-sync')} disabled={Boolean(busyAction)}><RefreshCw size={16} />Obnoviť synchronizáciu</button></div>
+            <div className="admin-coupons__sync-error" role="alert"><TriangleAlert size={18} /><div><strong>Aktuálna verzia nie je použiteľná v pokladni.</strong><span>{draft.syncErrorCode || 'Synchronizácia čaká alebo zlyhala.'}{draft.syncErrorDetail ? ` · ${draft.syncErrorDetail}` : ''}</span></div><button type="button" onClick={() => requestAction(draft, 'retry-sync')} disabled={Boolean(busyAction)}><RefreshCw size={16} />Obnoviť synchronizáciu</button></div>
           )}
 
           <form className="admin-coupons__form" onSubmit={saveCoupon} noValidate>
@@ -381,6 +451,41 @@ const AdminCouponsSection = () => {
           {draft.id && <section className="admin-coupons__history" aria-label="Použitie a história"><h3>Použitie a história</h3>{detailLoading && <p role="status">Načítavam históriu…</p>}{detail && <><div className="admin-coupons__metrics"><div><span>Uplatnenia</span><strong>{draft.redemptionCount || 0}</strong></div><div><span>Celková zľava</span><strong>{formatMoney(draft.totalDiscounted, draft.currency)}</strong></div><div><span>Aktívne rezervácie</span><strong>{draft.activeReservations || 0}</strong></div>{draft.claimRequired && <div><span>Dostupné nároky</span><strong>{detail.claimStats.available}</strong></div>}</div><div className="admin-coupons__table-wrap"><table><caption>Posledné uplatnenia</caption><thead><tr><th>Objednávka</th><th>Dátum</th><th>Zľava</th><th>Stav</th></tr></thead><tbody>{detail.redemptions.map((redemption) => <tr key={redemption.id}><td>{redemption.orderId}</td><td>{formatDate(redemption.createdAt)}</td><td>{formatMoney(redemption.amountDiscounted, redemption.currency)}</td><td>{redemption.orderStatus || '—'}</td></tr>)}{detail.redemptions.length === 0 && <tr><td colSpan="4">Kupón zatiaľ nebol použitý.</td></tr>}</tbody></table></div><details><summary>Verzie pravidiel ({detail.versions.length})</summary><ul>{detail.versions.map((version) => <li key={version.id}><strong>v{version.version}</strong><span>{formatDate(version.createdAt)}</span><span>{version.syncStatus}</span></li>)}</ul></details></>}</section>}
         </section>
       </div>
+
+      {pendingAction && (
+        <div
+          className="admin-coupons__dialog-backdrop"
+          onMouseDown={(event) => event.target === event.currentTarget && closeActionDialog()}
+        >
+          <div
+            className="admin-coupons__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coupon-action-title"
+            aria-describedby="coupon-action-description"
+            onKeyDown={handleActionDialogKeyDown}
+          >
+            <div className="admin-coupons__dialog-icon" aria-hidden="true">
+              {pendingAction.destructive ? <Archive size={22} /> : <Tag size={22} />}
+            </div>
+            <div>
+              <h2 id="coupon-action-title">{pendingAction.title}</h2>
+              <p id="coupon-action-description">{pendingAction.message(pendingAction.coupon.code)}</p>
+            </div>
+            <div className="admin-coupons__dialog-actions">
+              <button ref={actionCancelRef} type="button" onClick={closeActionDialog}>Zrušiť</button>
+              <button
+                ref={actionConfirmRef}
+                type="button"
+                className={pendingAction.destructive ? 'is-danger' : 'is-primary'}
+                onClick={confirmPendingAction}
+              >
+                {pendingAction.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

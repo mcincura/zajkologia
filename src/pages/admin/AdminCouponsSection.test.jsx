@@ -78,7 +78,6 @@ beforeEach(() => {
     stateCounts: { active: 1, sync_error: 1 },
   });
   vi.mocked(loadAdminCoupon).mockImplementation(async (id) => detailFor(id === 2 ? errorCoupon : activeCoupon));
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
 });
 
 describe('AdminCouponsSection', () => {
@@ -130,7 +129,26 @@ describe('AdminCouponsSection', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /JAR10/ }));
     await userEvent.click(await screen.findByRole('button', { name: /archivovať/i }));
+    const dialog = screen.getByRole('dialog', { name: /archivovať kupón/i });
+    expect(within(dialog).getByText(/história a objednávky zostanú zachované/i)).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: /zrušiť/i })).toHaveFocus());
+    await userEvent.click(within(dialog).getByRole('button', { name: /^archivovať kupón$/i }));
     await waitFor(() => expect(runAdminCouponAction).toHaveBeenCalledWith(1, 'archive'));
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/história.*zachovan/i));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('keeps lifecycle actions reversible until the accessible confirmation is accepted', async () => {
+    render(<AdminCouponsSection />);
+    await userEvent.click(await screen.findByRole('button', { name: /JAR10/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /pozastaviť/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /pozastaviť kupón/i });
+    expect(within(dialog).getByText(/zákazníci prestanú môcť používať/i)).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: /zrušiť/i })).toHaveFocus());
+    await userEvent.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(runAdminCouponAction).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole('button', { name: /pozastaviť/i })).toHaveFocus());
   });
 });
