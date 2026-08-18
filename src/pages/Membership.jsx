@@ -42,6 +42,7 @@ const errorMessage = (error) => {
     membership_login_required: 'Účet s týmto e-mailom už existuje. Najprv sa prihláste nižšie.',
     membership_already_active: 'Pre tento e-mail už členstvo existuje. Prihláste sa nižšie.',
     membership_checkout_processing: 'Platba už bola dokončená. Chvíľu počkajte a potom sa prihláste.',
+    membership_checkout_active_elsewhere: 'Pre tento e-mail je už otvorená bezpečná platba. Dokončite ju v pôvodnom okne alebo počkajte na jej vypršanie.',
     membership_sales_not_open: 'Členstvo sa pripravuje. Predaj ešte nie je otvorený.',
     membership_checkout_unavailable: 'Členstvo sa práve nedá objednať. Skúste to, prosím, neskôr.',
     active_membership_required: 'Obsah je dostupný po aktivácii členstva.',
@@ -295,7 +296,7 @@ const Membership = ({ loginOnly = false }) => {
     setStatus('');
     try {
       const result = await createMembershipCheckout(email);
-      window.location.assign(result.checkoutUrl);
+      window.location.assign(result.checkoutPageUrl || result.checkoutUrl);
     } catch (error) {
       if ((error?.data?.error || error?.message) === 'membership_checkout_processing') {
         setConfirmingPayment(true);

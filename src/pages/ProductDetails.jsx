@@ -345,7 +345,7 @@ export const ProductDetailView = ({
                 }
               : {}),
           });
-      window.location.assign(session.checkoutUrl);
+      window.location.assign(session.checkoutPageUrl || session.checkoutUrl);
     } catch (err) {
       if (err?.data?.error === 'variant_sold_out') {
         setCheckoutError('Táto farebná kombinácia sa práve vypredala. Vyberte prosím inú.');

@@ -199,7 +199,7 @@ const CartPage = () => {
         ...(coupon?.code ? { couponCode: coupon.code } : {}),
         ...(coupon?.claimToken ? { claimToken: coupon.claimToken } : {}),
       });
-      window.location.assign(session.checkoutUrl);
+      window.location.assign(session.checkoutPageUrl || session.checkoutUrl);
     } catch (error) {
       setMessage(getCouponErrorMessage(error, 'Pokladňu sa nepodarilo otvoriť. Skúste to prosím znova.'));
       setMessageKind('error');

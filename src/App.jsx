@@ -17,6 +17,7 @@ const Admin = lazy(() => import('./pages/Admin'));
 const Membership = lazy(() => import('./pages/Membership'));
 const MembershipPost = lazy(() => import('./pages/MembershipPost'));
 const Discussion = lazy(() => import('./pages/Discussion'));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 
 const restoreStaticHostPath = () => {
   if (typeof window === 'undefined') return;
@@ -51,6 +52,8 @@ function App() {
               <Route path="post/:slug" element={<PostDetails />} />
               <Route path="product/:slug" element={<ProductDetails />} />
               <Route path="cart" element={<CartPage />} />
+              <Route path="checkout/:attemptId" element={<CheckoutPage />} />
+              <Route path="checkout/return" element={<CheckoutPage />} />
               <Route path="checkout/success" element={<CheckoutSuccess />} />
               <Route path="downloads/:token" element={<DigitalDownloads />} />
               <Route path="klub" element={<Membership />} />

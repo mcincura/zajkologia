@@ -4,6 +4,11 @@ import {
     getMembershipSessionToken,
     storeMembershipSession,
 } from '../utils/membershipAuth';
+import {
+    checkoutAttemptFields,
+    markCheckoutAttemptCreated,
+    prepareCheckoutAttempt,
+} from '../checkout/attemptStore';
 
 // No runtime app-config.js dependency.
 // - Dev default: relative "/api" so Vite proxy avoids browser CORS.
@@ -58,43 +63,63 @@ export const apiFetch = async (path, options = {}) => {
 
 export const createCheckoutSession = async (productSlug, options = {}) => {
     const attribution = options.attribution || getCheckoutAttribution();
+    const checkoutPayload = {
+        productSlug,
+        ...(options.variantCode ? { variantCode: options.variantCode } : {}),
+        ...(options.quantity ? { quantity: options.quantity } : {}),
+        ...(options.couponCode ? { couponCode: options.couponCode } : {}),
+        ...(options.claimToken || options.discountToken
+            ? { claimToken: options.claimToken || options.discountToken }
+            : {}),
+    };
+    const { attempt, superseded } = await prepareCheckoutAttempt({
+        kind: 'single',
+        scope: `single:${productSlug}`,
+        payload: checkoutPayload,
+    });
+    if (superseded) await cancelCheckoutAttempt(superseded.id, superseded.token);
     const data = await apiFetch('/api/stripe/checkout-session', {
         method: 'POST',
         body: JSON.stringify({
-            productSlug,
-            ...(options.variantCode ? { variantCode: options.variantCode } : {}),
-            ...(options.quantity ? { quantity: options.quantity } : {}),
-            ...(options.couponCode ? { couponCode: options.couponCode } : {}),
-            ...(options.claimToken || options.discountToken
-                ? { claimToken: options.claimToken || options.discountToken }
-                : {}),
+            ...checkoutPayload,
             attribution,
+            ...checkoutAttemptFields(attempt),
         }),
     });
 
-    if (!data?.checkoutUrl) {
-        throw new Error('missing_checkout_url');
+    if (!data?.checkoutUrl && !data?.checkoutPageUrl) {
+        throw new Error('missing_checkout_bootstrap');
     }
-
+    markCheckoutAttemptCreated(attempt);
     return data;
 };
 
 export const createCartCheckoutSession = async (items, options = {}) => {
     const attribution = options.attribution || getCheckoutAttribution();
+    const checkoutPayload = {
+        items,
+        ...(options.couponCode ? { couponCode: options.couponCode } : {}),
+        ...(options.claimToken ? { claimToken: options.claimToken } : {}),
+    };
+    const { attempt, superseded } = await prepareCheckoutAttempt({
+        kind: 'cart',
+        scope: 'cart',
+        payload: checkoutPayload,
+    });
+    if (superseded) await cancelCheckoutAttempt(superseded.id, superseded.token);
     const data = await apiFetch('/api/stripe/cart-checkout-session', {
         method: 'POST',
         body: JSON.stringify({
-            items,
-            ...(options.couponCode ? { couponCode: options.couponCode } : {}),
-            ...(options.claimToken ? { claimToken: options.claimToken } : {}),
+            ...checkoutPayload,
             attribution,
+            ...checkoutAttemptFields(attempt),
         }),
     });
 
-    if (!data?.checkoutUrl) {
-        throw new Error('missing_checkout_url');
+    if (!data?.checkoutUrl && !data?.checkoutPageUrl) {
+        throw new Error('missing_checkout_bootstrap');
     }
-
+    markCheckoutAttemptCreated(attempt);
     return data;
 };
 
@@ -186,13 +211,46 @@ export const createDiscussionThread = async ({ title, body }) => (await apiFetch
 export const createDiscussionReply = async ({ threadId, body }) => (await apiFetch(`/api/membership/discussions/${encodeURIComponent(threadId)}/replies`, { method: 'POST', body: JSON.stringify({ body }) }))?.reply || null;
 
 export const createMembershipCheckout = async (email) => {
+    const { attempt, superseded } = await prepareCheckoutAttempt({
+        kind: 'membership',
+        scope: 'membership',
+        payload: { email: String(email || '').trim().toLowerCase() },
+    });
+    if (superseded) await cancelCheckoutAttempt(superseded.id, superseded.token);
     const data = await apiFetch('/api/membership/checkout', {
         method: 'POST',
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, ...checkoutAttemptFields(attempt) }),
     });
-    if (!data?.checkoutUrl) throw new Error('missing_checkout_url');
+    if (!data?.checkoutUrl && !data?.checkoutPageUrl) throw new Error('missing_checkout_bootstrap');
+    markCheckoutAttemptCreated(attempt);
     return data;
 };
+
+export const loadCheckoutAttempt = (attemptId, attemptToken) =>
+    apiFetch(`/api/checkout/attempts/${encodeURIComponent(attemptId)}`, {
+        headers: { 'X-Checkout-Attempt-Token': attemptToken },
+    });
+
+export const saveCheckoutCustomer = ({ attemptId, attemptToken, customer }) =>
+    apiFetch(`/api/checkout/attempts/${encodeURIComponent(attemptId)}/customer`, {
+        method: 'PUT',
+        headers: { 'X-Checkout-Attempt-Token': attemptToken },
+        body: JSON.stringify(customer),
+    });
+
+export const cancelCheckoutAttempt = (attemptId, attemptToken) =>
+    apiFetch(`/api/checkout/attempts/${encodeURIComponent(attemptId)}/cancel`, {
+        method: 'POST',
+        headers: { 'X-Checkout-Attempt-Token': attemptToken },
+        body: JSON.stringify({}),
+    });
+
+export const recordCheckoutReturn = (attemptId, attemptToken) =>
+    apiFetch(`/api/checkout/attempts/${encodeURIComponent(attemptId)}/return`, {
+        method: 'POST',
+        headers: { 'X-Checkout-Attempt-Token': attemptToken },
+        body: JSON.stringify({}),
+    });
 
 export const loadMembershipSession = async () => {
     const data = await apiFetch('/api/membership/me');
