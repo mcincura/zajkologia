@@ -662,7 +662,8 @@ async function verifySecurityMetadata() {
   const requiredFragments = [
     'http-equiv="Content-Security-Policy"',
     'https://js.stripe.com',
-    'https://widget.packeta.com',
+    'https://checkout.stripe.com',
+    'https://link.com',
   ];
 
   for (const fragment of requiredFragments) {

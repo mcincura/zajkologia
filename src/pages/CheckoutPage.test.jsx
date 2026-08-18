@@ -51,12 +51,26 @@ const display = {
   items: [{ productSlug: 'guide', name: 'Príručka', quantity: 1, unitAmount: 499, netAmount: 399, discountAmount: 100, currency: 'eur' }],
   subtotal: 499,
   discountAmount: 100,
-  shipping: { amount: 0, allowedCountries: [], packeta: null },
+  shipping: { amount: 0, allowedCountries: [] },
   total: 399,
   currency: 'eur',
   coupon: { code: 'SAVE20', discountAmount: 100 },
   consent: { version: 'digital-v1', text: 'Súhlasím s okamžitým dodaním digitálneho obsahu.' },
   returnPath: '/product/guide',
+};
+
+const physicalDisplay = {
+  ...display,
+  hasDigitalItems: false,
+  hasPhysicalItems: true,
+  total: 599,
+  shipping: {
+    amount: 100,
+    allowedCountries: ['SK', 'CZ'],
+    label: 'Packeta / Z-BOX',
+    addressEntry: 'manual_packeta',
+  },
+  consent: { version: 'physical-v1', text: 'Súhlasím s podmienkami fyzickej objednávky.' },
 };
 
 const draftBootstrap = {
@@ -113,16 +127,27 @@ const renderCheckout = (route = `/checkout/${ATTEMPT_ID}`) => render(
 const fillBillingDetails = async ({ email = true } = {}) => {
   if (email) await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'buyer@example.com');
   await userEvent.type(screen.getByLabelText(/meno a priezvisko/i), 'Buyer Rabbit');
-  await userEvent.type(screen.getByLabelText(/ulica a číslo/i), 'Hlavná 1');
+  await userEvent.type(screen.getByLabelText(/^ulica a číslo$/i), 'Hlavná 1');
   await userEvent.type(screen.getByLabelText(/^mesto$/i), 'Bratislava');
-  await userEvent.type(screen.getByLabelText(/psč/i), '81101');
+  await userEvent.type(screen.getByLabelText(/^psč$/i), '81101');
+};
+
+const fillManualPacketaAddress = async () => {
+  await userEvent.type(screen.getByLabelText(/meno príjemcu/i), 'Buyer Rabbit');
+  await userEvent.type(screen.getByLabelText(/telefón príjemcu/i), '+421900000000');
+  await userEvent.selectOptions(screen.getByLabelText(/typ výdajného miesta/i), 'zbox');
+  await userEvent.type(screen.getByLabelText(/ulica a číslo Packeta/i), 'Hlavná 10');
+  await userEvent.type(screen.getByLabelText(/názov alebo označenie miesta/i), 'Z-BOX Bratislava');
+  await userEvent.type(screen.getByLabelText(/mesto Packeta/i), 'Bratislava');
+  await userEvent.type(screen.getByLabelText(/PSČ Packeta/i), '81101');
+  await userEvent.selectOptions(screen.getByLabelText(/krajina doručenia/i), 'SK');
+  await userEvent.type(screen.getByLabelText(/poznámka pre doručenie/i), 'Volajte po príchode.');
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   window.sessionStorage.clear();
-  delete window.Packeta;
   window.sessionStorage.setItem(
     `zajkologia_checkout_attempt_v2:${ATTEMPT_ID}`,
     JSON.stringify({
@@ -228,56 +253,94 @@ describe('first-party Checkout Elements page', () => {
     expect(screen.queryByRole('button', { name: /zaplatiť/i })).not.toBeInTheDocument();
   });
 
-  it('uses the official Packeta picker and records a selected restricted-country point', async () => {
-    const physicalDisplay = {
-      ...display,
-      hasDigitalItems: false,
-      hasPhysicalItems: true,
-      total: 599,
-      shipping: {
-        amount: 100,
-        allowedCountries: ['SK', 'CZ'],
-        label: 'Packeta / Z-BOX',
-        packeta: {
-          apiKey: '1234567890ABCDEF',
-          options: { language: 'sk', country: 'sk,cz' },
-        },
-      },
-      consent: { version: 'physical-v1', text: 'Súhlasím s podmienkami fyzickej objednávky.' },
-    };
+  it('saves the manually entered Packeta address and explicit address confirmation', async () => {
     vi.mocked(loadCheckoutAttempt).mockResolvedValue({ ...draftBootstrap, display: physicalDisplay });
-    window.Packeta = {
-      Widget: {
-        pick: vi.fn((_key, callback) => callback({
-          id: '12345',
-          name: 'Z-BOX Bratislava',
-          group: 'zbox',
-          street: 'Hlavná 10',
-          city: 'Bratislava',
-          zip: '811 01',
-          country: 'sk',
-        })),
+    vi.mocked(saveCheckoutCustomer).mockResolvedValue({
+      ...readyBootstrap,
+      display: physicalDisplay,
+      customer: {
+        ...customer,
+        shipping: {
+          name: 'Buyer Rabbit',
+          phone: '+421900000000',
+          address: {
+            line1: 'Hlavná 10',
+            line2: 'Z-BOX Bratislava',
+            city: 'Bratislava',
+            state: '',
+            postal_code: '81101',
+            country: 'SK',
+          },
+        },
+        delivery: {
+          method: 'zbox',
+          pointId: '',
+          addressConfirmed: true,
+          instructions: 'Volajte po príchode.',
+        },
+        consent: { accepted: true, version: 'physical-v1' },
       },
-    };
+    });
     renderCheckout();
 
     expect(await screen.findByRole('heading', { name: /doručenie/i })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /vybrať výdajné miesto na mape/i }));
-    expect(window.Packeta.Widget.pick).toHaveBeenCalledWith(
-      '1234567890ABCDEF',
-      expect.any(Function),
-      expect.objectContaining({ country: 'sk,cz' })
-    );
-    expect(screen.getByText(/ID 12345 · Z-BOX/i)).toBeInTheDocument();
-    expect(screen.queryByText(/dostupné krajiny/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/nezadávajte domácu adresu/i)).toBeInTheDocument();
+    expect(screen.queryByText(/vybrať výdajné miesto na mape/i)).not.toBeInTheDocument();
+
+    await fillBillingDetails();
+    await fillManualPacketaAddress();
+    await userEvent.click(screen.getByLabelText(/zadal\/a som adresu vybraného Packeta/i));
+    await userEvent.click(screen.getByLabelText(/súhlasím s podmienkami fyzickej objednávky/i));
+    await userEvent.click(screen.getByRole('button', { name: /pokračovať k bezpečnej platbe/i }));
+
+    await waitFor(() => expect(saveCheckoutCustomer).toHaveBeenCalledOnce());
+    expect(saveCheckoutCustomer).toHaveBeenCalledWith(expect.objectContaining({
+      customer: expect.objectContaining({
+        shipping: {
+          name: 'Buyer Rabbit',
+          phone: '+421900000000',
+          address: {
+            line1: 'Hlavná 10',
+            line2: 'Z-BOX Bratislava',
+            city: 'Bratislava',
+            state: '',
+            postal_code: '81101',
+            country: 'SK',
+          },
+        },
+        delivery: {
+          method: 'zbox',
+          pointId: '',
+          addressConfirmed: true,
+          instructions: 'Volajte po príchode.',
+        },
+        consent: { accepted: true, version: 'physical-v1' },
+      }),
+    }));
   });
 
-  it('shows a focused accessible error and never initializes payment when details are missing', async () => {
+  it('focuses the required Packeta-address confirmation before saving', async () => {
+    vi.mocked(loadCheckoutAttempt).mockResolvedValue({ ...draftBootstrap, display: physicalDisplay });
+    renderCheckout();
+
+    await screen.findByRole('heading', { name: /doručenie/i });
+    await fillBillingDetails();
+    await fillManualPacketaAddress();
+    await userEvent.click(screen.getByLabelText(/súhlasím s podmienkami fyzickej objednávky/i));
+    await userEvent.click(screen.getByRole('button', { name: /pokračovať k bezpečnej platbe/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/vyplňte prosím všetky povinné údaje/i);
+    expect(screen.getByLabelText(/zadal\/a som adresu vybraného Packeta/i)).toHaveFocus();
+    expect(saveCheckoutCustomer).not.toHaveBeenCalled();
+  });
+
+  it('announces missing details, focuses the first invalid field, and never initializes payment', async () => {
     renderCheckout();
     await screen.findByRole('heading', { name: /dokončite objednávku/i });
     await userEvent.click(screen.getByRole('button', { name: /pokračovať k bezpečnej platbe/i }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveFocus();
+    expect(alert).toHaveTextContent(/vyplňte prosím všetky povinné údaje/i);
+    expect(screen.getByLabelText(/^e-mail$/i)).toHaveFocus();
     expect(saveCheckoutCustomer).not.toHaveBeenCalled();
     expect(stripeActions.confirm).not.toHaveBeenCalled();
   });

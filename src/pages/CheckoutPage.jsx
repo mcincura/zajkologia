@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Clock3,
   LockKeyhole,
-  MapPin,
   RefreshCw,
   ShieldCheck,
   Tag,
@@ -34,42 +33,12 @@ import '../styles/checkout.css';
 const stripePromiseCache = new Map();
 const PROCESSING_POLL_MS = 1_500;
 const PROCESSING_MAX_POLLS = 20;
-const PACKETA_WIDGET_SCRIPT = 'https://widget.packeta.com/v6/www/js/library.js';
-let packetaScriptPromise;
 
 const getStripePromise = (publishableKey) => {
   if (!stripePromiseCache.has(publishableKey)) {
     stripePromiseCache.set(publishableKey, loadStripe(publishableKey));
   }
   return stripePromiseCache.get(publishableKey);
-};
-
-const loadPacketaWidget = () => {
-  if (window.Packeta?.Widget?.pick) return Promise.resolve(window.Packeta);
-  if (packetaScriptPromise) return packetaScriptPromise;
-  packetaScriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${PACKETA_WIDGET_SCRIPT}"]`);
-    if (existing) {
-      reject(new Error('packeta_widget_unavailable'));
-      return;
-    }
-    const script = existing || document.createElement('script');
-    const handleLoad = () => window.Packeta?.Widget?.pick
-      ? resolve(window.Packeta)
-      : reject(new Error('packeta_widget_unavailable'));
-    script.addEventListener('load', handleLoad, { once: true });
-    script.addEventListener('error', () => reject(new Error('packeta_widget_unavailable')), { once: true });
-    if (!existing) {
-      script.src = PACKETA_WIDGET_SCRIPT;
-      script.async = true;
-      script.dataset.checkoutPacketa = 'true';
-      document.head.appendChild(script);
-    }
-  }).catch((error) => {
-    packetaScriptPromise = undefined;
-    throw error;
-  });
-  return packetaScriptPromise;
 };
 
 const formatMoney = (amountMinor, currency = 'eur') => {
@@ -91,9 +60,6 @@ const getErrorMessage = (error) => {
   if (code === 'checkout_display_total_mismatch') return 'Cena sa zmenila. Platbu sme neodoslali; obnovte pokladňu.';
   if (code === 'checkout_rate_limited') return 'Príliš veľa pokusov. Počkajte chvíľu a skúste to znova.';
   if (code === 'checkout_details_already_finalized') return 'Údaje sú už bezpečne uzamknuté pre túto platbu.';
-  if (code === 'checkout_delivery_point_invalid') return 'Vybrané výdajné miesto už nie je dostupné. Vyberte prosím iné.';
-  if (code === 'checkout_delivery_validation_unavailable') return 'Výdajné miesto teraz nevieme bezpečne overiť. Skúste to prosím znova.';
-  if (code === 'packeta_widget_unavailable') return 'Mapu výdajných miest sa nepodarilo načítať. Skontrolujte pripojenie a skúste to znova.';
   return error?.message || 'Platbu sa nepodarilo odoslať. Skúste to prosím znova.';
 };
 
@@ -103,6 +69,11 @@ const emptyContact = (country = 'SK') => ({
   address: { line1: '', line2: '', city: '', state: '', postal_code: '', country },
 });
 
+const COUNTRY_LABELS = {
+  SK: 'Slovensko',
+  CZ: 'Česko',
+};
+
 const getInitialCustomer = (bootstrap) => {
   const saved = bootstrap.customer || {};
   const defaultCountry = bootstrap.display?.shipping?.allowedCountries?.[0] || 'SK';
@@ -110,7 +81,9 @@ const getInitialCustomer = (bootstrap) => {
     email: saved.email || bootstrap.display?.customer?.email || '',
     billing: saved.billing || emptyContact(defaultCountry),
     shipping: saved.shipping || emptyContact(defaultCountry),
-    delivery: saved.delivery || null,
+    delivery: saved.delivery || (bootstrap.display?.hasPhysicalItems
+      ? { method: '', pointId: '', addressConfirmed: false, instructions: '' }
+      : null),
     consent: saved.consent || {
       accepted: false,
       version: bootstrap.display?.consent?.version || '',
@@ -243,17 +216,23 @@ const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
   const display = bootstrap.display;
   const hasPhysicalItems = Boolean(display.hasPhysicalItems);
   const isMembership = display.kind === 'membership';
+  const configuredShippingCountries = display.shipping?.allowedCountries || [];
+  const shippingCountries = (configuredShippingCountries.length ? configuredShippingCountries : ['SK'])
+    .map((country) => String(country).toUpperCase());
   const [customer, setCustomer] = useState(() => getInitialCustomer(bootstrap));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const submissionLockRef = useRef(false);
   const errorRef = useRef(null);
+  const focusErrorRef = useRef(true);
   const formRef = useRef(null);
-  const packetaButtonRef = useRef(null);
-  const packeta = display.shipping?.packeta || null;
 
-  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
+  useEffect(() => {
+    if (!error) return;
+    if (focusErrorRef.current) errorRef.current?.focus();
+    focusErrorRef.current = true;
+  }, [error]);
 
   const handleCancel = async () => {
     if (busy) return;
@@ -270,59 +249,20 @@ const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
     }
   };
 
-  const choosePacketaPoint = async () => {
-    setError('');
-    if (!packeta?.apiKey) {
-      setError('Výber výdajného miesta nie je nakonfigurovaný. Objednávku sme neposlali.');
-      return;
-    }
-    try {
-      const library = await loadPacketaWidget();
-      library.Widget.pick(packeta.apiKey, (point) => {
-        if (!point) return;
-        setCustomer((current) => ({
-          ...current,
-          shipping: {
-            ...current.shipping,
-            address: {
-              line1: point.street || point.name || '',
-              line2: point.place || '',
-              city: point.city || '',
-              state: '',
-              postal_code: point.zip || '',
-              country: String(point.country || '').toUpperCase(),
-            },
-          },
-          delivery: {
-            method: point.group === 'zbox' ? 'zbox' : 'packeta',
-            pointId: String(point.id || ''),
-            pointName: point.name || '',
-            instructions: current.delivery?.instructions || '',
-          },
-        }));
-      }, packeta.options || {});
-    } catch (widgetError) {
-      setError(getErrorMessage(widgetError));
-    }
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (busy || submissionLockRef.current) return;
+    focusErrorRef.current = true;
     setError('');
     if (!formRef.current?.checkValidity()) {
+      focusErrorRef.current = false;
       setError('Vyplňte prosím všetky povinné údaje a potvrďte podmienky.');
       formRef.current?.querySelector(':invalid')?.focus();
       return;
     }
-    if (hasPhysicalItems && !customer.delivery?.pointId) {
-      setError('Vyberte Packeta výdajné miesto alebo Z-BOX na mape.');
-      packetaButtonRef.current?.focus();
-      return;
-    }
     submissionLockRef.current = true;
     setBusy(true);
-    setStatus(hasPhysicalItems ? 'Overujeme výdajné miesto a konečnú cenu…' : 'Ukladáme údaje a konečnú cenu…');
+    setStatus(hasPhysicalItems ? 'Ukladáme adresu Packeta/Z-BOXu a konečnú cenu…' : 'Ukladáme údaje a konečnú cenu…');
     try {
       const next = await saveCheckoutCustomer({
         attemptId: attempt.id,
@@ -371,14 +311,34 @@ const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
         </section>
         {hasPhysicalItems ? (
           <section className="onsite-checkout__section" aria-labelledby="checkout-delivery-title">
-            <div className="onsite-checkout__section-title"><span>3</span><div><h2 id="checkout-delivery-title">Doručenie</h2><p>Vyberte overené Packeta výdajné miesto alebo Z-BOX.</p></div></div>
+            <div className="onsite-checkout__section-title"><span>3</span><div><h2 id="checkout-delivery-title">Doručenie</h2><p>Zadajte adresu zvoleného Packeta výdajného miesta alebo Z-BOXu.</p></div></div>
+            <div className="onsite-checkout__delivery-notice" id="packeta-address-help">
+              <strong>Dôležité: nezadávajte domácu adresu.</strong>
+              <span>Do polí nižšie prepíšte presnú adresu vybraného Packeta výdajného miesta alebo Z-BOXu.</span>
+            </div>
             <div className="onsite-checkout__native-fields">
               <label htmlFor="shipping-name">Meno príjemcu</label><input id="shipping-name" name="shipping-name" value={customer.shipping.name} onChange={(event) => setCustomer((current) => ({ ...current, shipping: { ...current.shipping, name: event.target.value } }))} autoComplete="shipping name" maxLength="255" required />
               <label htmlFor="shipping-phone">Telefón príjemcu</label><input id="shipping-phone" name="shipping-phone" type="tel" value={customer.shipping.phone} onChange={(event) => setCustomer((current) => ({ ...current, shipping: { ...current.shipping, phone: event.target.value } }))} autoComplete="shipping tel" maxLength="64" required />
-              <button type="button" className="onsite-checkout__picker" onClick={choosePacketaPoint} ref={packetaButtonRef} disabled={busy}><MapPin size={18} aria-hidden="true" /> {customer.delivery?.pointId ? 'Zmeniť výdajné miesto' : 'Vybrať výdajné miesto na mape'}</button>
-              {customer.delivery?.pointId ? (
-                <div className="onsite-checkout__selected-point" role="status"><strong>{customer.delivery.pointName || customer.shipping.address.line1}</strong><span>{customer.shipping.address.line1}, {customer.shipping.address.postal_code} {customer.shipping.address.city}, {customer.shipping.address.country}</span><span>ID {customer.delivery.pointId} · {customer.delivery.method === 'zbox' ? 'Z-BOX' : 'Packeta'}</span></div>
-              ) : <p className="onsite-checkout__field-help">Dostupné krajiny: {(display.shipping.allowedCountries || []).join(', ')}.</p>}
+              <label htmlFor="delivery-method">Typ výdajného miesta</label>
+              <select id="delivery-method" name="delivery-method" value={customer.delivery?.method || ''} onChange={(event) => setCustomer((current) => ({ ...current, delivery: { ...(current.delivery || {}), method: event.target.value } }))} required>
+                <option value="" disabled>Vyberte Packeta alebo Z-BOX</option>
+                <option value="packeta">Packeta výdajné miesto</option>
+                <option value="zbox">Z-BOX</option>
+              </select>
+              <label htmlFor="shipping-line1">Ulica a číslo Packeta/Z-BOXu</label><input id="shipping-line1" name="shipping-line1" value={customer.shipping.address.line1} onChange={(event) => setCustomer((current) => ({ ...current, shipping: { ...current.shipping, address: { ...current.shipping.address, line1: event.target.value } } }))} autoComplete="shipping address-line1" aria-describedby="packeta-address-help" maxLength="255" required />
+              <label htmlFor="shipping-line2">Názov alebo označenie miesta <span>(nepovinné)</span></label><input id="shipping-line2" name="shipping-line2" value={customer.shipping.address.line2} onChange={(event) => setCustomer((current) => ({ ...current, shipping: { ...current.shipping, address: { ...current.shipping.address, line2: event.target.value } } }))} autoComplete="shipping address-line2" maxLength="255" />
+              <div className="onsite-checkout__field-pair">
+                <div><label htmlFor="shipping-city">Mesto Packeta/Z-BOXu</label><input id="shipping-city" name="shipping-city" value={customer.shipping.address.city} onChange={(event) => setCustomer((current) => ({ ...current, shipping: { ...current.shipping, address: { ...current.shipping.address, city: event.target.value } } }))} autoComplete="shipping address-level2" maxLength="191" required /></div>
+                <div><label htmlFor="shipping-postal-code">PSČ Packeta/Z-BOXu</label><input id="shipping-postal-code" name="shipping-postal-code" value={customer.shipping.address.postal_code} onChange={(event) => setCustomer((current) => ({ ...current, shipping: { ...current.shipping, address: { ...current.shipping.address, postal_code: event.target.value } } }))} autoComplete="shipping postal-code" maxLength="64" required /></div>
+              </div>
+              <label htmlFor="shipping-country">Krajina doručenia</label>
+              <select id="shipping-country" name="shipping-country" value={customer.shipping.address.country} onChange={(event) => setCustomer((current) => ({ ...current, shipping: { ...current.shipping, address: { ...current.shipping.address, country: event.target.value } } }))} autoComplete="shipping country" required>
+                {shippingCountries.map((country) => <option key={country} value={country}>{COUNTRY_LABELS[country] || country} ({country})</option>)}
+              </select>
+              <label className="onsite-checkout__delivery-confirmation" htmlFor="delivery-address-confirmed">
+                <input id="delivery-address-confirmed" name="delivery-address-confirmed" type="checkbox" checked={customer.delivery?.addressConfirmed === true} onChange={(event) => setCustomer((current) => ({ ...current, delivery: { ...(current.delivery || {}), addressConfirmed: event.target.checked } }))} required />
+                <span>Áno, zadal/a som adresu vybraného Packeta výdajného miesta alebo Z-BOXu, nie svoju domácu adresu.</span>
+              </label>
               <label htmlFor="delivery-instructions">Poznámka pre doručenie <span>(nepovinné)</span></label><textarea id="delivery-instructions" value={customer.delivery?.instructions || ''} onChange={(event) => setCustomer((current) => ({ ...current, delivery: { ...(current.delivery || {}), instructions: event.target.value } }))} maxLength="1000" rows="3" />
             </div>
           </section>

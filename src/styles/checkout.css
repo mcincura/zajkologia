@@ -99,36 +99,25 @@
 .onsite-checkout__native-fields--grid { gap: 0.65rem; }
 .onsite-checkout__field-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.55fr); gap: 0.8rem; }
 .onsite-checkout__field-pair > div { display: grid; gap: 0.5rem; }
-.onsite-checkout__picker {
-  min-height: 46px;
-  border: 1px solid #8d626c;
-  border-radius: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.7rem 1rem;
-  background: #fbf4f5;
-  color: #603641;
-  font-weight: 750;
-}
-.onsite-checkout__picker { margin-top: 0.55rem; }
-.onsite-checkout__picker:disabled { cursor: wait; opacity: 0.58; }
-.onsite-checkout__selected-point {
+.onsite-checkout__delivery-notice {
   display: grid;
-  gap: 0.25rem;
-  border: 1px solid #a8cdb5;
+  gap: 0.35rem;
+  border: 1px solid #d6aa77;
   border-radius: 11px;
   padding: 0.85rem 1rem;
-  background: #f1faf4;
-  color: #315d44;
+  background: #fff8ed;
+  color: #6b2e16;
 }
-.onsite-checkout__selected-point span { color: #4e6959; font-size: 0.86rem; }
+.onsite-checkout__delivery-notice span { color: #7a4a31; font-size: 0.9rem; line-height: 1.5; }
 .onsite-checkout__field-help { color: #705a60; font-size: 0.86rem; }
 
-.onsite-checkout__consent { display: grid; grid-template-columns: 1.25rem 1fr; gap: 0.75rem; align-items: start; line-height: 1.55; cursor: pointer; }
-.onsite-checkout__consent input { width: 1.18rem; height: 1.18rem; margin-top: 0.18rem; accent-color: #7d4f58; }
-.onsite-checkout__consent span { font-size: 0.9rem; }
+.onsite-checkout__consent,
+.onsite-checkout__delivery-confirmation { display: grid; grid-template-columns: 1.25rem 1fr; gap: 0.75rem; align-items: start; line-height: 1.55; cursor: pointer; }
+.onsite-checkout__delivery-confirmation { margin-top: 0.55rem; }
+.onsite-checkout__consent input,
+.onsite-checkout__delivery-confirmation input { width: 1.18rem; height: 1.18rem; margin-top: 0.18rem; accent-color: #7d4f58; }
+.onsite-checkout__consent span,
+.onsite-checkout__delivery-confirmation span { font-size: 0.9rem; }
 .onsite-checkout__legal-links { margin: 0.9rem 0 0 2rem; color: #705a60; font-size: 0.87rem; }
 .onsite-checkout__legal-links a { color: #73434f; text-decoration: underline; text-underline-offset: 0.18em; }
 
