@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -62,6 +63,20 @@ beforeEach(() => {
 });
 
 describe('ProductDetailView', () => {
+  it('keeps product coupon status and purchase controls inside the summary card', () => {
+    const stylesheet = readFileSync('src/styles/product-details.css', 'utf8');
+
+    expect(stylesheet).toMatch(
+      /\.product-page__checkout-controls\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);[\s\S]*?min-width:\s*0;/
+    );
+    expect(stylesheet).toMatch(
+      /\.product-page__checkout-controls > \.product-page__cta,[\s\S]*?\.product-page__checkout-controls > \.product-page__cart-button\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?white-space:\s*normal;/
+    );
+    expect(stylesheet).toMatch(
+      /\.product-page__coupon-applied\s*\{[\s\S]*?grid-template-columns:\s*auto minmax\(0,\s*1fr\);[\s\S]*?min-width:\s*0;[\s\S]*?width:\s*100%;/
+    );
+  });
+
   it('routes mixed bundle buy-now through one-item cart checkout', async () => {
     vi.mocked(createCartCheckoutSession).mockImplementation(() => new Promise(() => {}));
     vi.mocked(quoteCheckout).mockResolvedValue({

@@ -316,6 +316,12 @@
 .cart-summary__applied div {
   display: grid;
   gap: 0.15rem;
+  min-width: 0;
+}
+
+.cart-summary__applied strong,
+.cart-summary__applied span {
+  overflow-wrap: anywhere;
 }
 
 .cart-summary__applied span {

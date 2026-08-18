@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -78,6 +79,19 @@ const renderCartPage = (items, { coupon = null, route = '/cart' } = {}) => {
     </CartProvider>
   );
 };
+
+describe('cart coupon layout', () => {
+  it('allows long applied coupon names and codes to wrap inside the summary', () => {
+    const stylesheet = readFileSync('src/styles/cart.css', 'utf8');
+
+    expect(stylesheet).toMatch(
+      /\.cart-summary__applied div\s*\{[\s\S]*?min-width:\s*0;/
+    );
+    expect(stylesheet).toMatch(
+      /\.cart-summary__applied strong,[\s\S]*?\.cart-summary__applied span\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/
+    );
+  });
+});
 
 beforeEach(() => {
   window.localStorage.clear();
