@@ -240,21 +240,35 @@ function markdownToHtml(markdown) {
   );
 }
 
-function extractAssetTags(templateHtml) {
+function extractHeadTags(templateHtml) {
   const headMatch = templateHtml.match(/<head>([\s\S]*?)<\/head>/i);
-  if (!headMatch) return '';
+  if (!headMatch) {
+    return { assetTags: '', securityMetaTags: '' };
+  }
 
   const headHtml = headMatch[1];
   const scriptTags = [...headHtml.matchAll(/<script\b[^>]*\bsrc="[^"]*"[^>]*><\/script>/gi)];
   const linkTags = [...headHtml.matchAll(/<link\b[^>]*>/gi)];
+  const securityMetaTags = [
+    ...headHtml.matchAll(
+      /<meta\b(?=[^>]*\bhttp-equiv=["']Content-Security-Policy["'])[^>]*>/gi
+    ),
+  ]
+    .map((match) => match[0])
+    .join('\n');
 
-  return [...scriptTags, ...linkTags]
+  const assetTags = [...scriptTags, ...linkTags]
     .map((match) => match[0])
     .filter((tag) => tag.includes('/assets/'))
     .join('\n');
+
+  return { assetTags, securityMetaTags };
 }
 
-function buildHead({ title, description, canonical, image = DEFAULT_IMAGE, type = 'website', jsonLd = [], extraMeta = [] }, assetTags) {
+function buildHead(
+  { title, description, canonical, image = DEFAULT_IMAGE, type = 'website', jsonLd = [], extraMeta = [] },
+  { assetTags, securityMetaTags }
+) {
   const safeTitle = escapeHtml(title);
   const safeDescription = escapeAttr(description);
   const safeCanonical = escapeAttr(canonical);
@@ -269,6 +283,7 @@ function buildHead({ title, description, canonical, image = DEFAULT_IMAGE, type 
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  ${securityMetaTags}
   <title>${safeTitle}</title>
   <meta name="description" content="${safeDescription}" />
   <link rel="canonical" href="${safeCanonical}" />
@@ -304,9 +319,9 @@ ${assetTags}
 </head>`;
 }
 
-function renderPage(templateHtml, assetTags, meta, bodyHtml) {
+function renderPage(templateHtml, headTags, meta, bodyHtml) {
   const htmlWithLang = templateHtml.replace(/<html\b[^>]*>/i, '<html lang="sk-SK">');
-  const withHead = htmlWithLang.replace(/<head>[\s\S]*?<\/head>/i, buildHead(meta, assetTags));
+  const withHead = htmlWithLang.replace(/<head>[\s\S]*?<\/head>/i, buildHead(meta, headTags));
   const withBody = withHead.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
 
   if (withBody === withHead) {
@@ -642,9 +657,28 @@ async function writeSpaFallback() {
   await copyFile(path.join(distDir, 'index.html'), path.join(distDir, '404.html'));
 }
 
+async function verifySecurityMetadata() {
+  const generatedIndex = await readFile(path.join(distDir, 'index.html'), 'utf8');
+  const requiredFragments = [
+    'http-equiv="Content-Security-Policy"',
+    'https://js.stripe.com',
+    'https://widget.packeta.com',
+  ];
+
+  for (const fragment of requiredFragments) {
+    if (!generatedIndex.includes(fragment)) {
+      throw new Error(`Generated index.html is missing required security metadata: ${fragment}`);
+    }
+  }
+}
+
 async function main() {
   const templateHtml = await readFile(path.join(distDir, 'index.html'), 'utf8');
-  const assetTags = extractAssetTags(templateHtml);
+  const headTags = extractHeadTags(templateHtml);
+
+  if (!headTags.securityMetaTags) {
+    throw new Error('Vite build output is missing the Content-Security-Policy meta tag.');
+  }
 
   const [postsPayload, productsPayload] = await Promise.all([
     fetchJson('/api/posts'),
@@ -666,7 +700,7 @@ async function main() {
     '/',
     renderPage(
       templateHtml,
-      assetTags,
+      headTags,
       {
         title: HOME_TITLE,
         description: HOME_DESCRIPTION,
@@ -699,7 +733,7 @@ async function main() {
       `/post/${post.slug}`,
       renderPage(
         templateHtml,
-        assetTags,
+        headTags,
         {
           title: `${post.title} | Zajkológia`,
           description,
@@ -722,7 +756,7 @@ async function main() {
     const description = textSnippet(product.shortDescription || product.description);
     const pageHtml = renderPage(
       templateHtml,
-      assetTags,
+      headTags,
       {
         title: `${product.name} | Zajkológia`,
         description,
@@ -751,7 +785,7 @@ async function main() {
     '/o-nas',
     renderPage(
       templateHtml,
-      assetTags,
+      headTags,
       {
         title: ABOUT_TITLE,
         description: ABOUT_DESCRIPTION,
@@ -786,7 +820,7 @@ async function main() {
     '/obchodne-podmienky',
     renderPage(
       templateHtml,
-      assetTags,
+      headTags,
       {
         title: TERMS_TITLE,
         description: TERMS_DESCRIPTION,
@@ -815,7 +849,7 @@ async function main() {
     '/admin',
     renderPage(
       templateHtml,
-      assetTags,
+      headTags,
       {
         title: ADMIN_TITLE,
         description: ADMIN_DESCRIPTION,
@@ -831,6 +865,7 @@ async function main() {
   await writeSitemap(posts, products);
   await writeRobots();
   await writeSpaFallback();
+  await verifySecurityMetadata();
 
   console.log(
     `Generated SEO pages for ${posts.length} posts and ${products.length} products from ${API_BASE_URL}`
