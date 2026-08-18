@@ -1,6 +1,7 @@
 const CONTRACT_VERSION = '2';
 const ACTIVE_PREFIX = 'zajkologia_checkout_active_v2:';
 const ATTEMPT_PREFIX = 'zajkologia_checkout_attempt_v2:';
+const COUPON_MUTATION_PREFIX = 'zajkologia_checkout_coupon_mutation_v2:';
 const ACTIVE_TTL_MS = 45 * 60 * 1000;
 const preparationLocks = new Map();
 
@@ -104,14 +105,36 @@ export const markCheckoutAttemptCreated = (attempt) => {
 export const getCheckoutAttempt = (attemptId) =>
   readJson(`${ATTEMPT_PREFIX}${String(attemptId || '').trim().toLowerCase()}`);
 
+export const getPendingCheckoutCouponMutation = (attemptId) =>
+  readJson(`${COUPON_MUTATION_PREFIX}${String(attemptId || '').trim().toLowerCase()}`);
+
+export const storePendingCheckoutCouponMutation = (attemptId, mutation) => {
+  const storage = getStorage();
+  if (!storage) return;
+  storage.setItem(
+    `${COUPON_MUTATION_PREFIX}${String(attemptId || '').trim().toLowerCase()}`,
+    JSON.stringify(mutation)
+  );
+};
+
+export const clearPendingCheckoutCouponMutation = (attemptId) => {
+  const storage = getStorage();
+  if (!storage) return;
+  storage.removeItem(
+    `${COUPON_MUTATION_PREFIX}${String(attemptId || '').trim().toLowerCase()}`
+  );
+};
+
 export const clearCheckoutAttempt = (attemptId) => {
   const storage = getStorage();
   if (!storage) return;
-  const attempt = getCheckoutAttempt(attemptId);
-  storage.removeItem(`${ATTEMPT_PREFIX}${attemptId}`);
+  const normalizedAttemptId = String(attemptId || '').trim().toLowerCase();
+  const attempt = getCheckoutAttempt(normalizedAttemptId);
+  storage.removeItem(`${ATTEMPT_PREFIX}${normalizedAttemptId}`);
+  storage.removeItem(`${COUPON_MUTATION_PREFIX}${normalizedAttemptId}`);
   if (attempt?.scope) {
     const active = readJson(`${ACTIVE_PREFIX}${attempt.scope}`);
-    if (active?.id === attemptId) storage.removeItem(`${ACTIVE_PREFIX}${attempt.scope}`);
+    if (active?.id === normalizedAttemptId) storage.removeItem(`${ACTIVE_PREFIX}${attempt.scope}`);
   }
 };
 

@@ -4,7 +4,7 @@ import { ArrowLeft, Check, Minus, Plus, ShoppingCart, Tag, Trash2, X } from 'luc
 import { createCartCheckoutSession, quoteCheckout } from '../api/client';
 import { useCart } from '../cart/useCart';
 import { useProducts } from '../hooks/useProducts';
-import { getCouponErrorMessage } from '../utils/couponErrors';
+import { getCouponErrorMessage, normalizeCouponCode } from '../utils/couponErrors';
 import { getProductTypeLabel, hasPhysicalDelivery } from '../utils/productTypes';
 import '../styles/cart.css';
 
@@ -148,7 +148,7 @@ const CartPage = () => {
 
   const handleApplyCoupon = async (event) => {
     event.preventDefault();
-    const normalizedCode = couponDraft.trim().toUpperCase();
+    const normalizedCode = normalizeCouponCode(couponDraft);
     if (!normalizedCode) {
       setMessage('Zadajte zľavový kód.');
       setMessageKind('error');

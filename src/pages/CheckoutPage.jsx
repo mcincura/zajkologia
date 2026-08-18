@@ -14,20 +14,29 @@ import {
   RefreshCw,
   ShieldCheck,
   Tag,
+  X,
 } from 'lucide-react';
 
 import {
   cancelCheckoutAttempt,
   loadCheckoutAttempt,
+  mutateCheckoutAttemptCoupon,
   recordCheckoutReturn,
   saveCheckoutCustomer,
 } from '../api/client';
-import { clearCheckoutAttempt, getCheckoutAttempt } from '../checkout/attemptStore';
+import {
+  clearCheckoutAttempt,
+  clearPendingCheckoutCouponMutation,
+  getCheckoutAttempt,
+  getPendingCheckoutCouponMutation,
+  storePendingCheckoutCouponMutation,
+} from '../checkout/attemptStore';
 import { useCart } from '../cart/useCart';
 import {
   clearStoredWelcomeDiscountOffer,
   suppressEmailCaptureOffers,
 } from '../utils/welcomeDiscount';
+import { getCouponErrorMessage, normalizeCouponCode } from '../utils/couponErrors';
 import '../styles/checkout.css';
 
 const stripePromiseCache = new Map();
@@ -91,7 +100,213 @@ const getInitialCustomer = (bootstrap) => {
   };
 };
 
-const CheckoutSummary = ({ display }) => (
+const CheckoutCouponPanel = ({
+  display,
+  busy,
+  disabled = false,
+  locked,
+  onApply,
+  onRemove,
+}) => {
+  const appliedCoupon = display.coupon || null;
+  const [draft, setDraft] = useState('');
+  const [replacing, setReplacing] = useState(!appliedCoupon);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const inputRef = useRef(null);
+  const errorRef = useRef(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
+
+  const showError = (nextError, fallback) => {
+    setStatus('');
+    setError(getCouponErrorMessage(nextError, fallback));
+  };
+
+  const handleApply = async (event) => {
+    event.preventDefault();
+    if (busy || disabled || locked) return;
+    const couponCode = normalizeCouponCode(draft);
+    if (!couponCode) {
+      setStatus('');
+      setError('Zadajte zľavový kód.');
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
+    setError('');
+    setStatus('Overujeme zľavový kód a novú konečnú cenu…');
+    try {
+      const next = await onApply(couponCode);
+      const coupon = next.display?.coupon;
+      setDraft('');
+      setReplacing(false);
+      setStatus(
+        `Kód ${coupon?.code || couponCode} je použitý. Ušetríte ${formatMoney(
+          next.display?.discountAmount,
+          next.display?.currency
+        )}.`
+      );
+    } catch (nextError) {
+      showError(
+        nextError,
+        'Zľavu sa nepodarilo bezpečne použiť. Pôvodná cena zostala nezmenená; skúste to znova.'
+      );
+    }
+  };
+
+  const handleRemove = async () => {
+    if (busy || disabled || locked) return;
+    setError('');
+    setStatus('Odstraňujeme zľavu a obnovujeme konečnú cenu…');
+    try {
+      const next = await onRemove();
+      setDraft('');
+      setReplacing(true);
+      setStatus(`Zľavový kód bol odstránený. Nová suma je ${formatMoney(
+        next.display?.total,
+        next.display?.currency
+      )}.`);
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    } catch (nextError) {
+      showError(
+        nextError,
+        'Zľavu sa nepodarilo bezpečne odstrániť. Doterajšia cena zostala nezmenená; skúste to znova.'
+      );
+    }
+  };
+
+  const handleReplace = () => {
+    setError('');
+    setStatus('');
+    setDraft('');
+    setReplacing(true);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const inputErrorId = 'checkout-coupon-error';
+  const inputStatusId = 'checkout-coupon-status';
+  const describedBy = error ? inputErrorId : status ? inputStatusId : undefined;
+
+  return (
+    <section
+      className="onsite-checkout__coupon-panel"
+      aria-labelledby="checkout-coupon-title"
+      aria-busy={busy}
+    >
+      <div className="onsite-checkout__coupon-heading">
+        <div>
+          <span className="onsite-checkout__coupon-kicker"><Tag size={15} aria-hidden="true" /> Zľava</span>
+          <h3 id="checkout-coupon-title">Zľavový kód</h3>
+        </div>
+        {busy ? <span className="onsite-checkout__coupon-busy">Prepočítavame…</span> : null}
+      </div>
+
+      {appliedCoupon ? (
+        <div className="onsite-checkout__coupon-applied">
+          <CheckCircle2 size={19} aria-hidden="true" />
+          <div>
+            <strong>{appliedCoupon.name || appliedCoupon.code}</strong>
+            <span>
+              Kód {appliedCoupon.code} · úspora {formatMoney(
+                display.discountAmount,
+                display.currency
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={busy || disabled || locked}
+            aria-label={`Odstrániť zľavový kód ${appliedCoupon.code}`}
+          >
+            <X size={16} aria-hidden="true" /> Odstrániť
+          </button>
+        </div>
+      ) : null}
+
+      {replacing ? (
+        <form className="onsite-checkout__coupon-form" onSubmit={handleApply} noValidate>
+          <label htmlFor="checkout-coupon-code">
+            {appliedCoupon ? 'Nový zľavový kód' : 'Zľavový kód'}
+          </label>
+          <div className="onsite-checkout__coupon-input-row">
+            <input
+              id="checkout-coupon-code"
+              ref={inputRef}
+              name="coupon-code"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value.toUpperCase())}
+              placeholder="ZADAJTE KÓD"
+              autoComplete="off"
+              spellCheck="false"
+              maxLength="64"
+              disabled={busy || disabled || locked}
+              aria-invalid={Boolean(error)}
+              aria-describedby={describedBy}
+            />
+            <button type="submit" disabled={busy || disabled || locked}>
+              {busy ? 'Overujeme…' : appliedCoupon ? 'Nahradiť' : 'Použiť'}
+            </button>
+          </div>
+          {appliedCoupon ? (
+            <button
+              type="button"
+              className="onsite-checkout__coupon-cancel-replace"
+              onClick={() => {
+                setReplacing(false);
+                setDraft('');
+                setError('');
+              }}
+              disabled={busy || disabled || locked}
+            >
+              Ponechať kód {appliedCoupon.code}
+            </button>
+          ) : null}
+        </form>
+      ) : appliedCoupon ? (
+        <button
+          type="button"
+          className="onsite-checkout__coupon-replace"
+          onClick={handleReplace}
+          disabled={busy || disabled || locked}
+        >
+          Použiť iný kód
+        </button>
+      ) : null}
+
+      {locked ? (
+        <p className="onsite-checkout__coupon-locked">
+          <LockKeyhole size={15} aria-hidden="true" />
+          Zľavu možno zmeniť pred pokračovaním k platbe. Ak ju potrebujete upraviť,
+          zrušte tento pokus a začnite znova.
+        </p>
+      ) : null}
+      <p
+        id={inputStatusId}
+        className="onsite-checkout__coupon-message onsite-checkout__coupon-message--status"
+        role="status"
+        aria-live="polite"
+      >
+        {status}
+      </p>
+      {error ? (
+        <p
+          id={inputErrorId}
+          className="onsite-checkout__coupon-message onsite-checkout__coupon-message--error"
+          role="alert"
+          tabIndex="-1"
+          ref={errorRef}
+        >
+          {error}
+        </p>
+      ) : null}
+    </section>
+  );
+};
+
+const CheckoutSummary = ({ display, couponControl }) => (
   <aside className="onsite-checkout__summary" aria-labelledby="checkout-summary-title">
     <div className="onsite-checkout__summary-heading">
       <span className="onsite-checkout__eyebrow">Vaša objednávka</span>
@@ -123,7 +338,7 @@ const CheckoutSummary = ({ display }) => (
       <div className="onsite-checkout__total"><dt>Spolu</dt><dd>{formatMoney(display.total, display.currency)}</dd></div>
       {display.recurring ? <div className="onsite-checkout__renewal"><dt>Obnova</dt><dd>mesačne</dd></div> : null}
     </dl>
-    {display.coupon ? <p className="onsite-checkout__coupon"><CheckCircle2 size={17} aria-hidden="true" /> Kód {display.coupon.code} je už započítaný.</p> : null}
+    {couponControl}
     <div className="onsite-checkout__trust">
       <ShieldCheck size={21} aria-hidden="true" />
       <p><strong>Bezpečná platba</strong><span>Platobné údaje spracuje Stripe. Zajkológia ich nevidí ani neukladá.</span></p>
@@ -131,11 +346,11 @@ const CheckoutSummary = ({ display }) => (
   </aside>
 );
 
-const CheckoutShell = ({ display, header, children }) => (
+const CheckoutShell = ({ display, header, couponControl, children }) => (
   <div className="onsite-checkout">
     <div className="onsite-checkout__shell">
       <div className="onsite-checkout__header-region">{header}</div>
-      <CheckoutSummary display={display} />
+      <CheckoutSummary display={display} couponControl={couponControl} />
       <div className="onsite-checkout__main">{children}</div>
     </div>
   </div>
@@ -211,7 +426,15 @@ const AddressFields = ({ idPrefix, value, onChange }) => {
   );
 };
 
-const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
+const CheckoutDetailsForm = ({
+  bootstrap,
+  attempt,
+  couponBusy,
+  isCouponMutationLocked,
+  onApplyCoupon,
+  onRemoveCoupon,
+  onStateChange,
+}) => {
   const navigate = useNavigate();
   const display = bootstrap.display;
   const hasPhysicalItems = Boolean(display.hasPhysicalItems);
@@ -235,7 +458,7 @@ const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
   }, [error]);
 
   const handleCancel = async () => {
-    if (busy) return;
+    if (busy || couponBusy || isCouponMutationLocked?.()) return;
     setBusy(true);
     setStatus('Uvoľňujeme rezerváciu…');
     try {
@@ -251,7 +474,7 @@ const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (busy || submissionLockRef.current) return;
+    if (busy || couponBusy || isCouponMutationLocked?.() || submissionLockRef.current) return;
     focusErrorRef.current = true;
     setError('');
     if (!formRef.current?.checkValidity()) {
@@ -294,7 +517,20 @@ const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
   };
 
   return (
-    <CheckoutShell display={display} header={<CheckoutHeader onCancel={handleCancel} busy={busy} />}>
+    <CheckoutShell
+      display={display}
+      header={<CheckoutHeader onCancel={handleCancel} busy={busy || couponBusy} />}
+      couponControl={isMembership ? null : (
+        <CheckoutCouponPanel
+          display={display}
+          busy={couponBusy}
+          disabled={busy}
+          locked={false}
+          onApply={onApplyCoupon}
+          onRemove={onRemoveCoupon}
+        />
+      )}
+    >
       <form ref={formRef} className="onsite-checkout__form" onSubmit={handleSubmit} noValidate>
         {error ? <div className="onsite-checkout__error" role="alert" tabIndex="-1" ref={errorRef}>{error}</div> : null}
         <p className="onsite-checkout__status" role="status" aria-live="polite">{status}</p>
@@ -348,13 +584,21 @@ const CheckoutDetailsForm = ({ bootstrap, attempt, onStateChange }) => {
           <label className="onsite-checkout__consent"><input type="checkbox" checked={customer.consent.accepted} onChange={(event) => setCustomer((current) => ({ ...current, consent: { accepted: event.target.checked, version: display.consent.version } }))} required /><span>{display.consent.text}</span></label>
           <p className="onsite-checkout__legal-links">Pozrite si aj <Link to="/obchodne-podmienky" target="_blank" rel="noreferrer">obchodné podmienky</Link>.</p>
         </section>
-        <button className="onsite-checkout__submit" type="submit" disabled={busy} aria-busy={busy}><LockKeyhole size={18} aria-hidden="true" />{busy ? 'Overujeme údaje…' : 'Pokračovať k bezpečnej platbe'}</button>
+        <button className="onsite-checkout__submit" type="submit" disabled={busy || couponBusy} aria-busy={busy || couponBusy}><LockKeyhole size={18} aria-hidden="true" />{busy ? 'Overujeme údaje…' : couponBusy ? 'Prepočítavame cenu…' : 'Pokračovať k bezpečnej platbe'}</button>
       </form>
     </CheckoutShell>
   );
 };
 
-const CheckoutPaymentForm = ({ bootstrap, attempt, onStateChange }) => {
+const CheckoutPaymentForm = ({
+  bootstrap,
+  attempt,
+  couponBusy,
+  isCouponMutationLocked,
+  onApplyCoupon,
+  onRemoveCoupon,
+  onStateChange,
+}) => {
   const checkoutState = useCheckoutElements();
   const navigate = useNavigate();
   const display = bootstrap.display;
@@ -375,7 +619,7 @@ const CheckoutPaymentForm = ({ bootstrap, attempt, onStateChange }) => {
   useEffect(() => { if (visibleError) errorRef.current?.focus(); }, [visibleError]);
 
   const handleCancel = async () => {
-    if (busy || submissionLockRef.current) return;
+    if (busy || couponBusy || isCouponMutationLocked?.() || submissionLockRef.current) return;
     setBusy(true);
     setStatus('Uvoľňujeme rezerváciu…');
     try {
@@ -391,7 +635,7 @@ const CheckoutPaymentForm = ({ bootstrap, attempt, onStateChange }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (busy || submissionLockRef.current) return;
+    if (busy || couponBusy || isCouponMutationLocked?.() || submissionLockRef.current) return;
     submissionLockRef.current = true;
     setError('');
     if (!paymentComplete) {
@@ -455,7 +699,20 @@ const CheckoutPaymentForm = ({ bootstrap, attempt, onStateChange }) => {
   };
 
   return (
-    <CheckoutShell display={display} header={<CheckoutHeader onCancel={handleCancel} busy={busy} paymentStage />}>
+    <CheckoutShell
+      display={display}
+      header={<CheckoutHeader onCancel={handleCancel} busy={busy || couponBusy} paymentStage />}
+      couponControl={display.kind === 'membership' ? null : (
+        <CheckoutCouponPanel
+          display={display}
+          busy={couponBusy}
+          disabled={busy}
+          locked
+          onApply={onApplyCoupon}
+          onRemove={onRemoveCoupon}
+        />
+      )}
+    >
       <form className="onsite-checkout__form" onSubmit={handleSubmit} noValidate>
         {visibleError ? <div className="onsite-checkout__error" role="alert" tabIndex="-1" ref={errorRef}>{visibleError}</div> : null}
         <p className="onsite-checkout__status" role="status" aria-live="polite">{status}</p>
@@ -467,10 +724,40 @@ const CheckoutPaymentForm = ({ bootstrap, attempt, onStateChange }) => {
           <div className="onsite-checkout__section-title"><span>2</span><div><h2 id="checkout-payment-title">Platba</h2><p>{hasPayment ? 'Vyberte si dostupnú platobnú metódu.' : 'Zľava pokryla celú sumu; platobná karta nie je potrebná.'}</p></div></div>
           {hasPayment ? <PaymentElement options={{ layout: 'accordion', wallets: { applePay: 'auto', googlePay: 'auto' } }} onReady={(element) => { paymentElementRef.current = element; }} onChange={(event) => setPaymentComplete(event.complete)} /> : <div className="onsite-checkout__free"><CheckCircle2 aria-hidden="true" /> Objednávka nevyžaduje platbu.</div>}
         </section>
-        <button className="onsite-checkout__submit" type="submit" disabled={busy || checkoutState.type !== 'success'} aria-busy={busy}><LockKeyhole size={18} aria-hidden="true" />{busy ? 'Spracúvame…' : hasPayment ? `Zaplatiť ${formatMoney(display.total, display.currency)}` : 'Dokončiť objednávku'}</button>
+        <button className="onsite-checkout__submit" type="submit" disabled={busy || couponBusy || checkoutState.type !== 'success'} aria-busy={busy || couponBusy}><LockKeyhole size={18} aria-hidden="true" />{busy ? 'Spracúvame…' : hasPayment ? `Zaplatiť ${formatMoney(display.total, display.currency)}` : 'Dokončiť objednávku'}</button>
         <p className="onsite-checkout__submit-note">Platobné údaje idú priamo do Stripe. Ak banka vyžaduje overenie, bezpečne vás vrátime na túto pokladňu.</p>
       </form>
     </CheckoutShell>
+  );
+};
+
+export const CheckoutPaymentStage = ({
+  bootstrap,
+  attempt,
+  couponBusy = false,
+  isCouponMutationLocked,
+  elementsOptions,
+  onApplyCoupon,
+  onRemoveCoupon,
+  onStateChange,
+}) => {
+  const sessionKey = `${bootstrap.stripe.sessionId || ''}:${bootstrap.stripe.clientSecret || ''}`;
+  return (
+    <CheckoutElementsProvider
+      key={sessionKey}
+      stripe={getStripePromise(bootstrap.stripe.publishableKey)}
+      options={elementsOptions}
+    >
+      <CheckoutPaymentForm
+        bootstrap={bootstrap}
+        attempt={attempt}
+        couponBusy={couponBusy}
+        isCouponMutationLocked={isCouponMutationLocked}
+        onApplyCoupon={onApplyCoupon}
+        onRemoveCoupon={onRemoveCoupon}
+        onStateChange={onStateChange}
+      />
+    </CheckoutElementsProvider>
   );
 };
 
@@ -479,13 +766,15 @@ const CheckoutPage = () => {
   const [searchParams] = useSearchParams();
   const attemptId = String(routeAttemptId || searchParams.get('attempt_id') || '').trim().toLowerCase();
   const isReturn = !routeAttemptId;
-  const { clearCart, removeCoupon } = useCart();
+  const { applyCoupon, clearCart, coupon, removeCoupon } = useCart();
   const [attempt] = useState(() => getCheckoutAttempt(attemptId));
   const [bootstrap, setBootstrap] = useState(null);
   const [loadState, setLoadState] = useState('loading');
   const [loadError, setLoadError] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
   const successHandledRef = useRef(false);
   const paymentSubmittedRef = useRef(false);
+  const couponMutationLockRef = useRef(false);
   const attemptToken = attempt?.token || '';
 
   const applyCheckoutState = useCallback((data) => {
@@ -515,6 +804,95 @@ const CheckoutPage = () => {
     }
   }, [applyCheckoutState, attemptId, attemptToken, isReturn]);
 
+  const mutateCoupon = useCallback(async ({ action, couponCode = '' }) => {
+    if (couponMutationLockRef.current) {
+      throw new Error('checkout_attempt_busy');
+    }
+    if (!attemptToken || bootstrap?.attempt?.status !== 'open') {
+      throw new Error('checkout_coupon_locked_for_payment');
+    }
+    couponMutationLockRef.current = true;
+    setCouponBusy(true);
+    try {
+      const normalizedCode = normalizeCouponCode(couponCode);
+      const matchingClaimToken = action === 'apply' &&
+        normalizedCode === normalizeCouponCode(coupon?.code)
+        ? coupon?.claimToken || ''
+        : '';
+      const descriptor = {
+        action,
+        couponCode: action === 'apply' ? normalizedCode : '',
+      };
+      const pendingMutation = getPendingCheckoutCouponMutation(attemptId);
+      if (
+        pendingMutation &&
+        (
+          pendingMutation.action !== descriptor.action ||
+          pendingMutation.couponCode !== descriptor.couponCode
+        )
+      ) {
+        throw new Error('checkout_coupon_mutation_pending');
+      }
+      const mutationId = pendingMutation?.mutationId || window.crypto.randomUUID();
+      if (!pendingMutation) {
+        storePendingCheckoutCouponMutation(attemptId, { ...descriptor, mutationId });
+      }
+      const next = await mutateCheckoutAttemptCoupon({
+        attemptId,
+        attemptToken,
+        action,
+        couponCode: normalizedCode,
+        claimToken: matchingClaimToken,
+        mutationId,
+      });
+      if (!next?.display || next.attempt?.status !== 'open') {
+        throw new Error('checkout_coupon_response_invalid');
+      }
+      clearPendingCheckoutCouponMutation(attemptId);
+      applyCheckoutState(next);
+      if (action === 'remove' || !next.display.coupon) {
+        removeCoupon();
+      } else {
+        const isWelcome = next.display.coupon.kind === 'welcome';
+        applyCoupon({
+          code: next.display.coupon.code,
+          ...(isWelcome && matchingClaimToken ? { claimToken: matchingClaimToken } : {}),
+          source: isWelcome ? 'welcome' : 'manual',
+        });
+      }
+      return next;
+    } catch (error) {
+      if (error?.status && error.status !== 503) {
+        clearPendingCheckoutCouponMutation(attemptId);
+      }
+      throw error;
+    } finally {
+      couponMutationLockRef.current = false;
+      setCouponBusy(false);
+    }
+  }, [
+    applyCheckoutState,
+    applyCoupon,
+    attemptId,
+    attemptToken,
+    bootstrap?.attempt?.status,
+    coupon,
+    removeCoupon,
+  ]);
+
+  const handleApplyCoupon = useCallback(
+    (couponCode) => mutateCoupon({ action: 'apply', couponCode }),
+    [mutateCoupon]
+  );
+  const handleRemoveCoupon = useCallback(
+    () => mutateCoupon({ action: 'remove' }),
+    [mutateCoupon]
+  );
+  const isCouponMutationLocked = useCallback(
+    () => couponMutationLockRef.current,
+    []
+  );
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => { if (!cancelled) await loadAuthoritativeState(); };
@@ -524,6 +902,43 @@ const CheckoutPage = () => {
 
   const resultState = bootstrap?.attempt?.resultState;
   const checkoutKind = bootstrap?.attempt?.kind;
+
+  useEffect(() => {
+    if (!bootstrap?.display || bootstrap.display.kind === 'membership' || resultState) return;
+    const serverCoupon = bootstrap.display.coupon || null;
+    const pendingMutation = getPendingCheckoutCouponMutation(attemptId);
+    if (
+      (pendingMutation?.action === 'remove' && !serverCoupon) ||
+      (
+        pendingMutation?.action === 'apply' &&
+        normalizeCouponCode(pendingMutation.couponCode) === normalizeCouponCode(serverCoupon?.code)
+      )
+    ) {
+      clearPendingCheckoutCouponMutation(attemptId);
+    }
+    if (!serverCoupon) {
+      if (coupon) removeCoupon();
+      return;
+    }
+    const currentCode = normalizeCouponCode(coupon?.code);
+    const serverCode = normalizeCouponCode(serverCoupon.code);
+    const isWelcome = serverCoupon.kind === 'welcome';
+    const matchingClaimToken = currentCode === serverCode ? coupon?.claimToken || '' : '';
+    if (isWelcome && !matchingClaimToken) return;
+    const source = isWelcome ? 'welcome' : 'manual';
+    if (
+      currentCode === serverCode &&
+      coupon?.source === source &&
+      String(coupon?.claimToken || '') === String(matchingClaimToken)
+    ) {
+      return;
+    }
+    applyCoupon({
+      code: serverCoupon.code,
+      ...(matchingClaimToken ? { claimToken: matchingClaimToken } : {}),
+      source,
+    });
+  }, [applyCoupon, attemptId, bootstrap?.display, coupon, removeCoupon, resultState]);
   useEffect(() => {
     if (resultState !== 'processing') return undefined;
     let cancelled = false;
@@ -573,12 +988,29 @@ const CheckoutPage = () => {
   if (loadState === 'error' || !bootstrap) return <div className="onsite-checkout onsite-checkout--loading" role="alert"><RefreshCw aria-hidden="true" /><h1>Pokladňu sa nepodarilo načítať</h1><p>{loadError}</p><button type="button" onClick={loadAuthoritativeState}>Skúsiť znova</button></div>;
   if (resultState && resultState !== 'checkout') return <CheckoutResult bootstrap={bootstrap} onRetry={loadAuthoritativeState} />;
   if (!bootstrap.stripe?.clientSecret) {
-    return <CheckoutDetailsForm bootstrap={bootstrap} attempt={attempt} onStateChange={applyCheckoutState} />;
+    return (
+      <CheckoutDetailsForm
+        bootstrap={bootstrap}
+        attempt={attempt}
+        couponBusy={couponBusy}
+        isCouponMutationLocked={isCouponMutationLocked}
+        onApplyCoupon={handleApplyCoupon}
+        onRemoveCoupon={handleRemoveCoupon}
+        onStateChange={applyCheckoutState}
+      />
+    );
   }
   return (
-    <CheckoutElementsProvider stripe={getStripePromise(bootstrap.stripe.publishableKey)} options={elementsOptions}>
-      <CheckoutPaymentForm bootstrap={bootstrap} attempt={attempt} onStateChange={applyCheckoutState} />
-    </CheckoutElementsProvider>
+    <CheckoutPaymentStage
+      bootstrap={bootstrap}
+      attempt={attempt}
+      couponBusy={couponBusy}
+      isCouponMutationLocked={isCouponMutationLocked}
+      elementsOptions={elementsOptions}
+      onApplyCoupon={handleApplyCoupon}
+      onRemoveCoupon={handleRemoveCoupon}
+      onStateChange={applyCheckoutState}
+    />
   );
 };
 

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createCartCheckoutSession,
   loadCheckoutAttempt,
+  mutateCheckoutAttemptCoupon,
   saveCheckoutCustomer,
 } from './client';
 
@@ -71,12 +72,34 @@ describe('Elements checkout API contract', () => {
       attemptToken: 'browser-owned-token',
       customer: { email: 'buyer@example.com' },
     });
+    await mutateCheckoutAttemptCoupon({
+      attemptId: ATTEMPT_ID,
+      attemptToken: 'browser-owned-token',
+      action: 'apply',
+      couponCode: 'WELCOME20',
+      claimToken: 'private-claim-token',
+      mutationId: '323e4567-e89b-42d3-a456-426614174000',
+    });
 
     expect(fetchMock.mock.calls[0][1].headers['X-Checkout-Attempt-Token'])
       .toBe('browser-owned-token');
     expect(fetchMock.mock.calls[1][1].headers['X-Checkout-Attempt-Token'])
       .toBe('browser-owned-token');
     expect(fetchMock.mock.calls[1][1].body).not.toContain('browser-owned-token');
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({
+      method: 'POST',
+      headers: expect.objectContaining({
+        'X-Checkout-Attempt-Token': 'browser-owned-token',
+      }),
+    });
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({
+      action: 'apply',
+      mutationId: '323e4567-e89b-42d3-a456-426614174000',
+      couponCode: 'WELCOME20',
+      claimToken: 'private-claim-token',
+    });
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
   });
 
   it('expires a superseded server attempt before creating a changed cart contract', async () => {

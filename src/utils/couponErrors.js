@@ -34,7 +34,28 @@ const COUPON_ERROR_MESSAGES = {
   inventory_not_ready: 'Tento produkt ešte nie je pripravený na objednanie.',
   cart_mixed_currency: 'Produkty s rozdielnou menou sa nedajú kúpiť spolu.',
   cart_shipping_unavailable: 'Pre túto kombináciu produktov nie je dostupné spoločné doručenie.',
+  checkout_coupon_session_no_longer_open: 'Túto pokladňu už nemožno zmeniť. Obnovte stav alebo vytvorte nový pokus.',
+  checkout_coupon_locked_for_payment: 'Zľavu možno zmeniť iba pred pokračovaním k platbe.',
+  checkout_coupon_active_session_changed: 'Pokladňa sa medzitým zmenila. Obnovte stránku a skúste to znova.',
+  checkout_coupon_mutation_conflict: 'Táto zmena zľavy sa už spracúva s inými údajmi. Skúste to znova.',
+  checkout_coupon_mutation_pending: 'Predchádzajúci prepočet ešte overujeme. Zopakujte rovnakú zmenu alebo obnovte stránku.',
+  checkout_coupon_mutation_superseded: 'Pokladňa už obsahuje novšiu zmenu zľavy. Obnovte stránku.',
+  checkout_coupon_session_replacement_failed: 'Zľavu sa nepodarilo bezpečne preniesť do platobnej brány. Pôvodná cena zostala nezmenená; skúste to znova.',
+  checkout_coupon_replacement_session_not_open: 'Novú cenu sa nepodarilo bezpečne otvoriť. Pôvodná pokladňa zostala aktívna; skúste to znova.',
+  checkout_coupon_response_invalid: 'Pokladňa vrátila neúplný prepočet. Pôvodná cena a zľava zostali nezmenené; skúste to znova.',
+  checkout_coupon_attempt_expiring: 'Platnosť tejto pokladne sa končí. Vráťte sa k produktu a vytvorte nový pokus.',
+  checkout_coupon_cleanup_reconciliation_required: 'Prepočet sa nepodarilo bezpečne dokončiť. Pôvodná pokladňa zostala platná; skúste to o chvíľu znova.',
+  checkout_inventory_reservation_expired: 'Rezervácia produktu vypršala. Vráťte sa k produktu a vytvorte nový pokus.',
+  checkout_items_changed: 'Obsah alebo cena objednávky sa zmenili. Vráťte sa k produktu a vytvorte nový pokus.',
+  checkout_attempt_busy: 'Pokladňa práve spracúva inú zmenu. Počkajte chvíľu a skúste to znova.',
+  checkout_rate_limited: 'Príliš veľa pokusov. Počkajte chvíľu a skúste to znova.',
 };
+
+export const normalizeCouponCode = (value) => String(value || '')
+  .trim()
+  .toUpperCase()
+  .replace(/\s+/g, '')
+  .slice(0, 64);
 
 export const getCouponErrorCode = (error) =>
   String(error?.data?.error || error?.message || '').trim();

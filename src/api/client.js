@@ -238,6 +238,23 @@ export const saveCheckoutCustomer = ({ attemptId, attemptToken, customer }) =>
         body: JSON.stringify(customer),
     });
 
+export const mutateCheckoutAttemptCoupon = ({
+    attemptId,
+    attemptToken,
+    action,
+    couponCode = '',
+    claimToken = '',
+    mutationId,
+}) => apiFetch(`/api/checkout/attempts/${encodeURIComponent(attemptId)}/coupon`, {
+    method: 'POST',
+    headers: { 'X-Checkout-Attempt-Token': attemptToken },
+    body: JSON.stringify({
+        action,
+        mutationId,
+        ...(action === 'apply' ? { couponCode, ...(claimToken ? { claimToken } : {}) } : {}),
+    }),
+});
+
 export const cancelCheckoutAttempt = (attemptId, attemptToken) =>
     apiFetch(`/api/checkout/attempts/${encodeURIComponent(attemptId)}/cancel`, {
         method: 'POST',

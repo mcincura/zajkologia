@@ -7,11 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cancelCheckoutAttempt,
   loadCheckoutAttempt,
+  mutateCheckoutAttemptCoupon,
   recordCheckoutReturn,
   saveCheckoutCustomer,
 } from '../api/client';
 import { CartProvider } from '../cart/CartContext';
-import CheckoutPage from './CheckoutPage';
+import CheckoutPage, { CheckoutPaymentStage } from './CheckoutPage';
 
 const stripeActions = vi.hoisted(() => ({
   validateElements: vi.fn(),
@@ -24,7 +25,9 @@ vi.mock('@stripe/stripe-js', () => ({
 }));
 
 vi.mock('@stripe/react-stripe-js/checkout', () => ({
-  CheckoutElementsProvider: ({ children }) => <>{children}</>,
+  CheckoutElementsProvider: ({ children, options }) => (
+    <div data-testid="checkout-provider" data-client-secret={options?.clientSecret}>{children}</div>
+  ),
   useCheckoutElements: () => ({ ...stripeHook, checkout: stripeActions }),
   PaymentElement: ({ onChange, onReady }) => (
     <button type="button" data-testid="payment-element" onClick={() => {
@@ -37,12 +40,14 @@ vi.mock('@stripe/react-stripe-js/checkout', () => ({
 vi.mock('../api/client', () => ({
   cancelCheckoutAttempt: vi.fn(),
   loadCheckoutAttempt: vi.fn(),
+  mutateCheckoutAttemptCoupon: vi.fn(),
   recordCheckoutReturn: vi.fn(),
   saveCheckoutCustomer: vi.fn(),
 }));
 
 const ATTEMPT_ID = '123e4567-e89b-42d3-a456-426614174000';
 const ATTEMPT_TOKEN = 'browser-owned-attempt-token-1234567890';
+const MUTATION_ID = '323e4567-e89b-42d3-a456-426614174000';
 
 const display = {
   kind: 'single',
@@ -71,6 +76,18 @@ const physicalDisplay = {
     addressEntry: 'manual_packeta',
   },
   consent: { version: 'physical-v1', text: 'Súhlasím s podmienkami fyzickej objednávky.' },
+};
+
+const noCouponDisplay = {
+  ...display,
+  items: display.items.map((item) => ({
+    ...item,
+    netAmount: item.unitAmount * item.quantity,
+    discountAmount: 0,
+  })),
+  discountAmount: 0,
+  total: 499,
+  coupon: null,
 };
 
 const draftBootstrap = {
@@ -163,7 +180,9 @@ beforeEach(() => {
   vi.mocked(loadCheckoutAttempt).mockResolvedValue(draftBootstrap);
   vi.mocked(recordCheckoutReturn).mockResolvedValue(draftBootstrap);
   vi.mocked(saveCheckoutCustomer).mockResolvedValue(readyBootstrap);
+  vi.mocked(mutateCheckoutAttemptCoupon).mockResolvedValue(draftBootstrap);
   vi.mocked(cancelCheckoutAttempt).mockResolvedValue({ ok: true });
+  vi.spyOn(window.crypto, 'randomUUID').mockReturnValue(MUTATION_ID);
   stripeActions.validateElements.mockResolvedValue({ type: 'success' });
   stripeActions.confirm.mockResolvedValue({ type: 'success', session: { status: 'complete' } });
   stripeHook.type = 'success';
@@ -171,11 +190,252 @@ beforeEach(() => {
 });
 
 describe('first-party Checkout Elements page', () => {
+  it('applies a manual coupon in checkout, updates authoritative totals, and preserves typed details', async () => {
+    const initial = { ...draftBootstrap, display: noCouponDisplay };
+    const discounted = {
+      ...initial,
+      display: {
+        ...display,
+        coupon: {
+          code: 'SAVE20',
+          name: 'Jarná zľava',
+          kind: 'manual',
+          discountAmount: 100,
+        },
+      },
+    };
+    vi.mocked(loadCheckoutAttempt).mockResolvedValue(initial);
+    vi.mocked(mutateCheckoutAttemptCoupon).mockResolvedValue(discounted);
+    renderCheckout();
+
+    const email = await screen.findByLabelText(/^e-mail$/i);
+    await userEvent.type(email, 'typed@example.com');
+    const couponInput = screen.getByRole('textbox', { name: /^zľavový kód$/i });
+    await userEvent.type(couponInput, ' save 20 {enter}');
+
+    await waitFor(() => expect(mutateCheckoutAttemptCoupon).toHaveBeenCalledOnce());
+    expect(mutateCheckoutAttemptCoupon).toHaveBeenCalledWith({
+      attemptId: ATTEMPT_ID,
+      attemptToken: ATTEMPT_TOKEN,
+      action: 'apply',
+      couponCode: 'SAVE20',
+      claimToken: '',
+      mutationId: MUTATION_ID,
+    });
+    expect(screen.getByText(/Jarná zľava/i)).toBeInTheDocument();
+    expect(screen.getByText(/Kód SAVE20 · úspora 1,00/i)).toBeInTheDocument();
+    expect(screen.getByText(/Kód SAVE20 je použitý. Ušetríte 1,00/i)).toHaveAttribute('role', 'status');
+    expect(email).toHaveValue('typed@example.com');
+    await waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem('zajkologia_cart_v2'));
+      expect(stored.coupon).toMatchObject({ code: 'SAVE20', source: 'manual' });
+    });
+  });
+
+  it('preserves typed Packeta and consent data while a physical checkout is repriced', async () => {
+    const physicalNoCoupon = {
+      ...physicalDisplay,
+      items: physicalDisplay.items.map((item) => ({
+        ...item,
+        discountAmount: 0,
+        netAmount: item.unitAmount * item.quantity,
+      })),
+      discountAmount: 0,
+      total: 599,
+      coupon: null,
+    };
+    const physicalDiscounted = {
+      ...draftBootstrap,
+      display: {
+        ...physicalDisplay,
+        total: 499,
+        coupon: { code: 'SAVE20', name: 'Jarná zľava', kind: 'manual', discountAmount: 100 },
+      },
+    };
+    vi.mocked(loadCheckoutAttempt).mockResolvedValue({
+      ...draftBootstrap,
+      display: physicalNoCoupon,
+    });
+    vi.mocked(mutateCheckoutAttemptCoupon).mockResolvedValue(physicalDiscounted);
+    renderCheckout();
+
+    const packetaAddress = await screen.findByLabelText(/ulica a číslo Packeta/i);
+    const instructions = screen.getByLabelText(/poznámka pre doručenie/i);
+    const consent = screen.getByLabelText(/súhlasím s podmienkami fyzickej objednávky/i);
+    await userEvent.type(packetaAddress, 'Packeta Hlavná 10');
+    await userEvent.type(instructions, 'Kód na box 1234');
+    await userEvent.click(consent);
+    await userEvent.type(
+      screen.getByRole('textbox', { name: /^zľavový kód$/i }),
+      'SAVE20{enter}'
+    );
+
+    await screen.findByText(/Kód SAVE20 · úspora/i);
+    expect(packetaAddress).toHaveValue('Packeta Hlavná 10');
+    expect(instructions).toHaveValue('Kód na box 1234');
+    expect(consent).toBeChecked();
+  });
+
+  it('removes an inherited coupon only after the server succeeds and returns focus to entry', async () => {
+    const withoutCoupon = { ...draftBootstrap, display: noCouponDisplay };
+    vi.mocked(mutateCheckoutAttemptCoupon).mockResolvedValue(withoutCoupon);
+    renderCheckout();
+
+    await userEvent.click(await screen.findByRole('button', { name: /odstrániť zľavový kód SAVE20/i }));
+    await waitFor(() => expect(mutateCheckoutAttemptCoupon).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'remove',
+      mutationId: MUTATION_ID,
+    })));
+    const couponInput = await screen.findByRole('textbox', { name: /^zľavový kód$/i });
+    await waitFor(() => expect(couponInput).toHaveFocus());
+    expect(screen.getByText(/zľavový kód bol odstránený/i)).toHaveAttribute('role', 'status');
+    await waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem('zajkologia_cart_v2'));
+      expect(stored.coupon).toBeNull();
+    });
+  });
+
+  it('replaces an applied coupon explicitly and keeps the new server totals', async () => {
+    const replaced = {
+      ...draftBootstrap,
+      display: {
+        ...display,
+        items: display.items.map((item) => ({ ...item, discountAmount: 200, netAmount: 299 })),
+        discountAmount: 200,
+        total: 299,
+        coupon: {
+          code: 'NEW40',
+          name: 'Vernostná zľava',
+          kind: 'manual',
+          discountAmount: 200,
+        },
+      },
+    };
+    vi.mocked(mutateCheckoutAttemptCoupon).mockResolvedValue(replaced);
+    renderCheckout();
+
+    await userEvent.click(await screen.findByRole('button', { name: /použiť iný kód/i }));
+    const input = screen.getByRole('textbox', { name: /nový zľavový kód/i });
+    await userEvent.type(input, 'new40{enter}');
+
+    await waitFor(() => expect(mutateCheckoutAttemptCoupon).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'apply',
+      couponCode: 'NEW40',
+    })));
+    expect(screen.getByText(/Vernostná zľava/i)).toBeInTheDocument();
+    expect(screen.getByText(/Kód NEW40 · úspora 2,00/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /zaplatiť/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps the prior shared coupon and focuses a precise server error after failed replacement', async () => {
+    window.localStorage.setItem('zajkologia_cart_v2', JSON.stringify({
+      version: 2,
+      items: [],
+      coupon: { code: 'SAVE20', source: 'manual' },
+    }));
+    const failure = Object.assign(new Error('coupon_not_valid_for_product'), {
+      data: { error: 'coupon_not_valid_for_product' },
+    });
+    vi.mocked(mutateCheckoutAttemptCoupon).mockRejectedValue(failure);
+    renderCheckout();
+
+    await userEvent.click(await screen.findByRole('button', { name: /použiť iný kód/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /nový zľavový kód/i }), 'wrong{enter}');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/neplatí na žiadny produkt/i);
+    expect(alert).toHaveFocus();
+    const stored = JSON.parse(window.localStorage.getItem('zajkologia_cart_v2'));
+    expect(stored.coupon).toMatchObject({ code: 'SAVE20' });
+    expect(screen.getByText(/Kód SAVE20 · úspora/i)).toBeInTheDocument();
+  });
+
+  it('keeps the shared coupon when checkout-side removal fails', async () => {
+    window.localStorage.setItem('zajkologia_cart_v2', JSON.stringify({
+      version: 2,
+      items: [],
+      coupon: { code: 'SAVE20', source: 'manual' },
+    }));
+    vi.mocked(mutateCheckoutAttemptCoupon).mockRejectedValue(
+      Object.assign(new Error('checkout_coupon_session_replacement_failed'), {
+        data: { error: 'checkout_coupon_session_replacement_failed' },
+      })
+    );
+    renderCheckout();
+
+    await userEvent.click(await screen.findByRole('button', {
+      name: /odstrániť zľavový kód SAVE20/i,
+    }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/pôvodná cena zostala nezmenená/i);
+    const stored = JSON.parse(window.localStorage.getItem('zajkologia_cart_v2'));
+    expect(stored.coupon).toMatchObject({ code: 'SAVE20' });
+    expect(screen.getByText(/Kód SAVE20 · úspora/i)).toBeInTheDocument();
+  });
+
+  it('prevents a double coupon mutation and blocks checkout continuation while recalculating', async () => {
+    const initial = { ...draftBootstrap, display: noCouponDisplay };
+    const discounted = {
+      ...draftBootstrap,
+      display: { ...display, coupon: { ...display.coupon, kind: 'manual' } },
+    };
+    let finishMutation;
+    vi.mocked(loadCheckoutAttempt).mockResolvedValue(initial);
+    vi.mocked(mutateCheckoutAttemptCoupon).mockImplementation(() => new Promise((resolve) => {
+      finishMutation = resolve;
+    }));
+    renderCheckout();
+
+    const input = await screen.findByRole('textbox', { name: /^zľavový kód$/i });
+    fireEvent.change(input, { target: { value: 'SAVE20' } });
+    const applyButton = screen.getByRole('button', { name: /^použiť$/i });
+    fireEvent.click(applyButton);
+    fireEvent.click(applyButton);
+
+    await waitFor(() => expect(mutateCheckoutAttemptCoupon).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: /prepočítavame cenu/i })).toBeDisabled();
+    finishMutation(discounted);
+    await screen.findByText(/Kód SAVE20 · úspora/i);
+  });
+
+  it('reuses the persisted mutation identifier after an ambiguous network response', async () => {
+    const initial = { ...draftBootstrap, display: noCouponDisplay };
+    const discounted = {
+      ...draftBootstrap,
+      display: { ...display, coupon: { ...display.coupon, kind: 'manual' } },
+    };
+    vi.mocked(loadCheckoutAttempt).mockResolvedValue(initial);
+    vi.mocked(mutateCheckoutAttemptCoupon)
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(discounted);
+    renderCheckout();
+
+    const input = await screen.findByRole('textbox', { name: /^zľavový kód$/i });
+    await userEvent.type(input, 'SAVE20');
+    await userEvent.click(screen.getByRole('button', { name: /^použiť$/i }));
+    await screen.findByRole('alert');
+    const pendingKey = `zajkologia_checkout_coupon_mutation_v2:${ATTEMPT_ID}`;
+    expect(JSON.parse(window.sessionStorage.getItem(pendingKey))).toEqual({
+      action: 'apply',
+      couponCode: 'SAVE20',
+      mutationId: MUTATION_ID,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /^použiť$/i }));
+    await screen.findByText(/Kód SAVE20 · úspora/i);
+
+    expect(mutateCheckoutAttemptCoupon).toHaveBeenCalledTimes(2);
+    expect(mutateCheckoutAttemptCoupon.mock.calls[0][0].mutationId).toBe(MUTATION_ID);
+    expect(mutateCheckoutAttemptCoupon.mock.calls[1][0].mutationId).toBe(MUTATION_ID);
+    expect(window.sessionStorage.getItem(pendingKey)).toBeNull();
+  });
+
   it('withholds Stripe UI until canonical details and consent are saved', async () => {
     renderCheckout();
 
     expect(await screen.findByRole('heading', { name: /dokončite objednávku/i })).toBeInTheDocument();
-    expect(screen.getByText(/kód SAVE20 je už započítaný/i)).toBeInTheDocument();
+    expect(screen.getByText(/kód SAVE20 · úspora/i)).toBeInTheDocument();
     expect(screen.queryByTestId('payment-element')).not.toBeInTheDocument();
     await fillBillingDetails();
     await userEvent.click(screen.getByRole('checkbox'));
@@ -372,6 +632,7 @@ describe('first-party Checkout Elements page', () => {
     vi.mocked(loadCheckoutAttempt).mockResolvedValue(membershipDraft);
     renderCheckout();
     expect(await screen.findByText('member@example.invalid')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /zľavový kód/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^e-mail$/i)).not.toBeInTheDocument();
     await fillBillingDetails({ email: false });
     await userEvent.click(screen.getByRole('checkbox'));
@@ -415,5 +676,133 @@ describe('first-party Checkout Elements page', () => {
     expect(alert).toHaveTextContent('Stripe sa nepodarilo načítať.');
     expect(alert).toHaveFocus();
     expect(screen.getByRole('button', { name: /zaplatiť/i })).toBeDisabled();
+  });
+
+  it('locks coupon controls after details are finalized and cannot race payment confirmation', async () => {
+    vi.mocked(loadCheckoutAttempt).mockResolvedValue({
+      ...readyBootstrap,
+      display: noCouponDisplay,
+    });
+    renderCheckout();
+
+    const couponInput = await screen.findByRole('textbox', { name: /^zľavový kód$/i });
+    expect(couponInput).toBeDisabled();
+    expect(screen.getByText(/zľavu možno zmeniť pred pokračovaním k platbe/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('payment-element'));
+    await userEvent.click(screen.getByRole('button', { name: /zaplatiť 4,99/i }));
+    await waitFor(() => expect(stripeActions.confirm).toHaveBeenCalledOnce());
+    expect(mutateCheckoutAttemptCoupon).not.toHaveBeenCalled();
+  });
+
+  it('remounts Checkout Elements and handles paid-to-zero-to-paid Session transitions', async () => {
+    const props = {
+      attempt: { id: ATTEMPT_ID, token: ATTEMPT_TOKEN },
+      couponBusy: false,
+      onApplyCoupon: vi.fn(),
+      onRemoveCoupon: vi.fn(),
+      onStateChange: vi.fn(),
+    };
+    const view = render(
+      <MemoryRouter>
+        <CheckoutPaymentStage
+          {...props}
+          bootstrap={readyBootstrap}
+          elementsOptions={{ clientSecret: readyBootstrap.stripe.clientSecret }}
+        />
+      </MemoryRouter>
+    );
+    const paidProvider = screen.getByTestId('checkout-provider');
+    expect(screen.getByTestId('payment-element')).toBeInTheDocument();
+
+    const rotatedSecretBootstrap = {
+      ...readyBootstrap,
+      stripe: {
+        ...readyBootstrap.stripe,
+        clientSecret: 'cs_test_ready_rotated_secret',
+      },
+    };
+    view.rerender(
+      <MemoryRouter>
+        <CheckoutPaymentStage
+          {...props}
+          bootstrap={rotatedSecretBootstrap}
+          elementsOptions={{ clientSecret: rotatedSecretBootstrap.stripe.clientSecret }}
+        />
+      </MemoryRouter>
+    );
+    const rotatedProvider = screen.getByTestId('checkout-provider');
+    expect(rotatedProvider).not.toBe(paidProvider);
+
+    const freeBootstrap = {
+      ...readyBootstrap,
+      display: {
+        ...display,
+        items: display.items.map((item) => ({ ...item, discountAmount: 499, netAmount: 0 })),
+        discountAmount: 499,
+        total: 0,
+        coupon: { code: 'FREE100', name: 'Darček', kind: 'manual', discountAmount: 499 },
+      },
+      stripe: {
+        ...readyBootstrap.stripe,
+        sessionId: 'cs_test_free',
+        clientSecret: 'cs_test_free_secret',
+      },
+    };
+    view.rerender(
+      <MemoryRouter>
+        <CheckoutPaymentStage
+          {...props}
+          bootstrap={freeBootstrap}
+          elementsOptions={{ clientSecret: freeBootstrap.stripe.clientSecret }}
+        />
+      </MemoryRouter>
+    );
+    const freeProvider = screen.getByTestId('checkout-provider');
+    expect(freeProvider).not.toBe(rotatedProvider);
+    expect(screen.queryByTestId('payment-element')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /dokončiť objednávku/i })).toBeEnabled();
+
+    const paidAgain = {
+      ...readyBootstrap,
+      display: noCouponDisplay,
+      stripe: {
+        ...readyBootstrap.stripe,
+        sessionId: 'cs_test_paid_again',
+        clientSecret: 'cs_test_paid_again_secret',
+      },
+    };
+    view.rerender(
+      <MemoryRouter>
+        <CheckoutPaymentStage
+          {...props}
+          bootstrap={paidAgain}
+          elementsOptions={{ clientSecret: paidAgain.stripe.clientSecret }}
+        />
+      </MemoryRouter>
+    );
+    expect(screen.getByTestId('checkout-provider')).not.toBe(freeProvider);
+    expect(screen.getByTestId('payment-element')).toBeInTheDocument();
+  });
+
+  it('uses the synchronous coupon lock before payment confirmation starts', async () => {
+    render(
+      <MemoryRouter>
+        <CheckoutPaymentStage
+          bootstrap={readyBootstrap}
+          attempt={{ id: ATTEMPT_ID, token: ATTEMPT_TOKEN }}
+          couponBusy={false}
+          isCouponMutationLocked={() => true}
+          elementsOptions={{ clientSecret: readyBootstrap.stripe.clientSecret }}
+          onApplyCoupon={vi.fn()}
+          onRemoveCoupon={vi.fn()}
+          onStateChange={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    await userEvent.click(screen.getByTestId('payment-element'));
+    await userEvent.click(screen.getByRole('button', { name: /zaplatiť 3,99/i }));
+    expect(stripeActions.validateElements).not.toHaveBeenCalled();
+    expect(stripeActions.confirm).not.toHaveBeenCalled();
   });
 });
