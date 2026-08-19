@@ -67,6 +67,23 @@ const PostDetails = () => {
         });
     }, [post?.slug, post?.title]);
 
+    useEffect(() => {
+        if (!post?.slug || typeof window === 'undefined' || !window.location.hash) return undefined;
+
+        let targetId = window.location.hash.slice(1);
+        try {
+            targetId = decodeURIComponent(targetId);
+        } catch {
+            // Keep the literal hash value when it is not valid URI-encoded text.
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            document.getElementById(targetId)?.scrollIntoView({ block: 'start' });
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [post?.content, post?.slug]);
+
     if (loading) {
         return (
             <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>

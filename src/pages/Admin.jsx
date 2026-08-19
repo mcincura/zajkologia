@@ -7,6 +7,7 @@ import ProductCmsSection from './admin/ProductCmsSection';
 import AdminCouponsSection from './admin/AdminCouponsSection';
 import MembershipAdminSection from './admin/MembershipAdminSection';
 import { isShippableOrder } from '../utils/orderTypes';
+import { extractMarkdownHeadings, selectTableOfContentsHeadings } from '../utils/markdownHeadings';
 import {
     getDefaultRefundCategory,
     getFullRefundDigitalWarning,
@@ -111,7 +112,7 @@ const createEmptyPost = (defaultCategoryId) => ({
     author: 'Tím Zajkológia',
     date: formatToday(),
     image: '/zajo.png',
-    content: '# Nadpis\n\nSem napíš obsah v Markdowne.\n',
+    content: 'Úvodný text článku.\n\n## Prvý nadpis sekcie\n\nText sekcie.\n\n## Druhý nadpis sekcie\n\nĎalší text.\n',
     hasFaq: false,
     faqItems: [],
 });
@@ -154,6 +155,10 @@ const Admin = ({ section = 'orders' }) => {
     const [ordersError, setOrdersError] = useState('');
 
     const selectedPost = useMemo(() => posts.find(p => p.id === selectedId) || null, [posts, selectedId]);
+    const selectedPostTocHeadings = useMemo(
+        () => selectTableOfContentsHeadings(extractMarkdownHeadings(selectedPost?.content)),
+        [selectedPost?.content]
+    );
     const isOrdersSection = section === 'orders';
     const isCouponsSection = section === 'coupons';
     const isProductsSection = section === 'products';
@@ -1653,6 +1658,10 @@ const Admin = ({ section = 'orders' }) => {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                             <div>
                                 <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.35rem' }}>Markdown *</div>
+                                <div style={{ fontSize: '0.82rem', color: '#6f3f46', marginBottom: '0.6rem', lineHeight: 1.45 }}>
+                                    Obsah článku sa vytvorí automaticky z hlavných nadpisov <code>## Nadpis</code>.
+                                    {' '}V náhľade je teraz {selectedPostTocHeadings.length} {selectedPostTocHeadings.length === 1 ? 'položka' : 'položiek'}.
+                                </div>
                                 <textarea
                                     value={selectedPost.content}
                                     onChange={(e) => updateSelected({ content: e.target.value })}

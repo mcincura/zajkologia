@@ -8,6 +8,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { products as frontendProducts } from '../src/data/products.js';
 import { aboutContent } from '../src/data/about.js';
+import {
+  extractMarkdownHeadings,
+  rehypeHeadingIds,
+  selectTableOfContentsHeadings,
+} from '../src/utils/markdownHeadings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -223,6 +228,7 @@ function markdownToHtml(markdown) {
       ReactMarkdown,
       {
         remarkPlugins: [remarkGfm],
+        rehypePlugins: [rehypeHeadingIds],
         components: {
           a: ({ children, href }) =>
             React.createElement('a', { href: href || '', rel: 'noreferrer' }, children),
@@ -309,11 +315,16 @@ function buildHead(
     .seo-fallback { max-width: 960px; margin: 0 auto; padding: 2rem 1rem 4rem; color: #260c1a; font-family: Inter, system-ui, -apple-system, sans-serif; line-height: 1.65; }
     .seo-fallback h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.08; margin: 0 0 1rem; }
     .seo-fallback h2 { margin-top: 2rem; }
+    .seo-fallback [id] { scroll-margin-top: 6rem; }
     .seo-fallback a { color: #7a3f00; font-weight: 700; }
     .seo-fallback img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
     .seo-fallback__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; }
     .seo-fallback__card { border: 1px solid #ead7c8; border-radius: 8px; padding: 1rem; background: #fffaf4; }
     .seo-fallback__muted { color: #6b5560; }
+    .seo-fallback__toc { margin: 1.5rem 0 2rem; padding: 1rem 1.25rem; border: 1px solid #dec3bb; border-radius: 12px; background: #fffaf4; }
+    .seo-fallback__toc h2 { margin: 0 0 0.65rem; font-size: 1.25rem; }
+    .seo-fallback__toc ul { margin: 0; padding-left: 1.2rem; }
+    .seo-fallback__toc li + li { margin-top: 0.35rem; }
   </style>
 ${assetTags}
 </head>`;
@@ -504,6 +515,15 @@ function aboutBody() {
 
 function postBody(post) {
   const image = post.image ? `<img src="${escapeAttr(absoluteUrl(post.image))}" alt="${escapeAttr(post.title)}" loading="lazy" decoding="async" />` : '';
+  const tocHeadings = selectTableOfContentsHeadings(extractMarkdownHeadings(post.content));
+  const tocHtml = tocHeadings.length
+    ? `<nav class="seo-fallback__toc" aria-label="Obsah článku">
+        <h2>Obsah článku</h2>
+        <ul>${tocHeadings
+          .map((heading) => `<li><a href="#${escapeAttr(heading.id)}">${escapeHtml(heading.text)}</a></li>`)
+          .join('')}</ul>
+      </nav>`
+    : '';
   const faqHtml =
     post.hasFaq && post.faqItems.length
       ? `<section><h2>Často kladené otázky</h2>${post.faqItems
@@ -523,6 +543,7 @@ function postBody(post) {
       <h1>${escapeHtml(post.title)}</h1>
       ${post.excerpt ? `<p><strong>${escapeHtml(post.excerpt)}</strong></p>` : ''}
       ${image}
+      ${tocHtml}
       ${markdownToHtml(post.content)}
       ${faqHtml}
     </article>
