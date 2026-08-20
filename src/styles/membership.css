@@ -175,50 +175,35 @@
   line-height: 1.65;
 }
 
-.membership-ear-list {
+.membership-feature-list {
   display: grid;
   gap: 0.9rem;
   margin-top: 1.35rem;
 }
 
-.membership-ear-list li {
+.membership-feature-list li {
   display: grid;
-  grid-template-columns: 1.5rem minmax(0, 1fr);
+  grid-template-columns: 1.85rem minmax(0, 1fr);
   gap: 0.75rem;
-  align-items: start;
+  align-items: center;
   color: #4f3540;
   font-weight: 700;
   line-height: 1.5;
 }
 
-.membership-bunny-ears {
-  position: relative;
+.membership-carrot-marker {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  justify-self: center;
+  border-radius: 50%;
+  background: rgba(218, 119, 54, 0.12);
+  color: #c5672e;
+}
+
+.membership-carrot-marker svg {
   display: block;
-  width: 1.35rem;
-  height: 1.45rem;
-  margin-top: 0.05rem;
-}
-
-.membership-bunny-ears::before,
-.membership-bunny-ears::after {
-  position: absolute;
-  top: 0.05rem;
-  width: 0.48rem;
-  height: 1.08rem;
-  border: 2px solid var(--membership-green);
-  border-radius: 70% 70% 55% 55%;
-  background: #f8e9e4;
-  content: '';
-}
-
-.membership-bunny-ears::before {
-  left: 0.12rem;
-  transform: rotate(-13deg);
-}
-
-.membership-bunny-ears::after {
-  right: 0.12rem;
-  transform: rotate(13deg);
 }
 
 .membership-benefits {

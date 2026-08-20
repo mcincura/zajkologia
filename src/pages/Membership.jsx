@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Bookmark,
+  Carrot,
   Check,
   CircleUserRound,
   CreditCard,
@@ -997,10 +998,12 @@ const Membership = ({ loginOnly = false }) => {
           >
             <h2 id="membership-audience-title">Pre koho je klub</h2>
             <p>Klub je pre teba, ak:</p>
-            <ul className="membership-ear-list">
+            <ul className="membership-feature-list">
               {membershipAudienceItems.map((item) => (
                 <li key={item}>
-                  <span className="membership-bunny-ears" aria-hidden="true" />
+                  <span className="membership-carrot-marker" aria-hidden="true">
+                    <Carrot size={20} strokeWidth={2.2} />
+                  </span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -1013,10 +1016,12 @@ const Membership = ({ loginOnly = false }) => {
           >
             <h2 id="membership-content-title">Čo získaš v členstve</h2>
             <p>V klube nájdeš napríklad:</p>
-            <ul className="membership-ear-list">
+            <ul className="membership-feature-list">
               {membershipContentItems.map((item) => (
                 <li key={item}>
-                  <span className="membership-bunny-ears" aria-hidden="true" />
+                  <span className="membership-carrot-marker" aria-hidden="true">
+                    <Carrot size={20} strokeWidth={2.2} />
+                  </span>
                   <span>{item}</span>
                 </li>
               ))}
