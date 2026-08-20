@@ -210,16 +210,20 @@ export const loadDiscussionReplies = async (threadId, { limit = 20, offset = 0 }
 export const createDiscussionThread = async ({ title, body }) => (await apiFetch('/api/membership/discussions', { method: 'POST', body: JSON.stringify({ title, body }) }))?.thread || null;
 export const createDiscussionReply = async ({ threadId, body }) => (await apiFetch(`/api/membership/discussions/${encodeURIComponent(threadId)}/replies`, { method: 'POST', body: JSON.stringify({ body }) }))?.reply || null;
 
-export const createMembershipCheckout = async (email) => {
+export const createMembershipCheckout = async (email, plan = 'monthly') => {
+    const membershipPlan = plan === 'annual' ? 'annual' : 'monthly';
     const { attempt, superseded } = await prepareCheckoutAttempt({
         kind: 'membership',
         scope: 'membership',
-        payload: { email: String(email || '').trim().toLowerCase() },
+        payload: {
+            email: String(email || '').trim().toLowerCase(),
+            plan: membershipPlan,
+        },
     });
     if (superseded) await cancelCheckoutAttempt(superseded.id, superseded.token);
     const data = await apiFetch('/api/membership/checkout', {
         method: 'POST',
-        body: JSON.stringify({ email, ...checkoutAttemptFields(attempt) }),
+        body: JSON.stringify({ email, plan: membershipPlan, ...checkoutAttemptFields(attempt) }),
     });
     if (!data?.checkoutUrl && !data?.checkoutPageUrl) throw new Error('missing_checkout_bootstrap');
     markCheckoutAttemptCreated(attempt);

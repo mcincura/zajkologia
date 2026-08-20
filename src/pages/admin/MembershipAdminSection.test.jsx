@@ -128,6 +128,37 @@ describe('MembershipAdminSection', () => {
     expect(screen.getByText('trvalý')).toBeInTheDocument();
   });
 
+  it('labels a one-time annual entitlement with its fixed end date', async () => {
+    const user = userEvent.setup();
+    installApiResponses({
+      ...overviewResponse,
+      members: [
+        {
+          id: 9,
+          email: 'annual@example.com',
+          hasAccess: true,
+          complimentaryAccess: false,
+          testAccess: false,
+          subscription: null,
+          fixedTerm: {
+            grantsAccess: true,
+            status: 'active',
+            endsAt: '2027-08-20T12:00:00.000Z',
+          },
+        },
+      ],
+      totals: { members: 1, active: 1, canceling: 0, annual: 1 },
+    });
+
+    render(<MembershipAdminSection />);
+    await user.click(await screen.findByRole('button', { name: 'Členovia' }));
+
+    expect(screen.getByText('annual@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Ročný prístup')).toBeInTheDocument();
+    expect(screen.getByText('uhradený na rok')).toBeInTheDocument();
+    expect(screen.getByText(/20\. 8\. 2027/)).toBeInTheDocument();
+  });
+
   it('opens an existing post in the creator editor', async () => {
     const user = userEvent.setup();
     render(<MembershipAdminSection />);

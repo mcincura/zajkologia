@@ -699,6 +699,8 @@ const MembershipAdminSection = () => {
                         ? 'Bezplatný člen'
                         : member.testAccess
                           ? 'QA tester'
+                          : member.fixedTerm?.grantsAccess
+                            ? 'Ročný prístup'
                           : member.subscription?.status || 'bez predplatného'}
                     </td>
                     <td>
@@ -706,13 +708,21 @@ const MembershipAdminSection = () => {
                         ? 'trvalý'
                         : member.testAccess
                           ? 'testovací'
+                          : member.fixedTerm?.grantsAccess
+                            ? 'uhradený na rok'
                           : member.hasAccess
                             ? member.subscription?.cancelAtPeriodEnd
                               ? 'do konca obdobia'
                               : 'aktívny'
                             : 'zablokovaný'}
                     </td>
-                    <td>{formatDate(member.subscription?.currentPeriodEnd)}</td>
+                    <td>
+                      {formatDate(
+                        member.fixedTerm?.grantsAccess
+                          ? member.fixedTerm.endsAt
+                          : member.subscription?.currentPeriodEnd
+                      )}
+                    </td>
                     <td>{formatDate(member.lastLoginAt)}</td>
                   </tr>
                 ))}

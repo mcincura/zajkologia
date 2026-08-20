@@ -49,6 +49,8 @@ const errorMessage = (error) => {
     billing_customer_missing: 'K tomuto účtu zatiaľ nemáme fakturačný profil.',
     billing_unavailable_for_complimentary_access:
       'Bezplatné členstvo nemá platbu, ktorú by bolo potrebné spravovať.',
+    billing_unavailable_for_fixed_term_access:
+      'Ročný prístup je uhradený jednorazovo a nemá automatickú obnovu na spravovanie.',
     billing_portal_not_configured: 'Správa platieb sa pripravuje. Skúste to, prosím, neskôr.',
     membership_publishing_not_migrated: 'Publikačná časť klubu sa práve aktualizuje.',
   };
@@ -79,6 +81,66 @@ const formatDate = (value) => {
   }
 };
 
+const membershipPlansFromOffer = (offer) => {
+  if (Array.isArray(offer?.plans) && offer.plans.length) return offer.plans;
+  return [{
+    key: 'monthly',
+    available: Boolean(offer?.available),
+    configured: Boolean(offer?.configured ?? offer?.unitAmount),
+    unitAmount: offer?.unitAmount,
+    effectiveMonthlyUnitAmount: offer?.unitAmount,
+    currency: offer?.currency || 'eur',
+    billingMode: 'subscription',
+  }];
+};
+
+const MembershipPlanSelector = ({ plans, selectedPlan, onChange, disabled = false }) => (
+  <fieldset className="membership-plan-selector">
+    <legend>Vyberte spôsob platby</legend>
+    <div className="membership-plan-selector__options">
+      {plans.map((plan) => {
+        const annual = plan.key === 'annual';
+        const unavailable = !plan.available;
+        return (
+          <label
+            className={`membership-plan-option${selectedPlan === plan.key ? ' is-selected' : ''}${unavailable ? ' is-unavailable' : ''}`}
+            key={plan.key}
+          >
+            <input
+              type="radio"
+              name="membership-plan"
+              value={plan.key}
+              checked={selectedPlan === plan.key}
+              onChange={() => onChange(plan.key)}
+              disabled={disabled || unavailable}
+            />
+            <span className="membership-plan-option__content">
+              <span className="membership-plan-option__heading">
+                <strong>{annual ? 'Na rok' : 'Mesačne'}</strong>
+                {annual ? <span className="membership-plan-option__badge">2 mesiace zdarma</span> : null}
+              </span>
+              <span className="membership-plan-option__price">
+                {formatMoney(plan.unitAmount, plan.currency)}
+                <small>{annual ? ' / rok' : ' / mesiac'}</small>
+              </span>
+              {annual ? (
+                <span className="membership-plan-option__detail">
+                  ≈ {formatMoney(plan.effectiveMonthlyUnitAmount, plan.currency)} / mesiac · jednorazová platba
+                </span>
+              ) : (
+                <span className="membership-plan-option__detail">Automatická mesačná obnova</span>
+              )}
+              {unavailable ? (
+                <span className="membership-plan-option__unavailable">Dočasne nedostupné</span>
+              ) : null}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  </fieldset>
+);
+
 const mediaFilters = [
   { key: '', label: 'Všetko' },
   { key: 'video', label: 'Videá' },
@@ -93,6 +155,7 @@ const Membership = ({ loginOnly = false }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [offer, setOffer] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [memberCount, setMemberCount] = useState(null);
   const [session, setSession] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -136,6 +199,15 @@ const Membership = ({ loginOnly = false }) => {
   const checkoutCodeRequested = codePurpose === 'checkout';
   const loginCodeRequested = codePurpose === 'login';
   const paymentPending = confirmingPayment && isAuthenticated && !hasAccess;
+  const membershipPlans = useMemo(() => membershipPlansFromOffer(offer), [offer]);
+  const selectedOfferPlan = membershipPlans.find(
+    (plan) => plan.key === selectedPlan && plan.available
+  ) ||
+    membershipPlans.find((plan) => plan.available) ||
+    membershipPlans.find((plan) => plan.key === selectedPlan) ||
+    membershipPlans[0] ||
+    null;
+  const activePlanKey = selectedOfferPlan?.key || selectedPlan;
 
   const beginResendCooldown = (seconds = membershipResendCooldownSeconds) => {
     const parsedSeconds = Number(seconds);
@@ -172,6 +244,12 @@ const Membership = ({ loginOnly = false }) => {
   }, [codePurpose, code]);
 
   useEffect(() => {
+    if (selectedOfferPlan?.key && selectedOfferPlan.key !== selectedPlan) {
+      setSelectedPlan(selectedOfferPlan.key);
+    }
+  }, [selectedOfferPlan?.key, selectedPlan]);
+
+  useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
@@ -202,6 +280,12 @@ const Membership = ({ loginOnly = false }) => {
       cancelled = true;
     };
   }, [loginOnly]);
+
+  useEffect(() => {
+    if (!offer || selectedOfferPlan?.available) return;
+    const firstAvailablePlan = membershipPlans.find((plan) => plan.available);
+    if (firstAvailablePlan) setSelectedPlan(firstAvailablePlan.key);
+  }, [membershipPlans, offer, selectedOfferPlan?.available]);
 
   useEffect(() => {
     if (loginOnly) return undefined;
@@ -295,7 +379,7 @@ const Membership = ({ loginOnly = false }) => {
     setBusy('checkout');
     setStatus('');
     try {
-      const result = await createMembershipCheckout(email);
+      const result = await createMembershipCheckout(email, activePlanKey);
       window.location.assign(result.checkoutPageUrl || result.checkoutUrl);
     } catch (error) {
       if ((error?.data?.error || error?.message) === 'membership_checkout_processing') {
@@ -614,6 +698,7 @@ const Membership = ({ loginOnly = false }) => {
   }
 
   const subscription = session?.subscription;
+  const fixedTerm = session?.fixedTerm;
   const hasVisibleMemberCount = memberCount > 0;
   const memberProofText = memberCount === null
     ? 'Overujeme počet členov klubu…'
@@ -653,19 +738,35 @@ const Membership = ({ loginOnly = false }) => {
             <ul className="membership-benefits">
               <li><Check size={17} aria-hidden="true" /> Nový a aktualizovaný obsah počas mesiaca</li>
               <li><Check size={17} aria-hidden="true" /> Komentáre a uložené príspevky pre členov</li>
-              <li><Check size={17} aria-hidden="true" /> Členstvo môžete spravovať alebo zrušiť online</li>
+              <li>
+                <Check size={17} aria-hidden="true" />
+                {activePlanKey === 'annual'
+                  ? 'Jednorazová platba bez automatického obnovenia'
+                  : 'Členstvo môžete spravovať alebo zrušiť online'}
+              </li>
             </ul>
           </div>
 
           <div className="membership-offer-card">
-            <span className="membership-offer-card__label">Jedno jednoduché členstvo</span>
+            <span className="membership-offer-card__label">Členstvo podľa vás</span>
+            <MembershipPlanSelector
+              plans={membershipPlans}
+              selectedPlan={activePlanKey}
+              onChange={setSelectedPlan}
+              disabled={busy === 'checkout' || busy === 'verify-code'}
+            />
             <div className="membership-offer-card__price">
-              <strong>{formatMoney(offer?.unitAmount, offer?.currency)}</strong>
-              {typeof offer?.unitAmount === 'number' ? <span>/ mesiac</span> : null}
+              <strong>
+                {formatMoney(selectedOfferPlan?.unitAmount, selectedOfferPlan?.currency)}
+              </strong>
+              {typeof selectedOfferPlan?.unitAmount === 'number' ? (
+                <span>{activePlanKey === 'annual' ? '/ rok' : '/ mesiac'}</span>
+              ) : null}
             </div>
             <p>
-              Zaplatíte prvý mesiac a druhý získate zadarmo. Potom platíte
-              2,99 € mesačne. Bez dlhodobej viazanosti.
+              {activePlanKey === 'annual'
+                ? 'Zaplatíte jednorazovo cenu 10 mesiacov a získate prístup na celých 12 mesiacov. Platba sa automaticky neobnoví.'
+                : 'Zaplatíte prvý mesiac a druhý získate zadarmo. Potom platíte 2,99 € mesačne. Členstvo môžete kedykoľvek zrušiť.'}
             </p>
             {!checkoutCodeRequested ? (
               <form onSubmit={beginCheckoutVerification} className="membership-form">
@@ -685,7 +786,7 @@ const Membership = ({ loginOnly = false }) => {
                   className="membership-button membership-button--primary membership-button--wide"
                   disabled={
                     busy === 'request-checkout-code' ||
-                    (!offer?.available && !prelaunchTestAccessEnabled)
+                    (!selectedOfferPlan?.available && !prelaunchTestAccessEnabled)
                   }
                 >
                   {busy === 'request-checkout-code'
@@ -766,7 +867,7 @@ const Membership = ({ loginOnly = false }) => {
                 </button>
               </form>
             )}
-            {!offer?.available ? (
+            {!selectedOfferPlan?.available ? (
               <p className="membership-offer-card__unavailable">
                 {prelaunchTestAccessEnabled
                   ? 'Predaj zostáva zatvorený. Povolený tester môže skontrolovať klub bez platby.'
@@ -790,7 +891,7 @@ const Membership = ({ loginOnly = false }) => {
             </div>
           </div>
           <div className="membership-club-header__actions">
-            {session.member?.hasStripeCustomer && !testAccess && !complimentaryAccess ? (
+            {subscription?.grantsAccess && !testAccess && !complimentaryAccess ? (
               <button
                 type="button"
                 className="membership-button membership-button--secondary"
@@ -802,6 +903,11 @@ const Membership = ({ loginOnly = false }) => {
               </button>
             ) : null}
             {(complimentaryAccess || testAccess) ? <span className="membership-billing-note">Tento prístup nemá platbu v Stripe.</span> : null}
+            {fixedTerm?.grantsAccess ? (
+              <span className="membership-billing-note">
+                Jednorazová ročná platba · bez automatickej obnovy
+              </span>
+            ) : null}
             <button
               type="button"
               className="membership-icon-button"
@@ -852,6 +958,8 @@ const Membership = ({ loginOnly = false }) => {
                 ? 'Bezplatné členstvo je aktívne'
                 : testAccess
                   ? 'Testovací prístup je aktívny'
+                  : fixedTerm?.grantsAccess
+                    ? 'Ročný prístup je aktívny'
                   : hasAccess
                     ? 'Členstvo je aktívne'
                   : paymentPending
@@ -863,6 +971,8 @@ const Membership = ({ loginOnly = false }) => {
                 ? 'Máte trvalý prístup ku klubovému obsahu bez platby.'
                 : testAccess
                   ? 'Môžete skontrolovať celý publikačný, mediálny a komunitný tok bez platby.'
+                  : fixedTerm?.grantsAccess
+                    ? `Prístup máte do ${formatDate(fixedTerm.endsAt) || 'konca ročného obdobia'}. Platba sa automaticky neobnoví.`
                   : hasAccess
                     ? subscription?.cancelAtPeriodEnd
                       ? `Obsah zostáva dostupný do ${formatDate(subscription.currentPeriodEnd) || 'konca zaplateného obdobia'}.`
@@ -873,11 +983,17 @@ const Membership = ({ loginOnly = false }) => {
             </p>
           </div>
           {!hasAccess && !paymentPending ? (
-            <form onSubmit={startCheckout}>
+            <form onSubmit={startCheckout} className="membership-reactivation-form">
+              <MembershipPlanSelector
+                plans={membershipPlans}
+                selectedPlan={activePlanKey}
+                onChange={setSelectedPlan}
+                disabled={busy === 'checkout'}
+              />
               <button
                 type="submit"
                 className="membership-button membership-button--primary"
-                disabled={busy === 'checkout' || !offer?.available}
+                disabled={busy === 'checkout' || !selectedOfferPlan?.available}
               >
                 Aktivovať členstvo
                 <ArrowRight size={17} aria-hidden="true" />

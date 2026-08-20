@@ -176,6 +176,122 @@
   text-transform: uppercase;
 }
 
+.membership-plan-selector {
+  min-width: 0;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  border: 0;
+}
+
+.membership-plan-selector legend {
+  margin-bottom: 0.55rem;
+  color: #4f3540;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.membership-plan-selector__options {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.membership-plan-option {
+  display: flex;
+  min-height: 96px;
+  padding: 0.8rem;
+  gap: 0.7rem;
+  align-items: flex-start;
+  border: 1px solid rgba(52, 19, 32, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  transition-property: border-color, background-color, box-shadow, transform;
+  transition-duration: 140ms;
+}
+
+.membership-plan-option:hover:not(.is-unavailable) {
+  border-color: rgba(47, 111, 91, 0.46);
+}
+
+.membership-plan-option:active:not(.is-unavailable) {
+  transform: scale(0.96);
+}
+
+.membership-plan-option.is-selected {
+  border-color: var(--membership-green);
+  background: #f3faf6;
+  box-shadow: 0 0 0 2px rgba(47, 111, 91, 0.11);
+}
+
+.membership-plan-option:has(input:focus-visible) {
+  outline: 3px solid rgba(47, 111, 91, 0.42);
+  outline-offset: 3px;
+}
+
+.membership-plan-option.is-unavailable {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.membership-plan-option input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0.22rem 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--membership-green);
+}
+
+.membership-plan-option__content {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.membership-plan-option__heading {
+  display: flex;
+  min-width: 0;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.membership-plan-option__heading strong {
+  color: var(--membership-ink);
+  font-size: 0.94rem;
+}
+
+.membership-plan-option__badge {
+  padding: 0.22rem 0.48rem;
+  border-radius: 999px;
+  background: var(--membership-green);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.membership-plan-option__price {
+  color: var(--membership-ink);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
+.membership-plan-option__price small,
+.membership-plan-option__detail,
+.membership-plan-option__unavailable {
+  color: var(--membership-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.membership-plan-option__unavailable {
+  color: #8a1c2b;
+}
+
 .membership-offer-card__price {
   display: flex;
   gap: 0.45rem;
@@ -536,6 +652,16 @@
   font-size: 0.91rem;
 }
 
+.membership-reactivation-form {
+  display: grid;
+  width: min(420px, 42vw);
+  gap: 0.75rem;
+}
+
+.membership-reactivation-form .membership-plan-selector {
+  margin-bottom: 0;
+}
+
 .membership-library {
   display: grid;
   gap: 1rem;
@@ -677,6 +803,15 @@
   .membership-content-grid {
     grid-template-columns: 1fr;
   }
+
+  .membership-access-card.is-inactive {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .membership-reactivation-form {
+    width: 100%;
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 560px) {
@@ -707,6 +842,10 @@
     display: none;
   }
 
+  .membership-reactivation-form {
+    grid-column: 1;
+  }
+
   .membership-portal__controls {
     width: 100%;
   }
@@ -725,7 +864,8 @@
 
   .membership-button:active:not(:disabled),
   .membership-icon-button:active:not(:disabled),
-  .membership-discount-code:active {
+  .membership-discount-code:active,
+  .membership-plan-option:active:not(.is-unavailable) {
     transform: none;
   }
 

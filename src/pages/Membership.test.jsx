@@ -77,7 +77,7 @@ describe('Membership', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: /Istota v starostlivosti/i })).toBeInTheDocument();
-    expect(screen.getByText(/^2,99/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^2,99/).length).toBeGreaterThan(0);
     expect(
       screen.getByText(/Zaplatíte prvý mesiac a druhý získate zadarmo/i)
     ).toBeInTheDocument();
@@ -215,10 +215,110 @@ describe('Membership', () => {
       email: 'new-member@example.com',
       code: '123456',
     });
-    expect(createMembershipCheckout).toHaveBeenCalledWith('new-member@example.com');
+    expect(createMembershipCheckout).toHaveBeenCalledWith('new-member@example.com', 'monthly');
     expect(
       await screen.findByText(/Členstvo sa práve nedá objednať/i)
     ).toBeInTheDocument();
+  });
+
+  it('keeps the annual one-time option selected through email verification', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipOffer).mockResolvedValue({
+      available: true,
+      salesEnabled: true,
+      plans: [
+        {
+          key: 'monthly',
+          available: true,
+          configured: true,
+          unitAmount: 299,
+          effectiveMonthlyUnitAmount: 299,
+          currency: 'eur',
+          billingMode: 'subscription',
+        },
+        {
+          key: 'annual',
+          available: true,
+          configured: true,
+          unitAmount: 2990,
+          effectiveMonthlyUnitAmount: 2990 / 12,
+          currency: 'eur',
+          billingMode: 'payment',
+          termMonths: 12,
+          monthsFree: 2,
+          renewsAutomatically: false,
+        },
+      ],
+    });
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+    vi.mocked(requestMembershipCode).mockResolvedValue({ ok: true });
+    vi.mocked(verifyMembershipCode).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: false,
+      member: { id: 88, email: 'annual@example.com' },
+    });
+    vi.mocked(createMembershipCheckout).mockRejectedValue({
+      data: { error: 'membership_checkout_unavailable' },
+    });
+
+    renderPage();
+
+    const annualOption = await screen.findByRole('radio', { name: /Na rok/i });
+    await user.click(annualOption);
+    expect(annualOption).toBeChecked();
+    expect(screen.getByText(/2 mesiace zdarma/i)).toBeInTheDocument();
+    expect(screen.getByText(/≈ 2,49 € \/ mesiac · jednorazová platba/i)).toBeInTheDocument();
+    expect(screen.getByText(/Platba sa automaticky neobnoví/i)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/E-mail pre členstvo/i), 'annual@example.com');
+    await user.click(screen.getByRole('button', { name: /Pokračovať k platbe/i }));
+    await user.type(await screen.findByLabelText(/6-miestny kód/i), '123456');
+    await user.click(screen.getByRole('button', { name: /Overiť a prejsť k platbe/i }));
+
+    expect(createMembershipCheckout).toHaveBeenCalledWith('annual@example.com', 'annual');
+  });
+
+  it('selects and submits annual when it is the only available offer plan', async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMembershipOffer).mockResolvedValue({
+      available: true,
+      salesEnabled: true,
+      plans: [{
+        key: 'annual',
+        available: true,
+        configured: true,
+        unitAmount: 2990,
+        effectiveMonthlyUnitAmount: 2990 / 12,
+        currency: 'eur',
+        billingMode: 'payment',
+        termMonths: 12,
+        monthsFree: 2,
+        renewsAutomatically: false,
+      }],
+    });
+    vi.mocked(loadMembershipSession).mockResolvedValue({ isAuthenticated: false });
+    vi.mocked(requestMembershipCode).mockResolvedValue({ ok: true });
+    vi.mocked(verifyMembershipCode).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: false,
+      member: { id: 89, email: 'annual-only@example.com' },
+    });
+    vi.mocked(createMembershipCheckout).mockRejectedValue({
+      data: { error: 'membership_checkout_unavailable' },
+    });
+
+    renderPage();
+
+    const annualOption = await screen.findByRole('radio', { name: /Na rok/i });
+    expect(annualOption).toBeChecked();
+    expect(screen.getByText(/Platba sa automaticky neobnoví/i)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/E-mail pre členstvo/i), 'annual-only@example.com');
+    await user.click(screen.getByRole('button', { name: /Pokračovať k platbe/i }));
+    await user.type(await screen.findByLabelText(/6-miestny kód/i), '123456');
+    await user.click(screen.getByRole('button', { name: /Overiť a prejsť k platbe/i }));
+
+    expect(createMembershipCheckout).toHaveBeenCalledWith('annual-only@example.com', 'annual');
   });
 
   it('opens allowlisted prelaunch test access after real email verification without Checkout', async () => {
@@ -316,6 +416,33 @@ describe('Membership', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Máte trvalý prístup ku klubovému obsahu bez platby.'))
       .toBeInTheDocument();
+  });
+
+  it('shows the fixed end date and no subscription controls for annual access', async () => {
+    vi.mocked(loadMembershipSession).mockResolvedValue({
+      isAuthenticated: true,
+      hasAccess: true,
+      complimentaryAccess: false,
+      testAccess: false,
+      member: {
+        id: 31,
+        email: 'annual@example.com',
+        hasStripeCustomer: true,
+      },
+      subscription: null,
+      fixedTerm: {
+        grantsAccess: true,
+        status: 'active',
+        endsAt: '2027-08-20T12:00:00.000Z',
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Ročný prístup je aktívny')).toBeInTheDocument();
+    expect(screen.getByText(/Prístup máte do 20\. augusta 2027/i)).toBeInTheDocument();
+    expect(screen.getByText(/Jednorazová ročná platba/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Spravovať členstvo/i })).not.toBeInTheDocument();
   });
 
   it('shows a non-duplicating confirmation state while Stripe access syncs', async () => {
