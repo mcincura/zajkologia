@@ -149,6 +149,46 @@ const mediaFilters = [
   { key: 'image', label: 'Obrázky' },
 ];
 
+const membershipAudienceItems = [
+  'chceš mať spoľahlivé informácie o králikoch na jednom mieste',
+  'nechceš pri každom probléme hľadať odpovede po internete',
+  'chceš lepšie rozumieť správaniu a potrebám svojho králika',
+  'oceníš praktické PDF, audio a návody, ku ktorým sa môžeš vracať',
+  'chceš mať prístup k členským výhodám a zľavám',
+];
+
+const membershipContentItems = [
+  'praktické PDF príručky a ťaháky',
+  'audio a príspevky k bežným problémom a otázkam',
+  'pravidelne nový alebo aktualizovaný obsah',
+  'užitočné tipy pre každodennú starostlivosť',
+  'členské výhody a občasné zľavy',
+  'prístup bez viazanosti',
+];
+
+const membershipFaqItems = [
+  {
+    question: 'Je členstvo bez viazanosti?',
+    answer: 'Áno, členstvo si môžeš kedykoľvek spravovať alebo zrušiť online.',
+  },
+  {
+    question: 'Čo získam po vstupe do klubu?',
+    answer: 'Prístup k praktickým PDF materiálom, audio obsahu, príspevkom a členským výhodám.',
+  },
+  {
+    question: 'Ako často pribúda nový obsah?',
+    answer: 'Nový alebo aktualizovaný obsah pribúda počas mesiaca.',
+  },
+  {
+    question: 'Je klub vhodný aj pre nových majiteľov králikov?',
+    answer: 'Áno, klub je vhodný aj pre ľudí, ktorí sa chcú v starostlivosti lepšie zorientovať.',
+  },
+  {
+    question: 'Musím sa viazať na dlhé obdobie?',
+    answer: 'Nie, členstvo je bez dlhodobej viazanosti.',
+  },
+];
+
 const membershipResendCooldownSeconds = 30;
 
 const Membership = ({ loginOnly = false }) => {
@@ -583,10 +623,7 @@ const Membership = ({ loginOnly = false }) => {
               </div>
               <div>
                 <h1 id="membership-login-title">Prihlásenie do členskej zóny</h1>
-                <p>
-                  Zadajte e-mail použitý pri platbe alebo pridelený k členstvu.
-                  Pošleme vám jednorazový kód — heslo nepotrebujete.
-                </p>
+                <p>Už si členom? Prihlás sa cez svoj členský e-mail.</p>
               </div>
             </div>
 
@@ -706,20 +743,29 @@ const Membership = ({ loginOnly = false }) => {
       ? 'Počet členov sa teraz nepodarilo načítať.'
       : memberCount === 0
         ? 'Klub sa práve otvára pre prvých členov.'
-        : `${memberCount} ${memberCount === 1 ? 'člen je' : memberCount < 5 ? 'členovia sú' : 'členov je'} už v klube.`;
-  const memberProofLabel = hasVisibleMemberCount
-    ? `${memberCount === 1 ? 'člen je' : memberCount < 5 ? 'členovia sú' : 'členov je'} už v klube.`
-    : memberProofText;
+        : `Už ${memberCount} ${memberCount === 1
+          ? 'majiteľ králika je'
+          : memberCount < 5
+            ? 'majitelia králikov sú'
+            : 'majiteľov králikov je'} v Zajkologia Klube.`;
+  const memberProofSuffix = memberCount === 1
+    ? 'majiteľ králika je v Zajkologia Klube.'
+    : memberCount < 5
+      ? 'majitelia králikov sú v Zajkologia Klube.'
+      : 'majiteľov králikov je v Zajkologia Klube.';
 
   return (
     <main className="membership-page" id="main-content">
       {!isAuthenticated ? (
         <section className="membership-hero" aria-labelledby="membership-title">
           <div className="membership-hero__copy">
-            <h1 id="membership-title">Istota v starostlivosti. Každý mesiac o kúsok viac.</h1>
+            <h1 id="membership-title">
+              Maj všetky dôležité informácie o králikoch na jednom mieste
+            </h1>
             <p className="membership-hero__lead">
-              Praktické príspevky, videá, audio nahrávky, PDF príručky a členské
-              výhody na jednom bezpečnom mieste.
+              Získaj prístup k praktickým PDF, audio materiálom, príspevkom a
+              členským výhodám, ktoré ti pomôžu lepšie rozumieť správaniu, zdraviu
+              a každodennej starostlivosti o králika.
             </p>
             <div
               className={`membership-member-proof${memberCount < 0 ? ' is-unavailable' : ''}`}
@@ -731,8 +777,15 @@ const Membership = ({ loginOnly = false }) => {
                 <UsersRound size={22} strokeWidth={2} />
               </span>
               <span className="membership-member-proof__copy">
-                {hasVisibleMemberCount ? <strong>{memberCount}</strong> : null}
-                <span>{memberProofLabel}</span>
+                {hasVisibleMemberCount ? (
+                  <>
+                    <span>Už</span>
+                    <strong>{memberCount}</strong>
+                    <span>{memberProofSuffix}</span>
+                  </>
+                ) : (
+                  <span>{memberProofText}</span>
+                )}
               </span>
             </div>
             <ul className="membership-benefits">
@@ -742,13 +795,13 @@ const Membership = ({ loginOnly = false }) => {
                 <Check size={17} aria-hidden="true" />
                 {activePlanKey === 'annual'
                   ? 'Jednorazová platba bez automatického obnovenia'
-                  : 'Členstvo môžete spravovať alebo zrušiť online'}
+                  : 'Členstvo si môžeš spravovať alebo zrušiť online'}
               </li>
             </ul>
           </div>
 
           <div className="membership-offer-card">
-            <span className="membership-offer-card__label">Členstvo podľa vás</span>
+            <span className="membership-offer-card__label">VŠETKO NA JEDNOM MIESTE</span>
             <MembershipPlanSelector
               plans={membershipPlans}
               selectedPlan={activePlanKey}
@@ -765,8 +818,8 @@ const Membership = ({ loginOnly = false }) => {
             </div>
             <p>
               {activePlanKey === 'annual'
-                ? 'Zaplatíte jednorazovo cenu 10 mesiacov a získate prístup na celých 12 mesiacov. Platba sa automaticky neobnoví.'
-                : 'Zaplatíte prvý mesiac a druhý získate zadarmo. Potom platíte 2,99 € mesačne. Členstvo môžete kedykoľvek zrušiť.'}
+                ? 'Zaplatíš jednorazovo cenu 10 mesiacov a získaš prístup na celých 12 mesiacov. Platba sa automaticky neobnoví.'
+                : 'Zaplatíš prvý mesiac a druhý máš zadarmo. Potom pokračuje členstvo za 2,99 € mesačne. Bez viazanosti, členstvo môžeš kedykoľvek zrušiť.'}
             </p>
             {!checkoutCodeRequested ? (
               <form onSubmit={beginCheckoutVerification} className="membership-form">
@@ -793,13 +846,13 @@ const Membership = ({ loginOnly = false }) => {
                     ? 'Posielam overovací kód…'
                     : prelaunchTestAccessEnabled
                       ? 'Otestovať členský prístup'
-                      : 'Pokračovať k platbe'}
+                      : 'Vstúpiť do klubu'}
                   <ArrowRight size={18} aria-hidden="true" />
                 </button>
                 <p className="membership-offer-card__microcopy">
                   {prelaunchTestAccessEnabled
                     ? 'Pre povolený testovací e-mail. Platba sa nevytvorí.'
-                    : 'Najprv overíme váš e-mail. Platba ešte neprebieha.'}
+                    : 'Po kliknutí si najprv overíš e-mail. Platba ešte neprebieha.'}
                 </p>
               </form>
             ) : (
@@ -936,6 +989,42 @@ const Membership = ({ loginOnly = false }) => {
         {status ? <div className="membership-status">{status}</div> : null}
       </div>
 
+      {!isAuthenticated ? (
+        <div className="membership-marketing-grid">
+          <section
+            className="membership-marketing-card"
+            aria-labelledby="membership-audience-title"
+          >
+            <h2 id="membership-audience-title">Pre koho je klub</h2>
+            <p>Klub je pre teba, ak:</p>
+            <ul className="membership-ear-list">
+              {membershipAudienceItems.map((item) => (
+                <li key={item}>
+                  <span className="membership-bunny-ears" aria-hidden="true" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section
+            className="membership-marketing-card membership-marketing-card--green"
+            aria-labelledby="membership-content-title"
+          >
+            <h2 id="membership-content-title">Čo získaš v členstve</h2>
+            <p>V klube nájdeš napríklad:</p>
+            <ul className="membership-ear-list">
+              {membershipContentItems.map((item) => (
+                <li key={item}>
+                  <span className="membership-bunny-ears" aria-hidden="true" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      ) : null}
+
       {isAuthenticated ? (
         <section
           className={`membership-access-card ${
@@ -1007,9 +1096,16 @@ const Membership = ({ loginOnly = false }) => {
         className={`membership-feed-shell ${
           canDiscoverContent ? '' : 'membership-feed-shell--preview'
         }`}
-        aria-label={canDiscoverContent ? undefined : 'Ukážky klubu'}
-        aria-labelledby={canDiscoverContent ? 'membership-feed-title' : undefined}
+        aria-labelledby={canDiscoverContent ? 'membership-feed-title' : 'membership-preview-title'}
       >
+        {!canDiscoverContent ? (
+          <header className="membership-preview-heading">
+            <h2 id="membership-preview-title">
+              Pozri si, čo nájdeš v Zajkologia Klube
+            </h2>
+          </header>
+        ) : null}
+
         {canDiscoverContent ? (
           <aside className="membership-feed-sidebar">
             <h2 id="membership-feed-title">Kategórie</h2>
@@ -1173,6 +1269,20 @@ const Membership = ({ loginOnly = false }) => {
       </section>
 
       {!isAuthenticated ? (
+        <section className="membership-faq" aria-labelledby="membership-faq-title">
+          <h2 id="membership-faq-title">Časté otázky</h2>
+          <div className="membership-faq__list">
+            {membershipFaqItems.map((item) => (
+              <details key={item.question}>
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!isAuthenticated ? (
         <section
           className="membership-login"
           id="prihlasenie"
@@ -1184,10 +1294,7 @@ const Membership = ({ loginOnly = false }) => {
             </div>
             <div>
               <h2 id="membership-login-title">Prihlásenie do členskej zóny</h2>
-              <p>
-                Zadajte e-mail použitý pri platbe alebo pridelený k členstvu.
-                Pošleme vám jednorazový kód — heslo nepotrebujete.
-              </p>
+              <p>Už si členom? Prihlás sa cez svoj členský e-mail.</p>
             </div>
           </div>
 

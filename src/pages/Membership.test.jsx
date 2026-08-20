@@ -62,7 +62,7 @@ describe('Membership', () => {
     renderPage();
 
     const memberProof = await screen.findByRole('status', {
-      name: '12 členov je už v klube.',
+      name: 'Už 12 majiteľov králikov je v Zajkologia Klube.',
     });
     expect(memberProof).toHaveClass('membership-member-proof');
     expect(memberProof.querySelector('svg')).toBeInTheDocument();
@@ -76,11 +76,24 @@ describe('Membership', () => {
 
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: /Istota v starostlivosti/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        name: /Maj všetky dôležité informácie o králikoch na jednom mieste/i,
+      })
+    ).toBeInTheDocument();
     expect(screen.getAllByText(/^2,99/).length).toBeGreaterThan(0);
     expect(
-      screen.getByText(/Zaplatíte prvý mesiac a druhý získate zadarmo/i)
+      screen.getByText(/Zaplatíš prvý mesiac a druhý máš zadarmo/i)
     ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pre koho je klub' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Čo získaš v členstve' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Pozri si, čo nájdeš v Zajkologia Klube' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Časté otázky' })).toBeInTheDocument();
+    const faqQuestion = screen.getByText('Je členstvo bez viazanosti?');
+    await user.click(faqQuestion);
+    expect(faqQuestion.closest('details')).toHaveAttribute('open');
 
     const loginEmail = screen.getByLabelText(/Členský e-mail/i);
     await user.type(loginEmail, 'member@example.com');
@@ -182,7 +195,7 @@ describe('Membership', () => {
 
     const signupEmail = await screen.findByLabelText(/E-mail pre členstvo/i);
     await user.type(signupEmail, 'new-member@example.com');
-    await user.click(screen.getByRole('button', { name: /Pokračovať k platbe/i }));
+    await user.click(screen.getByRole('button', { name: /Vstúpiť do klubu/i }));
 
     expect(requestMembershipCode).toHaveBeenCalledWith('new-member@example.com');
     expect(createMembershipCheckout).not.toHaveBeenCalled();
@@ -206,7 +219,7 @@ describe('Membership', () => {
     renderPage();
 
     await user.type(await screen.findByLabelText(/E-mail pre členstvo/i), 'new-member@example.com');
-    await user.click(screen.getByRole('button', { name: /Pokračovať k platbe/i }));
+    await user.click(screen.getByRole('button', { name: /Vstúpiť do klubu/i }));
     await user.type(screen.getByLabelText(/Členský e-mail/i), 'existing-member@example.com');
     await user.type(await screen.findByLabelText(/6-miestny kód/i), '123456');
     await user.click(screen.getByRole('button', { name: /Overiť a prejsť k platbe/i }));
@@ -271,7 +284,7 @@ describe('Membership', () => {
     expect(screen.getByText(/Platba sa automaticky neobnoví/i)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/E-mail pre členstvo/i), 'annual@example.com');
-    await user.click(screen.getByRole('button', { name: /Pokračovať k platbe/i }));
+    await user.click(screen.getByRole('button', { name: /Vstúpiť do klubu/i }));
     await user.type(await screen.findByLabelText(/6-miestny kód/i), '123456');
     await user.click(screen.getByRole('button', { name: /Overiť a prejsť k platbe/i }));
 
@@ -314,7 +327,7 @@ describe('Membership', () => {
     expect(screen.getByText(/Platba sa automaticky neobnoví/i)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/E-mail pre členstvo/i), 'annual-only@example.com');
-    await user.click(screen.getByRole('button', { name: /Pokračovať k platbe/i }));
+    await user.click(screen.getByRole('button', { name: /Vstúpiť do klubu/i }));
     await user.type(await screen.findByLabelText(/6-miestny kód/i), '123456');
     await user.click(screen.getByRole('button', { name: /Overiť a prejsť k platbe/i }));
 
