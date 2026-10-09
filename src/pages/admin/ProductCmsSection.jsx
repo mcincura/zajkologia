@@ -1184,15 +1184,18 @@ const ProductCmsSection = () => {
                 </select>
               </label>
 
-              <label style={{ ...labelStyle, flexDirection: 'row', alignItems: 'center', alignSelf: 'end', minHeight: '2.5rem' }}>
+              <label style={{ ...labelStyle, gridColumn: '1 / -1', flexDirection: 'row', alignItems: 'center', gap: '0.75rem', padding: '0.85rem', border: '1px solid #e5e1dc', borderRadius: '8px', background: '#fffaf3' }}>
                 <input
                   type="checkbox"
+                  style={{ width: '18px', height: '18px', flexShrink: 0, accentColor: '#351324' }}
                   checked={selectedProduct.productType === PRODUCT_TYPE.DIGITAL && Boolean(selectedProduct.isFree)}
                   disabled={selectedProduct.productType !== PRODUCT_TYPE.DIGITAL}
                   onChange={(e) => updateSelected({ isFree: e.target.checked })}
                 />
-                <span style={labelTextStyle}>Free download (no payment or checkout)</span>
-                <span style={helperTextStyle}>Digital products only. A published product needs an uploaded PDF before visitors can download it.</span>
+                <span style={{ display: 'grid', gap: '0.25rem' }}>
+                  <span style={labelTextStyle}>Free download (no payment or checkout)</span>
+                  <span style={helperTextStyle}>Digital products only. A published product needs an uploaded PDF before visitors can download it.</span>
+                </span>
               </label>
 
               <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
