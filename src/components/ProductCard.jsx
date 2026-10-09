@@ -37,7 +37,7 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const description = product.shortDescription || product.description || '';
   const price = isFreeProduct ? 'Zadarmo' : product.price || 'Cena v pokladni';
   const cardBadges = isFreeProduct
-    ? ['PDF zdarma']
+    ? ['Zadarmo']
     : [product.preorderNote, product.saleLabel].filter(Boolean);
   const buttonLabel = isPreviewProduct
     ? product.purchaseLabel || 'Čoskoro'

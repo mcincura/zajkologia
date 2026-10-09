@@ -61,8 +61,7 @@ describe('ProductCard', () => {
       price: '4,99 €',
     });
 
-    expect(screen.getByText('PDF zdarma')).toBeInTheDocument();
-    expect(screen.getByText('Zadarmo')).toBeInTheDocument();
+    expect(screen.getAllByText('Zadarmo')).toHaveLength(2);
     expect(screen.getByRole('link', { name: /stiahnuť zdarma free guide/i })).toHaveAttribute(
       'href',
       '/api/products/free-guide/free-download'
