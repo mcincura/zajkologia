@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import {
   apiFetch,
   deleteProductImageAsset,
   deleteProductPdfAsset,
   loadProductAssets,
+  loadFreeProductDownloadStats,
   uploadProductImage,
   uploadProductPdf,
 } from '../../api/client';
@@ -59,6 +60,21 @@ const joinList = (value) => (Array.isArray(value) ? value.join(', ') : '');
 const isHexColor = (value) => /^#[0-9a-f]{6}$/i.test(String(value || '').trim());
 
 const colorInputValue = (value) => (isHexColor(value) ? value : '#ffffff');
+
+const formatStatsDateTime = (value) => {
+  if (!value) return 'No downloads yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'No downloads yet' : date.toLocaleString('en-GB');
+};
+
+const formatStatsDate = (value) => {
+  if (!value) return 'unknown date';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'unknown date' : date.toLocaleDateString('en-GB');
+};
+
+const getDownloadStatsFileKey = (file, rowIndex) =>
+  file.fileKey || `${file.index ?? 'prior'}-${file.filename || file.label || 'file'}-${rowIndex}`;
 
 const normalizeLanguageCode = (value) => {
   const code = String(value || '').trim().toLowerCase();
@@ -356,6 +372,10 @@ const ProductCmsSection = () => {
   const [assetBusy, setAssetBusy] = useState(false);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [productAssets, setProductAssets] = useState([]);
+  const [freeDownloadStats, setFreeDownloadStats] = useState(null);
+  const [freeDownloadStatsProductId, setFreeDownloadStatsProductId] = useState(null);
+  const [freeDownloadStatsLoading, setFreeDownloadStatsLoading] = useState(false);
+  const [freeDownloadStatsError, setFreeDownloadStatsError] = useState(false);
   const [status, setStatus] = useState('');
   const [pdfUploadLanguage, setPdfUploadLanguage] = useState('sk');
   const [previewCountryCode, setPreviewCountryCode] = useState('SK');
@@ -364,6 +384,16 @@ const ProductCmsSection = () => {
     () => products.find((product) => product.id === selectedId) || null,
     [products, selectedId]
   );
+  const activeStatsProductIdRef = useRef(selectedProduct?.id ?? null);
+  activeStatsProductIdRef.current = selectedProduct?.id ?? null;
+  const currentFreeDownloadStats = freeDownloadStatsProductId === selectedProduct?.id
+    ? freeDownloadStats
+    : null;
+  const currentFreeDownloadStatsLoading = selectedProduct?.id > 0 && (
+    freeDownloadStatsProductId !== selectedProduct.id || freeDownloadStatsLoading
+  );
+  const currentFreeDownloadStatsError = freeDownloadStatsProductId === selectedProduct?.id &&
+    freeDownloadStatsError;
 
   const deliveryLanguages = useMemo(
     () => getDeliveryLanguages(selectedProduct),
@@ -472,6 +502,54 @@ const ProductCmsSection = () => {
       cancelled = true;
     };
   }, [selectedProduct?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadStats = async () => {
+      const shouldLoad = selectedProduct?.id > 0;
+      setFreeDownloadStats(null);
+      setFreeDownloadStatsProductId(shouldLoad ? selectedProduct.id : null);
+      setFreeDownloadStatsError(false);
+      if (!shouldLoad) {
+        setFreeDownloadStatsLoading(false);
+        return;
+      }
+
+      setFreeDownloadStatsLoading(true);
+      try {
+        const stats = await loadFreeProductDownloadStats(selectedProduct.id);
+        if (!cancelled) {
+          setFreeDownloadStats(stats);
+          setFreeDownloadStatsProductId(selectedProduct.id);
+        }
+      } catch {
+        if (!cancelled) setFreeDownloadStatsError(true);
+      } finally {
+        if (!cancelled) setFreeDownloadStatsLoading(false);
+      }
+    };
+
+    loadStats();
+    return () => { cancelled = true; };
+  }, [selectedProduct?.id]);
+
+  const refreshFreeDownloadStats = async () => {
+    const productId = selectedProduct?.id;
+    if (!(productId > 0)) return;
+
+    setFreeDownloadStats(null);
+    setFreeDownloadStatsProductId(productId);
+    setFreeDownloadStatsError(false);
+    setFreeDownloadStatsLoading(true);
+    try {
+      const stats = await loadFreeProductDownloadStats(productId);
+      if (activeStatsProductIdRef.current === productId) setFreeDownloadStats(stats);
+    } catch {
+      if (activeStatsProductIdRef.current === productId) setFreeDownloadStatsError(true);
+    } finally {
+      if (activeStatsProductIdRef.current === productId) setFreeDownloadStatsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isSelectedDirty) return undefined;
@@ -1134,6 +1212,76 @@ const ProductCmsSection = () => {
           <div style={{ color: '#777' }}>Select or create a product.</div>
         ) : (
           <div className="admin-products-workspace">
+            {((selectedProduct.isFree && selectedProduct.productType === PRODUCT_TYPE.DIGITAL) ||
+              (currentFreeDownloadStats &&
+                (Number(currentFreeDownloadStats.totalDownloads || 0) > 0 ||
+                  (currentFreeDownloadStats.files || []).some((file) => Number(file.downloadCount || 0) > 0)))) && (
+              <section
+                aria-label="Free PDF download statistics"
+                aria-labelledby="free-download-stats-title"
+                style={{ ...sectionCardStyle, gridColumn: '1 / -1', marginBottom: '1rem' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                  <h3 id="free-download-stats-title" style={{ margin: '0 0 0.5rem' }}>
+                    Free PDF download statistics
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={refreshFreeDownloadStats}
+                    disabled={currentFreeDownloadStatsLoading || !(selectedProduct.id > 0)}
+                  >
+                    {currentFreeDownloadStatsLoading ? 'Refreshing…' : 'Refresh statistics'}
+                  </button>
+                </div>
+                <p style={{ ...helperTextStyle, margin: '0 0 0.8rem' }}>
+                  Counts are downloads/transfers, not unique people. The product total can include prior files removed or replaced. Tracking starts from deployment
+                  {currentFreeDownloadStats?.trackingStartedAt
+                    ? ` on ${formatStatsDate(currentFreeDownloadStats.trackingStartedAt)}`
+                    : '.'}
+                </p>
+                {currentFreeDownloadStatsLoading ? (
+                  <p role="status" style={{ margin: 0 }}>Loading download statistics…</p>
+                ) : currentFreeDownloadStatsError ? (
+                  <p role="status" style={{ margin: 0 }}>
+                    Download statistics are unavailable right now. Product editing is still available.
+                  </p>
+                ) : !currentFreeDownloadStats ? (
+                  <p role="status" style={{ margin: 0 }}>
+                    Download statistics are not available for this product yet.
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ margin: '0 0 0.75rem' }}>
+                      <strong>Total downloads:</strong>{' '}
+                      {Number(currentFreeDownloadStats.totalDownloads || 0).toLocaleString('en-GB')}
+                    </p>
+                    {Array.isArray(currentFreeDownloadStats.files) && currentFreeDownloadStats.files.length > 0 ? (
+                      <div style={{ display: 'grid', gap: '0.5rem' }}>
+                        {currentFreeDownloadStats.files.map((file, rowIndex) => (
+                          <div
+                            key={getDownloadStatsFileKey(file, rowIndex)}
+                            style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}
+                          >
+                            <span>
+                              <strong>
+                                {file.index == null ? 'Previous file: ' : ''}
+                                {file.label || file.filename || (file.index == null ? 'PDF' : `PDF ${Number(file.index) + 1}`)}
+                              </strong>
+                              {file.filename && file.label ? ` · ${file.filename}` : ''}
+                            </span>
+                            <span>
+                              {Number(file.downloadCount || 0).toLocaleString('en-GB')} downloads · Last downloaded: {formatStatsDateTime(file.lastDownloadedAt)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ margin: 0 }}>No per-file download counts are available yet.</p>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
             <div className="admin-products-editor">
               <div style={{ display: 'grid', gap: '1rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>

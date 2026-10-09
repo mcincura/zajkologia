@@ -143,6 +143,11 @@ export const loadAdminCoupons = async ({ search = '', state = 'all' } = {}) => {
     return { coupons: data?.coupons || [], stateCounts: data?.stateCounts || {} };
 };
 
+export const loadFreeProductDownloadStats = async (productId) => {
+    const data = await apiFetch(`/api/products/admin/${encodeURIComponent(productId)}/free-download-stats`);
+    return data?.stats || null;
+};
+
 export const loadAdminCoupon = async (couponId) =>
     apiFetch(`/api/coupons/admin/${encodeURIComponent(couponId)}`);
 
