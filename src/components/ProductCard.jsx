@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, ShoppingCart } from 'lucide-react';
+import { ArrowRight, Download, ShoppingCart } from 'lucide-react';
+import { apiUrl } from '../api/client';
 import { useCart } from '../cart/useCart';
 import ProductLanguageBadges from './ProductLanguageBadges';
 import { PRODUCT_PAGE_TEMPLATE, inferProductPageTemplate } from '../utils/productTemplates';
@@ -15,6 +16,9 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   const from = location.pathname + location.search;
   const destination = `/product/${product.slug}`;
   const isPreviewProduct = Boolean(product.isMock);
+  const isFreeProduct = Boolean(product.isFree && product.productType === 'digital');
+  const freeDownloads = Array.isArray(product.freeDownloads) ? product.freeDownloads : [];
+  const hasMultipleFreeDownloads = freeDownloads.length > 1;
   const productTemplate = inferProductPageTemplate(product);
   const needsVariantSelection = requiresVariantSelection(product);
 
@@ -31,11 +35,15 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
   };
 
   const description = product.shortDescription || product.description || '';
-  const price = product.price || 'Cena v pokladni';
-  const cardBadges = [product.preorderNote, product.saleLabel].filter(Boolean);
+  const price = isFreeProduct ? 'Zadarmo' : product.price || 'Cena v pokladni';
+  const cardBadges = isFreeProduct
+    ? ['PDF zdarma']
+    : [product.preorderNote, product.saleLabel].filter(Boolean);
   const buttonLabel = isPreviewProduct
     ? product.purchaseLabel || 'Čoskoro'
-    : added && !needsVariantSelection
+      : isFreeProduct
+        ? 'Zobraziť a stiahnuť'
+      : added && !needsVariantSelection
       ? 'Pridané'
       : needsVariantSelection
         ? product.purchaseLabel ||
@@ -90,15 +98,38 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
         <div className="product-card__purchase">
           <div className="product-card__price">
             <span className="product-card__price-label">Cena</span>
-            {product.originalPrice && (
+            {!isFreeProduct && product.originalPrice && (
               <span className="product-card__price-original">{product.originalPrice}</span>
             )}
             <span className="product-card__price-value">{price}</span>
-            {product.shippingNote && (
+            {!isFreeProduct && product.shippingNote && (
               <span className="product-card__price-note">{product.shippingNote}</span>
             )}
           </div>
-          <button
+          {isFreeProduct && isPreviewProduct ? (
+            <span className="product-card__button product-card__button--preview" aria-disabled="true">
+              {product.purchaseLabel || 'Dočasne nedostupné'}
+            </span>
+          ) : isFreeProduct && hasMultipleFreeDownloads ? (
+            <Link
+              className="product-card__button"
+              to={destination}
+              state={{ from }}
+              aria-label={`Vybrať PDF zdarma pre ${product.name}`}
+            >
+              <Download size={16} />
+              Vybrať PDF zdarma
+            </Link>
+          ) : isFreeProduct && !isPreviewProduct ? (
+            <a
+              className="product-card__button"
+              href={apiUrl(`/api/products/${encodeURIComponent(product.slug)}/free-download`)}
+              aria-label={`Stiahnuť zdarma ${product.name}`}
+            >
+              <Download size={16} />
+              Stiahnuť zdarma
+            </a>
+          ) : <button
             className={`product-card__button${isPreviewProduct ? ' product-card__button--preview' : ''}`}
             type="button"
             onClick={handleAddToCart}
@@ -106,6 +137,8 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
             aria-label={
               isPreviewProduct
                 ? `Produkt zatiaľ nie je v predaji: ${product.name}`
+                : isFreeProduct
+                  ? `Stiahnuť zdarma ${product.name}`
                 : needsVariantSelection
                   ? `Vybrať farebnú kombináciu produktu ${product.name}`
                   : `Pridať ${product.name} do košíka`
@@ -113,7 +146,7 @@ const ProductCard = ({ product, accentColor = '#eccfc3' }) => {
           >
             <ShoppingCart size={16} />
             {buttonLabel}
-          </button>
+          </button>}
         </div>
 
         <Link className="product-card__hint" to={destination} state={{ from }}>

@@ -20,6 +20,13 @@ export const normalizeSwatches = (swatches) => {
   return swatches.map((swatch) => String(swatch || '').trim()).filter(Boolean);
 };
 
+export const hasFreeDownloadPdf = (product, assets = []) =>
+  (Array.isArray(product?.emailAttachments) && product.emailAttachments.some((attachment) =>
+    Boolean(attachment?.assetId) ||
+    (Array.isArray(attachment?.assetPaths) && attachment.assetPaths.some(Boolean))
+  )) ||
+  (Array.isArray(assets) && assets.some((asset) => asset?.assetType === 'digital_pdf'));
+
 const toInventoryQuantity = (value) => {
   const quantity = Number.parseInt(String(value ?? ''), 10);
   return Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
@@ -96,6 +103,7 @@ export const buildProductPayload = (product) => {
 
   return {
     ...product,
+    isFree: product.productType === 'digital' && Boolean(product.isFree),
     slug: product.slug || slugify(product.name),
     featureList: richContent.featureList,
     pageTheme: richContent.pageTheme,

@@ -9,6 +9,7 @@ import { CART_STORAGE_KEY } from '../cart/cartState';
 import { ProductDetailView } from './ProductDetails';
 
 vi.mock('../api/client', () => ({
+  apiUrl: (path) => path,
   createCartCheckoutSession: vi.fn(),
   createCheckoutSession: vi.fn(),
   quoteCheckout: vi.fn(),
@@ -111,5 +112,59 @@ describe('ProductDetailView', () => {
       });
     });
     expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('offers a direct free PDF download without cart or checkout controls', () => {
+    renderProductDetail({ ...mixedProduct, slug: 'free-guide', productType: 'digital', isFree: true, originalPrice: '9,99 €', saleDescription: 'Paid promo copy', deliveryNote: 'Po zaplatení PDF e-mailom.' });
+
+    expect(screen.getAllByRole('link', { name: /stiahnuť pdf zdarma/i })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /stiahnuť pdf zdarma/i })[0]).toHaveAttribute(
+      'href',
+      '/api/products/free-guide/free-download'
+    );
+    expect(screen.getAllByText('Bez platby a registrácie. PDF si stiahnete ihneď.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Príručku si stiahnete priamo do zariadenia.')).toBeInTheDocument();
+    expect(screen.queryByText('Paid promo copy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Po zaplatení PDF e-mailom.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /do košíka/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /kúpiť|predobjednať/i })).not.toBeInTheDocument();
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+    expect(createCartCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('shows a direct download choice for each available language', () => {
+    renderProductDetail({
+      ...mixedProduct,
+      slug: 'free-guide',
+      productType: 'digital',
+      isFree: true,
+      freeDownloads: [
+        { index: 0, label: 'Slovak PDF', filename: 'guide-sk.pdf', languageCode: 'sk' },
+        { index: 1, label: 'Czech PDF', filename: 'guide-cz.pdf', languageCode: 'cs' },
+      ],
+    });
+
+    const slovakLinks = screen.getAllByRole('link', { name: /stiahnuť pdf v slovenčine \(sk\)/i });
+    const czechLinks = screen.getAllByRole('link', { name: /stiahnuť pdf v češtine \(cz\)/i });
+    expect(slovakLinks).toHaveLength(2);
+    expect(czechLinks).toHaveLength(2);
+    expect(slovakLinks[0]).toHaveAttribute('href', '/api/products/free-guide/free-download?file=0');
+    expect(czechLinks[0]).toHaveAttribute('href', '/api/products/free-guide/free-download?file=1');
+  });
+
+  it('shows an unavailable state for a free product preview with no files', () => {
+    renderProductDetail({
+      ...mixedProduct,
+      slug: 'free-guide',
+      productType: 'digital',
+      isFree: true,
+      isMock: true,
+      freeDownloads: [],
+      purchaseLabel: 'Dočasne nedostupné',
+    });
+
+    expect(screen.getAllByText('Dočasne nedostupné')).toHaveLength(2);
+    expect(screen.queryByRole('link', { name: /stiahnuť pdf/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /košík|kúpiť|predobjednať/i })).not.toBeInTheDocument();
   });
 });

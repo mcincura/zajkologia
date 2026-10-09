@@ -2,10 +2,41 @@ import { describe, expect, it } from 'vitest';
 import {
   buildProductPayload,
   buildVariantAvailabilityPatch,
+  hasFreeDownloadPdf,
   getVariantAvailableQuantity,
 } from './productCmsPayload';
 
 describe('buildProductPayload', () => {
+  it('preserves the free download setting in the admin save payload', () => {
+    expect(buildProductPayload({
+      id: 9,
+      slug: 'free-guide',
+      name: 'Free Guide',
+      productType: 'digital',
+      isFree: true,
+      pageTheme: {},
+      productPage: {},
+    })).toMatchObject({ isFree: true });
+  });
+
+  it('clears the free download setting for non-digital products', () => {
+    expect(buildProductPayload({
+      id: 10,
+      slug: 'mixed-product',
+      name: 'Mixed Product',
+      productType: 'mixed',
+      isFree: true,
+      pageTheme: {},
+      productPage: {},
+    })).toMatchObject({ isFree: false });
+  });
+
+  it('recognizes configured or uploaded PDFs for free download publishing', () => {
+    expect(hasFreeDownloadPdf({ emailAttachments: [{ assetPaths: ['uploaded:guide.pdf'] }] })).toBe(true);
+    expect(hasFreeDownloadPdf({}, [{ assetType: 'digital_pdf' }])).toBe(true);
+    expect(hasFreeDownloadPdf({}, [])).toBe(false);
+  });
+
   it('preserves digital and physical fields for mixed bundles', () => {
     const payload = buildProductPayload({
       id: 8,

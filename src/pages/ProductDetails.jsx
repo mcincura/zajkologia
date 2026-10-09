@@ -10,6 +10,7 @@ import {
   CircleHelp,
   CheckCircle2,
   ClipboardList,
+  Download,
   Clock3,
   HeartPulse,
   House,
@@ -24,7 +25,7 @@ import {
   Tag,
   Truck,
 } from 'lucide-react';
-import { createCartCheckoutSession, createCheckoutSession, loadVisitorCountry, quoteCheckout } from '../api/client';
+import { apiUrl, createCartCheckoutSession, createCheckoutSession, loadVisitorCountry, quoteCheckout } from '../api/client';
 import { useCart } from '../cart/useCart';
 import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import ProductCard from '../components/ProductCard';
@@ -48,6 +49,36 @@ const formatMoneyMinor = (amountMinor, currency = 'eur') => new Intl.NumberForma
   style: 'currency',
   currency: String(currency || 'eur').toUpperCase(),
 }).format(Number(amountMinor || 0) / 100);
+
+const getFreeDownloadLabel = (file) => {
+  const languageCode = String(file?.languageCode || '').toLowerCase();
+  if (languageCode === 'sk') return 'Stiahnuť PDF v slovenčine (SK)';
+  if (languageCode === 'cs' || languageCode === 'cz') return 'Stiahnuť PDF v češtine (CZ)';
+  return file?.label || file?.filename || 'Stiahnuť PDF zdarma';
+};
+
+const freeDownloadHref = (slug, file) =>
+  apiUrl(`/api/products/${encodeURIComponent(slug)}/free-download${file ? `?file=${encodeURIComponent(file.index)}` : ''}`);
+
+const FreeDownloadActions = ({ product, files, className = 'product-page__cta' }) => {
+  const choices = files.length > 1 ? files : [null];
+  return choices.map((file, index) => (
+    <a
+      key={file ? `${file.index}-${file.filename || index}` : 'default'}
+      className={className}
+      href={freeDownloadHref(product.slug, file)}
+    >
+      <Download size={18} />
+      {file ? getFreeDownloadLabel(file) : 'Stiahnuť PDF zdarma'}
+    </a>
+  ));
+};
+
+const FreeDownloadUnavailable = ({ product }) => (
+  <span className="product-page__cta product-page__cta--preview" aria-disabled="true">
+    {product.purchaseLabel || 'Dočasne nedostupné'}
+  </span>
+);
 
 const iconMap = {
   CalendarDays,
@@ -195,6 +226,8 @@ export const ProductDetailView = ({
   const [couponQuoteState, setCouponQuoteState] = useState('idle');
   const [couponQuoteError, setCouponQuoteError] = useState('');
   const isPreviewProduct = isAdminPreview || Boolean(product?.isMock);
+  const isFreeProduct = Boolean(product?.isFree && product?.productType === PRODUCT_TYPE.DIGITAL);
+  const freeDownloads = Array.isArray(product?.freeDownloads) ? product.freeDownloads : [];
 
   useEffect(() => {
     if (typeof window === 'undefined' || isAdminPreview) return;
@@ -251,7 +284,7 @@ export const ProductDetailView = ({
   };
 
   useEffect(() => {
-    if (!coupon || !product || isPreviewProduct || isAdminPreview) {
+    if (!coupon || !product || isFreeProduct || isPreviewProduct || isAdminPreview) {
       return undefined;
     }
 
@@ -292,10 +325,10 @@ export const ProductDetailView = ({
     return () => {
       cancelled = true;
     };
-  }, [coupon, isAdminPreview, isPreviewProduct, product, selectedVariantCode]);
+  }, [coupon, isAdminPreview, isFreeProduct, isPreviewProduct, product, selectedVariantCode]);
 
   const handleAddToCart = () => {
-    if (isPreviewProduct || isAdminPreview || !product) return;
+    if (isFreeProduct || isPreviewProduct || isAdminPreview || !product) return;
     const isPhysicalCheckout = hasPhysicalDelivery(product);
     const selectedVariant = validateSelectedVariant();
     if (isPhysicalCheckout && !selectedVariant) return;
@@ -313,7 +346,7 @@ export const ProductDetailView = ({
   };
 
   const handleCheckout = async () => {
-    if (isPreviewProduct || isAdminPreview || !product) return;
+    if (isFreeProduct || isPreviewProduct || isAdminPreview || !product) return;
     const isPhysicalCheckout = hasPhysicalDelivery(product);
     const selectedVariant = validateSelectedVariant();
     if (isPhysicalCheckout && !selectedVariant) return;
@@ -457,7 +490,7 @@ export const ProductDetailView = ({
   const productAccentStrong = product.pageTheme?.accentStrong || '#8f5822';
   const productTint = product.pageTheme?.tint || '#f7ead8';
   const productSurface = product.pageTheme?.surface || '#fffaf3';
-  const basePriceLabel = product.price || 'Cena v pokladni';
+  const basePriceLabel = isFreeProduct ? 'Zadarmo' : product.price || 'Cena v pokladni';
   const activeGalleryImage = galleryImages[normalizedActiveGalleryIndex] || product.heroImage || product.image;
   const productTemplate = pageData.template || inferProductPageTemplate(product);
   const isPhysicalProductPage = isPhysicalTemplate(productTemplate);
@@ -466,15 +499,25 @@ export const ProductDetailView = ({
   const selectedVariant =
     colorVariants.find((variant) => variant.code === selectedVariantCode) ||
     getDefaultAvailableVariant(colorVariants);
-  const priceLabel = selectedVariant?.price || basePriceLabel;
-  const originalPriceLabel = selectedVariant?.originalPrice || product.originalPrice;
+  const priceLabel = isFreeProduct ? 'Zadarmo' : selectedVariant?.price || basePriceLabel;
+  const originalPriceLabel = isFreeProduct ? '' : selectedVariant?.originalPrice || product.originalPrice;
+  const visibleTrustBadges = isFreeProduct
+    ? ['Bez platby a registrácie. PDF si stiahnete ihneď.']
+    : trustBadges;
+  const visibleClosingTitle = isFreeProduct ? `Stiahnuť ${product.name} zdarma` : closingTitle;
+  const visibleClosingText = isFreeProduct
+    ? 'Príručku si stiahnete priamo do zariadenia.'
+    : closingText;
+  const visibleClosingNote = isFreeProduct
+    ? 'Bez platby a registrácie. PDF si stiahnete ihneď.'
+    : closingNote;
   const selectedVariantUnavailable =
     isPhysicalProductPage &&
     colorVariants.length > 0 &&
     (!selectedVariant ||
       selectedVariant.isActive === false ||
       Number(selectedVariant.available || 0) <= 0);
-  const preorderDeal = isPreorderProductPage ? product.preorderDeal || null : null;
+  const preorderDeal = !isFreeProduct && isPreorderProductPage ? product.preorderDeal || null : null;
   const showPreorderInfo = isPreorderProductPage && preorderInfo?.items?.length > 0;
   const showPreorderMicrocopy = isPreorderProductPage && preorderMicrocopy;
   const handmadeItems = handmadeStory?.items || [];
@@ -487,7 +530,9 @@ export const ProductDetailView = ({
         product.stockNote ? { icon: PackageCheck, label: product.stockNote } : null,
         product.shippingNote ? { icon: Truck, label: product.shippingNote } : null,
       ].filter(Boolean);
-  const defaultCtaLabel = isPreorderProductPage
+  const defaultCtaLabel = isFreeProduct
+    ? 'Stiahnuť zdarma'
+    : isPreorderProductPage
     ? `Predobjednať za ${priceLabel}`
     : isPhysicalProductPage
       ? `Kúpiť za ${priceLabel}`
@@ -599,9 +644,9 @@ export const ProductDetailView = ({
               <h1 className="product-page__title">{product.name}</h1>
               <p className="product-page__lead">{lead}</p>
 
-              {trustBadges.length > 0 && (
+              {visibleTrustBadges.length > 0 && (
                 <div className="product-page__meta-list">
-                  {trustBadges.map((badge) => (
+                  {visibleTrustBadges.map((badge) => (
                     <span key={badge} className="product-page__meta-chip">
                       <CheckCircle2 size={14} strokeWidth={2.4} />
                       {badge}
@@ -667,7 +712,7 @@ export const ProductDetailView = ({
                         <span className="product-page__price-original">{originalPriceLabel}</span>
                       )}
                       <span className="product-page__price">{priceLabel}</span>
-                      {product.saleDescription && (
+                      {!isFreeProduct && product.saleDescription && (
                         <span className="product-page__price-detail">
                           {product.saleLabel ? `${product.saleLabel} · ` : ''}{product.saleDescription}
                         </span>
@@ -677,6 +722,11 @@ export const ProductDetailView = ({
                 </div>
 
                 <div className="product-page__checkout-controls">
+                  {isFreeProduct && !isPreviewProduct ? (
+                    <FreeDownloadActions product={product} files={freeDownloads} />
+                  ) : isFreeProduct && isPreviewProduct ? (
+                    <FreeDownloadUnavailable product={product} />
+                  ) : <>
                   {!isPreviewProduct && !isAdminPreview && coupon && (
                     <div className={`product-page__coupon-applied${couponQuoteState === 'error' ? ' is-error' : ''}`} role={couponQuoteState === 'error' ? 'alert' : 'status'} aria-live="polite">
                       <Tag size={17} />
@@ -709,6 +759,7 @@ export const ProductDetailView = ({
                     <ArrowRight size={18} />
                     {ctaLabel}
                   </button>
+                  </>}
                 </div>
               </div>
 
@@ -717,7 +768,9 @@ export const ProductDetailView = ({
               )}
 
               <p className="product-page__delivery">
-                {product.deliveryNote ||
+                {isFreeProduct
+                  ? 'Bez platby a registrácie. PDF si stiahnete ihneď.'
+                  : product.deliveryNote ||
                   (isPhysicalProductPage
                     ? 'Fyzický produkt doručíme podľa dostupných možností dopravy.'
                     : 'Po zaplatení dostanete príručku vo forme PDF na email.')}
@@ -810,7 +863,7 @@ export const ProductDetailView = ({
                 </div>
               )}
 
-              {!isPreviewProduct && !isAdminPreview && !isPhysicalProductPage && (
+              {!isPreviewProduct && !isAdminPreview && !isPhysicalProductPage && !isFreeProduct && (
                 <EmailCaptureOffer placement="product" />
               )}
 
@@ -968,9 +1021,9 @@ export const ProductDetailView = ({
         <div className="container product-page__container">
           <div className="product-page__closing">
             <div className="product-page__closing-copy">
-              <h2>{closingTitle}</h2>
-              <p>{closingText}</p>
-              {closingNote && <span className="product-page__closing-note">{closingNote}</span>}
+              <h2>{visibleClosingTitle}</h2>
+              <p>{visibleClosingText}</p>
+              {visibleClosingNote && <span className="product-page__closing-note">{visibleClosingNote}</span>}
             </div>
 
             <div className="product-page__closing-action">
@@ -983,7 +1036,11 @@ export const ProductDetailView = ({
                 <span>{priceLabel}</span>
               </span>
               <div className="product-page__closing-buttons">
-                <button
+                {isFreeProduct && !isPreviewProduct ? (
+                    <FreeDownloadActions product={product} files={freeDownloads} />
+                ) : isFreeProduct && isPreviewProduct ? (
+                  <FreeDownloadUnavailable product={product} />
+                ) : <><button
                   type="button"
                   onClick={handleAddToCart}
                   disabled={isPreviewProduct || selectedVariantUnavailable}
@@ -1001,6 +1058,7 @@ export const ProductDetailView = ({
                   <ArrowRight size={18} />
                   {ctaLabel}
                 </button>
+                </>}
               </div>
             </div>
           </div>

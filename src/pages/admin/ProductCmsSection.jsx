@@ -14,6 +14,7 @@ import ProductMediaLibrary from './ProductMediaLibrary';
 import {
   buildVariantAvailabilityPatch,
   buildProductPayload,
+  hasFreeDownloadPdf,
   getVariantAvailableQuantity,
   getVariantReservedQuantity,
   getVariantSoldQuantity,
@@ -252,6 +253,7 @@ const createEmptyProduct = () => ({
   shortDescription: '',
   description: '',
   productType: PRODUCT_TYPE.DIGITAL,
+  isFree: false,
   fulfillmentType: 'pdf_email',
   status: 'draft',
   sortOrder: 100,
@@ -502,6 +504,7 @@ const ProductCmsSection = () => {
 
     updateSelected({
       productType,
+      ...(productType === PRODUCT_TYPE.DIGITAL ? {} : { isFree: false }),
       fulfillmentType,
       productPage: {
         ...(selectedProduct?.productPage || {}),
@@ -816,6 +819,11 @@ const ProductCmsSection = () => {
 
   const validateBeforePublish = (product) => {
     if (product.status !== 'published') return true;
+
+    if (product.isFree && product.productType === PRODUCT_TYPE.DIGITAL && !hasFreeDownloadPdf(product, productAssets)) {
+      setStatus('Cannot publish this free download until a PDF is uploaded or configured in digital delivery.');
+      return false;
+    }
 
     if (hasPhysicalDelivery(product)) {
       const missing = [];
@@ -1176,6 +1184,17 @@ const ProductCmsSection = () => {
                 </select>
               </label>
 
+              <label style={{ ...labelStyle, flexDirection: 'row', alignItems: 'center', alignSelf: 'end', minHeight: '2.5rem' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedProduct.productType === PRODUCT_TYPE.DIGITAL && Boolean(selectedProduct.isFree)}
+                  disabled={selectedProduct.productType !== PRODUCT_TYPE.DIGITAL}
+                  onChange={(e) => updateSelected({ isFree: e.target.checked })}
+                />
+                <span style={labelTextStyle}>Free download (no payment or checkout)</span>
+                <span style={helperTextStyle}>Digital products only. A published product needs an uploaded PDF before visitors can download it.</span>
+              </label>
+
               <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
                 <span style={labelTextStyle}>Short description</span>
                 <input
@@ -1234,6 +1253,7 @@ const ProductCmsSection = () => {
                 />
               </div>
 
+	              {!selectedProduct.isFree && <>
 	              <label style={labelStyle}>
 	                <span style={labelTextStyle}>Current price EUR</span>
 	                <input
@@ -1273,12 +1293,13 @@ const ProductCmsSection = () => {
 	                {!selectedProduct.stripePriceId && !selectedProduct.stripePriceEnv && hasPhysicalDelivery(selectedProduct) && (
 	                  <span style={helperTextStyle}>Sync Stripe to create catalog Product and Price IDs for this physical-capable product.</span>
 	                )}
-	                {selectedProduct.stripePriceEnv && !selectedProduct.stripePriceId && (
-	                  <span style={helperTextStyle}>Sync Stripe will adopt this legacy env Price ID and store the real Price ID in the CMS.</span>
-	                )}
-	              </label>
+                {selectedProduct.stripePriceEnv && !selectedProduct.stripePriceId && (
+                  <span style={helperTextStyle}>Sync Stripe will adopt this legacy env Price ID and store the real Price ID in the CMS.</span>
+                )}
+              </label>
+              </>}
 
-	              <label style={labelStyle}>
+	              {!selectedProduct.isFree && <label style={labelStyle}>
 	                <span style={labelTextStyle}>Stripe Product ID</span>
 	                <input
 	                  value={selectedProduct.stripeProductId || ''}
@@ -1287,7 +1308,7 @@ const ProductCmsSection = () => {
 	                  style={inputStyle}
 	                />
 	                <span style={helperTextStyle}>Leave empty to create a new Stripe Product during sync.</span>
-	              </label>
+	              </label>}
 
 	              <label style={labelStyle}>
 	                <span style={labelTextStyle}>Languages</span>

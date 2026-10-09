@@ -67,6 +67,16 @@
   z-index: 1;
 }
 
+.product-card__content {
+  z-index: 3;
+  pointer-events: none;
+}
+
+.product-card__content a,
+.product-card__content button {
+  pointer-events: auto;
+}
+
 .product-card__media {
   margin: 0.85rem 0.85rem 0;
   aspect-ratio: 1 / 1.05;
