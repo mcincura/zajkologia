@@ -7,6 +7,7 @@ import ProductCard from '../components/ProductCard';
 import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import { apiFetch, mapPostFromApi } from '../api/client';
 import { getCategoryConfig } from '../constants/categories';
+import { PRODUCT_SUBCATEGORIES } from '../constants/productCategories';
 import { useProducts } from '../hooks/useProducts';
 import '../styles/home.css';
 import '../styles/products.css';
@@ -41,7 +42,10 @@ const Home = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || null);
+  const selectedCategory = searchParams.get('category') || null;
+  const selectedProductSubcategory = selectedCategory === PRODUCTS_CATEGORY_NAME
+    ? PRODUCT_SUBCATEGORIES.find(({ slug }) => slug === searchParams.get('subcategory'))
+    : null;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,17 +53,20 @@ const Home = () => {
   const [categories, setCategories] = useState([]);
   const { products, loading: productsLoading } = useProducts();
 
-  useEffect(() => {
-    const cat = searchParams.get('category') || null;
-    setSelectedCategory((prev) => (prev === cat ? prev : cat));
-  }, [searchParams]);
-
   const setCategory = (cat) => {
-    setSelectedCategory(cat);
     const next = new URLSearchParams(searchParams);
+    next.delete('subcategory');
     if (cat) next.set('category', cat);
     else next.delete('category');
     setSearchParams(next);
+  };
+
+  const productSubcategoryLink = (slug) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('category', PRODUCTS_CATEGORY_NAME);
+    if (slug) next.set('subcategory', slug);
+    else next.delete('subcategory');
+    return `/?${next.toString()}`;
   };
 
   useEffect(() => {
@@ -108,9 +115,11 @@ const Home = () => {
     return products.filter((product) => {
       const title = (product.name || '').toLowerCase();
       const excerpt = (product.shortDescription || product.description || '').toLowerCase();
-      return !term || title.includes(term) || excerpt.includes(term);
+      const matchesSearch = !term || title.includes(term) || excerpt.includes(term);
+      const matchesSubcategory = !selectedProductSubcategory || selectedProductSubcategory.matches(product);
+      return matchesSearch && matchesSubcategory;
     });
-  }, [products, searchTerm]);
+  }, [products, searchTerm, selectedProductSubcategory]);
 
   return (
     <>
@@ -324,6 +333,26 @@ const Home = () => {
             </>
           ) : selectedCategory === PRODUCTS_CATEGORY_NAME ? (
             <>
+              <nav className="product-subcategories" aria-label="Podkategórie produktov">
+                <Link
+                  to={productSubcategoryLink()}
+                  aria-current={!selectedProductSubcategory ? 'page' : undefined}
+                >
+                  Všetky produkty
+                </Link>
+                {PRODUCT_SUBCATEGORIES.map(({ slug, name }) => (
+                  <Link
+                    key={slug}
+                    to={productSubcategoryLink(slug)}
+                    aria-current={selectedProductSubcategory?.slug === slug ? 'page' : undefined}
+                  >
+                    {name}
+                  </Link>
+                ))}
+              </nav>
+              <h2 className="product-catalog-heading">
+                {selectedProductSubcategory?.name || PRODUCTS_CATEGORY_NAME}
+              </h2>
               {productsLoading ? (
                 <div className="products-empty">
                   <h3>Načítavam produkty…</h3>
@@ -342,7 +371,9 @@ const Home = () => {
                 </div>
               ) : (
                 <div className="products-empty">
-                  <h3>Momentálne nemáme žiadne produkty</h3>
+                  <h3>{searchTerm.trim()
+                    ? 'Žiadne produkty nespĺňajú vaše kritériá vyhľadávania'
+                    : 'V tejto kategórii zatiaľ nie sú žiadne produkty'}</h3>
                 </div>
               )}
             </>
