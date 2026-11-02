@@ -3,6 +3,28 @@ import { describe, expect, it } from 'vitest';
 import MarkdownContent from './MarkdownContent';
 
 describe('MarkdownContent article table of contents', () => {
+  it.each(['left', 'right', 'center'])('renders the %s image layout and following text as separate valid blocks', (alignment) => {
+    const { container } = render(<MarkdownContent markdown={`![Králik](/kralik.jpg "zajkologia-image:${alignment}:medium")\n\nText vedľa obrázka.`} />);
+    const image = screen.getByRole('img', { name: 'Králik' });
+    expect(image.closest('figure')).toHaveClass(`markdown-image--${alignment}`, 'markdown-image--medium');
+    expect(image).not.toHaveAttribute('title');
+    expect(container.querySelector('p figure')).toBeNull();
+    expect(screen.getByText('Text vedľa obrázka.').tagName).toBe('P');
+  });
+
+  it('retains normal centered images and ordinary titles in existing articles', () => {
+    render(<MarkdownContent markdown={'![Pôvodný](/kralik.jpg "Starý popis")'} />);
+    const image = screen.getByRole('img', { name: 'Pôvodný' });
+    expect(image).toHaveAttribute('title', 'Starý popis');
+    expect(image.closest('figure')).toBeNull();
+  });
+
+  it('does not interpret arbitrary title text or raw HTML as layout or executable code', () => {
+    const { container } = render(<MarkdownContent markdown={'![Obrázok](/kralik.jpg "zajkologia-image:right:evil")\n\n<script>alert(1)</script>'} />);
+    expect(screen.getByRole('img').closest('figure')).toBeNull();
+    expect(container.querySelector('script')).toBeNull();
+  });
+
   it('builds linked contents from primary article headings and gives every heading a stable id', () => {
     const { container } = render(
       <MarkdownContent markdown={'# Názov\n\n## Zdravie a výživa\n\n### Detail\n\n## Zdravie a výživa'} />

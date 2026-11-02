@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { apiUrl, createCartCheckoutSession, createCheckoutSession, loadVisitorCountry, quoteCheckout } from '../api/client';
 import { useCart } from '../cart/useCart';
+import { cartNavigationState } from '../utils/cartNavigation';
 import EmailCaptureOffer from '../components/EmailCaptureOffer';
 import ProductCard from '../components/ProductCard';
 import ProductLanguageBadges from '../components/ProductLanguageBadges';
@@ -738,7 +739,7 @@ export const ProductDetailView = ({
                         </span>
                       )}
                       {couponQuoteState === 'error' && <span>{couponQuoteError}</span>}
-                      <Link to="/cart">Spravovať v košíku</Link>
+                      <Link to="/cart" state={cartNavigationState(location)}>Spravovať v košíku</Link>
                     </div>
                   )}
                   <button

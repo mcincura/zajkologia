@@ -1,6 +1,41 @@
 .markdown-content {
+  display: flow-root;
   font-size: 1.1rem;
   line-height: 1.8;
+}
+
+.markdown-content__image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: 0.75rem auto 1.25rem;
+}
+
+.markdown-content > :is(h1, h2, h3, h4, h5, h6, hr) { clear: both; }
+
+.markdown-image {
+  clear: both;
+  width: var(--markdown-image-width, 100%);
+  max-width: 100%;
+  margin: 0.75rem auto 1.25rem;
+}
+
+.markdown-image--small { --markdown-image-width: 25%; }
+.markdown-image--medium { --markdown-image-width: 40%; }
+.markdown-image--large { --markdown-image-width: 60%; }
+.markdown-image--full { --markdown-image-width: 100%; }
+.markdown-image--left { float: left; margin: 0.35rem 1.5rem 1rem 0; }
+.markdown-image--right { float: right; margin: 0.35rem 0 1rem 1.5rem; }
+.markdown-image--full { float: none; margin: 0.75rem auto 1.25rem; }
+.markdown-image .markdown-content__image { margin: 0 auto; }
+
+@media (max-width: 640px) {
+  .markdown-image {
+    float: none;
+    width: 100%;
+    margin: 0.75rem auto 1.25rem;
+  }
 }
 
 .article-toc {

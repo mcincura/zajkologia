@@ -106,6 +106,13 @@ console.log('Ahoj');
 
 Notes:
 - Images are centered, responsive (`max-width: 100%`), and keep their natural height.
+- In Admin > Posts, use **Obrázky v článku** to insert an image at the cursor,
+  choose left/right/center alignment and 25/40/60/100% desktop width, or select
+  an existing image to edit it. Save the post normally. Text in following
+  paragraphs wraps around side images until the next heading or image; at
+  640px and below, images stack above the text. Existing Markdown images retain
+  their centered layout. Layout metadata is stored in the Markdown image title,
+  for example `![Popis](/obrazok.jpg "zajkologia-image:right:medium")`.
 
 ### Horizontal rule
 

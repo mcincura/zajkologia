@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CircleUserRound, ShoppingCart } from 'lucide-react';
 import { useCart } from '../cart/useCart';
+import { cartNavigationState } from '../utils/cartNavigation';
 import '../styles/header.css';
 
 const membershipPublic = import.meta.env.VITE_MEMBERSHIP_PUBLIC === 'true';
@@ -20,7 +21,7 @@ const Header = () => {
                     <span>Klub</span>
                 </Link>
             ) : null}
-            <Link className="site-header__cart" to="/cart" aria-label={`Košík, ${itemCount} položiek`}>
+            <Link className="site-header__cart" to="/cart" state={cartNavigationState(location)} aria-label={`Košík, ${itemCount} položiek`}>
                 <ShoppingCart aria-hidden="true" size={23} strokeWidth={2.2} />
                 <span className="site-header__cart-label">Košík</span>
                 <strong className={itemCount > 0 ? '' : 'is-empty'} aria-hidden="true">

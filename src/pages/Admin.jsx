@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Ban, Download, FileText, Megaphone, Package, PackageCheck, RefreshCw, Send, ShieldCheck, Tag, UsersRound } from 'lucide-react';
+import { Ban, Check, Download, FileText, Megaphone, Package, PackageCheck, RefreshCw, Send, ShieldCheck, Tag, UsersRound } from 'lucide-react';
 import MarkdownContent from '../components/MarkdownContent';
 import { apiFetch, apiUrl, mapPostFromApi } from '../api/client';
 import ProductCmsSection from './admin/ProductCmsSection';
 import AdminCouponsSection from './admin/AdminCouponsSection';
 import MembershipAdminSection from './admin/MembershipAdminSection';
 import MarketingEmailSection from './admin/MarketingEmailSection';
+import ArticleImageControls from './admin/ArticleImageControls';
 import { isShippableOrder } from '../utils/orderTypes';
 import { extractMarkdownHeadings, selectTableOfContentsHeadings } from '../utils/markdownHeadings';
 import {
@@ -127,6 +128,7 @@ const ORDER_FILTER_OPTIONS = [
     { value: 'pending', label: 'Pending checkout' },
     { value: 'expired', label: 'Expired checkout' },
     { value: 'all', label: 'All non-archived' },
+    { value: 'completed', label: 'Vybavené' },
     { value: 'archived', label: 'Archived tests' },
 ];
 
@@ -154,6 +156,12 @@ const Admin = ({ section = 'orders' }) => {
     const [orderFilter, setOrderFilter] = useState(DEFAULT_ORDER_FILTER);
     const [ordersLoading, setOrdersLoading] = useState(false);
     const [ordersError, setOrdersError] = useState('');
+    const postEditorRef = useRef(null);
+    const sortedOrders = useMemo(() => [...orders].sort((a, b) =>
+        Number(Boolean(a.completedAt)) - Number(Boolean(b.completedAt)) ||
+        (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0) ||
+        String(b.id).localeCompare(String(a.id))
+    ), [orders]);
 
     const selectedPost = useMemo(() => posts.find(p => p.id === selectedId) || null, [posts, selectedId]);
     const selectedPostTocHeadings = useMemo(
@@ -245,6 +253,24 @@ const Admin = ({ section = 'orders' }) => {
         setPosts([]);
         setSelectedId(null);
         setOrders([]);
+    };
+
+    const toggleOrderCompletion = async (order) => {
+        setBusy(true);
+        setStatus('Ukladám stav objednávky…');
+        try {
+            const data = await apiFetch(`/api/orders/admin/${encodeURIComponent(order.id)}/completion`, {
+                method: 'PATCH',
+                body: JSON.stringify({ completed: !order.completedAt }),
+            });
+            setOrders((current) => current.map((item) => item.id === order.id ? { ...item, ...data.order } : item));
+            await loadOrders();
+            setStatus(order.completedAt ? 'Objednávka je opäť označená ako nová.' : 'Objednávka bola označená ako vybavená.');
+        } catch {
+            setStatus('Stav objednávky sa nepodarilo uložiť. Skúste to znova.');
+        } finally {
+            setBusy(false);
+        }
     };
 
     const checkAuth = async ({ fallbackUsername } = {}) => {
@@ -1195,12 +1221,13 @@ const Admin = ({ section = 'orders' }) => {
                                 No orders match this filter.
                             </div>
                         ) : (
-                            orders.map((order) => {
+                            sortedOrders.map((order) => {
                                 const primaryItem = order.items?.[0];
                                 const refundableMinor = Number(order.amountTotal || 0) - Number(order.refundedAmount || 0);
                                 const pendingRequests = (order.refundRequests || []).filter((request) => request.status === 'submitted');
                                 const approvedRequests = (order.refundRequests || []).filter((request) => request.status === 'approved');
                                 const shippable = isShippableOrder(order);
+                                const completed = Boolean(order.completedAt);
                                 const digitalDeliveryLinks = order.digitalDelivery?.links || [];
                                 const hasDigitalDeliveryControls =
                                     order.orderType === 'digital' ||
@@ -1210,15 +1237,20 @@ const Admin = ({ section = 'orders' }) => {
                                 return (
                                     <article
                                         key={order.id}
+                                        aria-label={`Objednávka ${order.id}`}
                                         style={{
-                                            background: 'white',
-                                            border: '1px solid #eee',
+                                            background: completed ? '#f0fdf4' : '#fffbeb',
+                                            border: `1px solid ${completed ? '#bbf7d0' : '#fde68a'}`,
                                             borderRadius: '8px',
                                             padding: '0.75rem',
                                         }}
                                     >
                                         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr auto', gap: '0.75rem', alignItems: 'start' }}>
                                             <div>
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: completed ? '#166534' : '#854d0e', fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.35rem' }}>
+                                                    {completed ? <Check size={15} aria-hidden="true" /> : <span aria-hidden="true">●</span>}
+                                                    {completed ? 'Vybavená' : 'Nová objednávka'}
+                                                </div>
                                                 <div style={{ fontWeight: 900 }}>{order.productName}</div>
                                                 <div style={{ fontSize: '0.82rem', color: '#666', marginTop: '0.15rem' }}>
                                                     {order.id}
@@ -1459,6 +1491,14 @@ const Admin = ({ section = 'orders' }) => {
                                         ) : null}
 
                                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleOrderCompletion(order)}
+                                                disabled={busy || ordersLoading}
+                                                style={{ background: completed ? 'white' : '#166534', color: completed ? '#166534' : 'white', border: '1px solid #166534', padding: '0.4rem 0.65rem', borderRadius: '6px', fontWeight: 800, fontSize: '0.82rem' }}
+                                            >
+                                                {completed ? 'Označiť ako novú' : 'Označiť ako vybavenú'}
+                                            </button>
                                             {pendingRequests.length > 0 ? (
                                                 <span style={{ fontSize: '0.78rem', color: '#7a3f00', fontWeight: 800 }}>
                                                     {pendingRequests.length} request(s) need review
@@ -1675,14 +1715,22 @@ const Admin = ({ section = 'orders' }) => {
                             </div>
                         )}
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                        <div className="admin-post-content-layout">
                             <div>
-                                <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.35rem' }}>Markdown *</div>
+                                <ArticleImageControls
+                                    key={selectedPost.id}
+                                    value={selectedPost.content}
+                                    onChange={(content) => updateSelected({ content })}
+                                    editorRef={postEditorRef}
+                                />
+                                <label htmlFor="article-markdown" style={{ display: 'block', fontSize: '0.85rem', color: '#666', marginBottom: '0.35rem' }}>Markdown *</label>
                                 <div style={{ fontSize: '0.82rem', color: '#6f3f46', marginBottom: '0.6rem', lineHeight: 1.45 }}>
                                     Obsah článku sa vytvorí automaticky z hlavných nadpisov <code>## Nadpis</code>.
                                     {' '}V náhľade je teraz {selectedPostTocHeadings.length} {selectedPostTocHeadings.length === 1 ? 'položka' : 'položiek'}.
                                 </div>
                                 <textarea
+                                    id="article-markdown"
+                                    ref={postEditorRef}
                                     value={selectedPost.content}
                                     onChange={(e) => updateSelected({ content: e.target.value })}
                                     rows={16}

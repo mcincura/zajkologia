@@ -95,6 +95,7 @@ describe('cart coupon layout', () => {
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
   vi.mocked(createCartCheckoutSession).mockReset();
   vi.mocked(quoteCheckout).mockReset();
   vi.mocked(quoteCheckout).mockImplementation(async (items, options = {}) => {
@@ -124,6 +125,27 @@ beforeEach(() => {
 });
 
 describe('CartPage', () => {
+  it('keeps the return destination after refresh and checkout cancellation', async () => {
+    const view = renderCartPage([{ productSlug: 'digital-guide', quantity: 1 }], {
+      route: { pathname: '/cart', state: { cartReturnTo: '/product/digital-guide?variant=sk#details' } },
+    });
+    expect(screen.getByRole('link', { name: 'Späť' })).toHaveAttribute('href', '/product/digital-guide?variant=sk#details');
+    view.unmount();
+    renderCartPage([{ productSlug: 'digital-guide', quantity: 1 }], { route: '/cart?checkout=cancelled' });
+    expect(screen.getByRole('link', { name: 'Späť' })).toHaveAttribute('href', '/product/digital-guide?variant=sk#details');
+    expect(await screen.findByText(/platba nebola dokončená/i)).toBeInTheDocument();
+  });
+
+  it('returns to the originating article even when the cart is empty', () => {
+    renderCartPage([], { route: { pathname: '/cart', state: { cartReturnTo: '/post/vyziva#seno' } } });
+    expect(screen.getByRole('link', { name: 'Späť' })).toHaveAttribute('href', '/post/vyziva#seno');
+  });
+
+  it.each(['https://example.com', '//example.com', '/cart?checkout=cancelled', '/checkout/return', '/\\example.com'])('uses a safe product-list fallback for %s', (cartReturnTo) => {
+    renderCartPage([], { route: { pathname: '/cart', state: { cartReturnTo } } });
+    expect(screen.getByRole('link', { name: 'Späť' })).toHaveAttribute('href', '/?category=Produkty');
+  });
+
   it('submits normalized cart checkout payload with cart coupon', async () => {
     vi.mocked(createCartCheckoutSession).mockRejectedValue(new Error('stop-before-redirect'));
     renderCartPage([

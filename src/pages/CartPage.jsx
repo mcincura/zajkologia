@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, Minus, Plus, ShoppingCart, Tag, Trash2, X } from 'lucide-react';
 import { createCartCheckoutSession, quoteCheckout } from '../api/client';
 import { useCart } from '../cart/useCart';
+import { useCartReturnTo } from '../cart/useCartReturnTo';
 import { useProducts } from '../hooks/useProducts';
 import { getCouponErrorMessage, normalizeCouponCode } from '../utils/couponErrors';
 import { getProductTypeLabel, hasPhysicalDelivery } from '../utils/productTypes';
@@ -69,6 +70,7 @@ const getCartLines = (cartItems, products) => {
 
 const CartPage = () => {
   const [searchParams] = useSearchParams();
+  const returnTo = useCartReturnTo();
   const { items, coupon, removeItem, updateQuantity, applyCoupon, removeCoupon } = useCart();
   const { products, loading } = useProducts(true);
   const [couponDraft, setCouponDraft] = useState(coupon?.code || '');
@@ -212,7 +214,7 @@ const CartPage = () => {
     return (
       <div className="cart-page">
         <div className="container cart-page__container">
-          <Link to="/?category=Produkty" className="cart-page__back"><ArrowLeft size={18} />Späť na produkty</Link>
+          <Link to={returnTo} replace className="cart-page__back"><ArrowLeft size={18} />Späť</Link>
           <section className="cart-page__empty">
             <ShoppingCart size={34} />
             <h1>Košík je prázdny</h1>
@@ -234,7 +236,7 @@ const CartPage = () => {
   return (
     <div className="cart-page">
       <div className="container cart-page__container">
-        <Link to="/?category=Produkty" className="cart-page__back"><ArrowLeft size={18} />Pokračovať v nákupe</Link>
+        <Link to={returnTo} replace className="cart-page__back"><ArrowLeft size={18} />Späť</Link>
         <header className="cart-page__header"><div><h1>Košík</h1><p>{items.length} položiek pripravených na bezpečnú platbu cez Stripe.</p></div></header>
         {cancelled && <div className="cart-page__notice" role="status">Platba nebola dokončená. Položky aj použitý zľavový kód zostali uložené.</div>}
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { rehypeMarkdownImages } from '../utils/markdownImages';
 import {
     extractMarkdownHeadings,
     rehypeHeadingIds,
@@ -8,7 +9,7 @@ import {
 } from '../utils/markdownHeadings';
 import '../styles/markdown-content.css';
 
-const rehypePlugins = [rehypeHeadingIds];
+const rehypePlugins = [rehypeHeadingIds, rehypeMarkdownImages];
 
 const headingClassName = (className) => ['markdown-heading-anchor', className].filter(Boolean).join(' ');
 
@@ -125,16 +126,14 @@ const markdownComponents = {
             {children}
         </pre>
     ),
-    img: ({ ...props }) => (
+    img: ({ src, alt, title }) => (
         <img
-            style={{
-                display: 'block',
-                maxWidth: '100%',
-                height: 'auto',
-                borderRadius: 'var(--radius)',
-                margin: '0.75rem auto 1.25rem',
-            }}
-            {...props}
+            className="markdown-content__image"
+            src={src}
+            alt={alt || ''}
+            title={title}
+            loading="lazy"
+            decoding="async"
         />
     ),
     hr: ({ ...props }) => (

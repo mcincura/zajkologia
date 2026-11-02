@@ -6,6 +6,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { rehypeMarkdownImages } from '../src/utils/markdownImages.js';
 import { products as frontendProducts } from '../src/data/products.js';
 import { aboutContent } from '../src/data/about.js';
 import {
@@ -177,8 +178,15 @@ function mapPost(post) {
 
 function mergeProducts(apiProducts) {
   const apiBySlug = new Map(apiProducts.map((product) => [product.slug, product]));
+  const defaultsBySlug = new Map(frontendProducts.map((product) => [product.slug, product]));
+  // The public CMS catalog is authoritative: archived/removed products must not
+  // block deployment, and newly published products need static pages as well.
+  const publicProducts = [
+    ...apiProducts.map((product) => ({ ...defaultsBySlug.get(product.slug), ...product })),
+    ...frontendProducts.filter((product) => product.isMock && !apiBySlug.has(product.slug)),
+  ];
 
-  return frontendProducts.map((product) => {
+  return publicProducts.map((product) => {
     const apiProduct = apiBySlug.get(product.slug);
     if (!apiProduct) {
       if (!product.isMock) {
@@ -228,14 +236,16 @@ function markdownToHtml(markdown) {
       ReactMarkdown,
       {
         remarkPlugins: [remarkGfm],
-        rehypePlugins: [rehypeHeadingIds],
+        rehypePlugins: [rehypeHeadingIds, rehypeMarkdownImages],
         components: {
           a: ({ children, href }) =>
             React.createElement('a', { href: href || '', rel: 'noreferrer' }, children),
-          img: ({ src, alt }) =>
+          img: ({ src, alt, title }) =>
             React.createElement('img', {
+              className: 'markdown-content__image',
               src: src ? absoluteUrl(src) : '',
               alt: alt || '',
+              title,
               loading: 'lazy',
               decoding: 'async',
             }),
@@ -544,7 +554,7 @@ function postBody(post) {
       ${post.excerpt ? `<p><strong>${escapeHtml(post.excerpt)}</strong></p>` : ''}
       ${image}
       ${tocHtml}
-      ${markdownToHtml(post.content)}
+      <div class="markdown-content">${markdownToHtml(post.content)}</div>
       ${faqHtml}
     </article>
   </main>`;
