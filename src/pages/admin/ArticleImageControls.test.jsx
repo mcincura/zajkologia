@@ -43,12 +43,10 @@ describe('article image controls', () => {
     expect(screen.getByLabelText('Adresa obrázka')).toHaveValue('/stary.jpg');
     await user.selectOptions(screen.getByLabelText('Zarovnanie'), 'left');
     await user.selectOptions(screen.getByLabelText('Veľkosť obrázka'), 'medium');
-    await user.click(screen.getByRole('button', { name: 'Upraviť obrázok' }));
     expect(screen.getAllByRole('img')).toHaveLength(1);
     expect(screen.getByRole('img')).toHaveAttribute('title', 'Pôvodná fotka');
     expect(screen.getByRole('img').closest('figure')).toHaveClass('markdown-image--left', 'markdown-image--medium');
     await user.selectOptions(screen.getByLabelText('Zarovnanie'), 'center');
-    await user.click(screen.getByRole('button', { name: 'Upraviť obrázok' }));
     expect(screen.getByRole('img').closest('figure')).toHaveClass('markdown-image--center');
   });
 
@@ -60,5 +58,25 @@ describe('article image controls', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Zadajte platnú adresu obrázka');
     expect(screen.getByRole('textbox', { name: 'Obsah článku' })).toHaveValue('Text zostáva.');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('keeps focus in the controls when editing an existing image and preserves the other image', async () => {
+    const user = userEvent.setup();
+    render(<Editor initialValue={'![Prvý](/prvy.jpg)\n\n![Druhý](/druhy.jpg)'} />);
+    await user.selectOptions(screen.getByLabelText('Vložiť alebo upraviť obrázok'), '0');
+    const description = screen.getByLabelText('Popis obrázka');
+    await user.clear(description);
+    await user.type(description, 'Nový popis');
+    expect(description).toHaveFocus();
+    expect(screen.getByRole('img', { name: 'Nový popis' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Zarovnanie'), 'right');
+    await user.selectOptions(screen.getByLabelText('Veľkosť obrázka'), 'small');
+    await user.selectOptions(screen.getByLabelText('Vložiť alebo upraviť obrázok'), '1');
+    await user.selectOptions(screen.getByLabelText('Zarovnanie'), 'left');
+    await user.selectOptions(screen.getByLabelText('Veľkosť obrázka'), 'medium');
+    const images = listMarkdownImages(screen.getByRole('textbox', { name: 'Obsah článku' }).value);
+    expect(images).toHaveLength(2);
+    expect(images[0]).toMatchObject({ alt: 'Nový popis', alignment: 'right', size: 'small' });
+    expect(images[1]).toMatchObject({ alt: 'Druhý', alignment: 'left', size: 'medium' });
   });
 });

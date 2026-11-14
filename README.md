@@ -108,7 +108,9 @@ Notes:
 - Images are centered, responsive (`max-width: 100%`), and keep their natural height.
 - In Admin > Posts, use **Obrázky v článku** to insert an image at the cursor,
   choose left/right/center alignment and 25/40/60/100% content width, or select
-  an existing image to edit it. Save the post normally. Text in following
+  an existing image to edit it. Changes to an existing image update the article
+  immediately; persist them with the main **Save** button. The insert button is
+  only needed for a new image. Text in following
   paragraphs wraps around side images until the next heading or image.
   The selected relative size and alignment apply on mobile as well as desktop;
   images preserve their aspect ratio and stay within the content width. Existing

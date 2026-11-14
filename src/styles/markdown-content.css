@@ -30,6 +30,8 @@
 .markdown-image--right { float: right; margin: 0.35rem 0 1rem 1.5rem; }
 .markdown-image--full { float: none; margin: 0.75rem auto 1.25rem; }
 .markdown-image .markdown-content__image { margin: 0 auto; }
+.markdown-image--left .markdown-content__image { margin-left: 0; margin-right: auto; }
+.markdown-image--right .markdown-content__image { margin-left: auto; margin-right: 0; }
 
 .article-toc {
   margin: 0 0 2rem;

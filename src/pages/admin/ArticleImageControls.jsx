@@ -22,8 +22,8 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
     setError('');
   };
 
-  const applyImage = () => {
-    if (!isSafeArticleImageUrl(draft.src)) {
+  const writeImage = (nextDraft, { focusEditor = false } = {}) => {
+    if (!isSafeArticleImageUrl(nextDraft.src)) {
       setError('Zadajte platnú adresu obrázka (https://… alebo /cesta/k/obrazku).');
       return;
     }
@@ -33,17 +33,27 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
     const after = value.slice(end);
     const prefix = before && !before.endsWith('\n\n') ? '\n\n' : '';
     const suffix = after.startsWith('\n\n') ? '' : '\n\n';
-    const markdown = createMarkdownImage(draft);
+    const markdown = createMarkdownImage(nextDraft);
     const nextValue = `${before}${prefix}${markdown}${suffix}${after}`;
     onChange(nextValue);
     setSelectedIndex(listMarkdownImages(nextValue).findIndex((image) => image.start === start + prefix.length));
     setError('');
-    setMessage(selectedImage ? 'Obrázok bol upravený. Výsledok vidíte v náhľade.' : 'Obrázok bol vložený. Text pridajte do nasledujúceho odseku.');
-    requestAnimationFrame(() => {
-      const cursor = start + prefix.length + markdown.length + suffix.length;
-      editorRef.current?.focus();
-      editorRef.current?.setSelectionRange(cursor, cursor);
-    });
+    setMessage(selectedImage ? 'Nastavenie obrázka je prenesené do článku. Uložte ho tlačidlom Save.' : 'Obrázok bol vložený. Text pridajte do nasledujúceho odseku.');
+    if (focusEditor) {
+      requestAnimationFrame(() => {
+        const cursor = start + prefix.length + markdown.length + suffix.length;
+        editorRef.current?.focus();
+        editorRef.current?.setSelectionRange(cursor, cursor);
+      });
+    }
+  };
+
+  const updateDraft = (patch) => {
+    const nextDraft = { ...draft, ...patch };
+    setDraft(nextDraft);
+    setMessage('');
+    if (selectedImage) writeImage(nextDraft);
+    else setError('');
   };
 
   return (
@@ -55,13 +65,13 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
         {images.map((image, index) => <option key={index} value={index}>{index + 1}. {image.alt || 'Obrázok bez popisu'}</option>)}
       </select>
       <label htmlFor={`${id}-url`}>Adresa obrázka</label>
-      <input id={`${id}-url`} type="text" inputMode="url" value={draft.src} onChange={(event) => setDraft((current) => ({ ...current, src: event.target.value }))} placeholder="https://… alebo /obrazok.jpg" aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} />
+      <input id={`${id}-url`} type="text" inputMode="url" value={draft.src} onChange={(event) => updateDraft({ src: event.target.value })} placeholder="https://… alebo /obrazok.jpg" aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} />
       <label htmlFor={`${id}-alt`}>Popis obrázka</label>
-      <input id={`${id}-alt`} value={draft.alt} onChange={(event) => setDraft((current) => ({ ...current, alt: event.target.value }))} placeholder="Čo je na obrázku (pre čítačky obrazovky)" />
+      <input id={`${id}-alt`} value={draft.alt} onChange={(event) => updateDraft({ alt: event.target.value })} placeholder="Čo je na obrázku (pre čítačky obrazovky)" />
       <div className="article-image-controls__options">
         <div>
           <label htmlFor={`${id}-alignment`}>Zarovnanie</label>
-          <select id={`${id}-alignment`} value={draft.alignment} onChange={(event) => setDraft((current) => ({ ...current, alignment: event.target.value }))}>
+          <select id={`${id}-alignment`} value={draft.alignment} onChange={(event) => updateDraft({ alignment: event.target.value })}>
             <option value="left">Vľavo – text vpravo</option>
             <option value="right">Vpravo – text vľavo</option>
             <option value="center">Na stred</option>
@@ -69,7 +79,7 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
         </div>
         <div>
           <label htmlFor={`${id}-size`}>Veľkosť obrázka</label>
-          <select id={`${id}-size`} value={draft.size} onChange={(event) => setDraft((current) => ({ ...current, size: event.target.value }))}>
+          <select id={`${id}-size`} value={draft.size} onChange={(event) => updateDraft({ size: event.target.value })}>
             <option value="small">Malý (25 %)</option>
             <option value="medium">Stredný (40 %)</option>
             <option value="large">Veľký (60 %)</option>
@@ -77,8 +87,8 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
           </select>
         </div>
       </div>
-      <p className="article-image-controls__hint">Nový obrázok sa vloží na miesto kurzora. Text v nasledujúcich odsekoch ho obteká až po ďalší nadpis alebo obrázok. Nastavená veľkosť a zarovnanie platia aj na mobile. Zmeny uložíte tlačidlom Save.</p>
-      <button type="button" onClick={applyImage}>{selectedImage ? 'Upraviť obrázok' : 'Vložiť obrázok'}</button>
+      <p className="article-image-controls__hint">Pri úprave vyberte obrázok zo zoznamu. Jeho zmeny sa okamžite prenesú do náhľadu aj článku; uložte ich tlačidlom Save. Nový obrázok vložte tlačidlom nižšie na miesto kurzora. Veľkosť a zarovnanie platia aj na mobile.</p>
+      {!selectedImage && <button type="button" onClick={() => writeImage(draft, { focusEditor: true })}>Vložiť obrázok</button>}
       {error && <p id={`${id}-error`} className="article-image-controls__error" role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
     </fieldset>
