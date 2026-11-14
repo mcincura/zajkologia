@@ -27,8 +27,11 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
       setError('Zadajte platnú adresu obrázka (https://… alebo /cesta/k/obrazku).');
       return;
     }
-    const start = selectedImage?.start ?? editorRef.current?.selectionStart ?? value.length;
-    const end = selectedImage?.end ?? editorRef.current?.selectionEnd ?? start;
+    const editor = editorRef.current;
+    const scrollTop = editor?.scrollTop;
+    const scrollLeft = editor?.scrollLeft;
+    const start = selectedImage?.start ?? editor?.selectionStart ?? value.length;
+    const end = selectedImage?.end ?? editor?.selectionEnd ?? start;
     const before = value.slice(0, start);
     const after = value.slice(end);
     const prefix = before && !before.endsWith('\n\n') ? '\n\n' : '';
@@ -39,13 +42,17 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
     setSelectedIndex(listMarkdownImages(nextValue).findIndex((image) => image.start === start + prefix.length));
     setError('');
     setMessage(selectedImage ? 'Nastavenie obrázka je prenesené do článku. Uložte ho tlačidlom Save.' : 'Obrázok bol vložený. Text pridajte do nasledujúceho odseku.');
-    if (focusEditor) {
-      requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!editor || editor !== editorRef.current) return;
+      if (focusEditor) {
         const cursor = start + prefix.length + markdown.length + suffix.length;
-        editorRef.current?.focus();
-        editorRef.current?.setSelectionRange(cursor, cursor);
-      });
-    }
+        editor.setSelectionRange(cursor, cursor);
+        editor.focus({ preventScroll: true });
+      }
+      // Updating a controlled textarea can scroll it to the end before focus returns.
+      editor.scrollTop = scrollTop;
+      editor.scrollLeft = scrollLeft;
+    });
   };
 
   const updateDraft = (patch) => {
