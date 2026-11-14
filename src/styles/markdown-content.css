@@ -30,14 +30,6 @@
 .markdown-image--full { float: none; margin: 0.75rem auto 1.25rem; }
 .markdown-image .markdown-content__image { margin: 0 auto; }
 
-@media (max-width: 640px) {
-  .markdown-image {
-    float: none;
-    width: 100%;
-    margin: 0.75rem auto 1.25rem;
-  }
-}
-
 .article-toc {
   margin: 0 0 2rem;
   padding: 1.2rem 1.35rem;

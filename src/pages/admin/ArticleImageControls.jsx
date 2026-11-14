@@ -68,7 +68,7 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
           </select>
         </div>
         <div>
-          <label htmlFor={`${id}-size`}>Veľkosť na počítači</label>
+          <label htmlFor={`${id}-size`}>Veľkosť obrázka</label>
           <select id={`${id}-size`} value={draft.size} onChange={(event) => setDraft((current) => ({ ...current, size: event.target.value }))}>
             <option value="small">Malý (25 %)</option>
             <option value="medium">Stredný (40 %)</option>
@@ -77,7 +77,7 @@ const ArticleImageControls = ({ value, onChange, editorRef }) => {
           </select>
         </div>
       </div>
-      <p className="article-image-controls__hint">Nový obrázok sa vloží na miesto kurzora. Text v nasledujúcich odsekoch ho obteká až po ďalší nadpis alebo obrázok. Na mobile sa zobrazí nad textom. Zmeny uložíte tlačidlom Save.</p>
+      <p className="article-image-controls__hint">Nový obrázok sa vloží na miesto kurzora. Text v nasledujúcich odsekoch ho obteká až po ďalší nadpis alebo obrázok. Nastavená veľkosť a zarovnanie platia aj na mobile. Zmeny uložíte tlačidlom Save.</p>
       <button type="button" onClick={applyImage}>{selectedImage ? 'Upraviť obrázok' : 'Vložiť obrázok'}</button>
       {error && <p id={`${id}-error`} className="article-image-controls__error" role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}

@@ -26,7 +26,7 @@ describe('article image controls', () => {
     await user.type(screen.getByLabelText('Adresa obrázka'), '/kralik.jpg');
     await user.type(screen.getByLabelText('Popis obrázka'), 'Biely [[králik]');
     await user.selectOptions(screen.getByLabelText('Zarovnanie'), 'right');
-    await user.selectOptions(screen.getByLabelText('Veľkosť na počítači'), 'small');
+    await user.selectOptions(screen.getByLabelText('Veľkosť obrázka'), 'small');
     await user.click(screen.getByRole('button', { name: 'Vložiť obrázok' }));
     const images = listMarkdownImages(textarea.value);
     expect(images).toHaveLength(1);
@@ -42,7 +42,7 @@ describe('article image controls', () => {
     await user.selectOptions(screen.getByLabelText('Vložiť alebo upraviť obrázok'), '0');
     expect(screen.getByLabelText('Adresa obrázka')).toHaveValue('/stary.jpg');
     await user.selectOptions(screen.getByLabelText('Zarovnanie'), 'left');
-    await user.selectOptions(screen.getByLabelText('Veľkosť na počítači'), 'medium');
+    await user.selectOptions(screen.getByLabelText('Veľkosť obrázka'), 'medium');
     await user.click(screen.getByRole('button', { name: 'Upraviť obrázok' }));
     expect(screen.getAllByRole('img')).toHaveLength(1);
     expect(screen.getByRole('img')).toHaveAttribute('title', 'Pôvodná fotka');
