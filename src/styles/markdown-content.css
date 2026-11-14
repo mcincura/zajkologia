@@ -2,6 +2,7 @@
   display: flow-root;
   font-size: 1.1rem;
   line-height: 1.8;
+  text-align: left;
 }
 
 .markdown-content__image {
@@ -56,10 +57,11 @@
 }
 
 .article-toc__link {
-  position: relative;
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
   min-height: 32px;
-  padding: 0.25rem 0.45rem 0.25rem 1rem;
+  padding: 0.25rem 0.45rem;
   border-radius: 7px;
   color: #6f3f46;
   font-size: 0.98rem;
@@ -69,16 +71,17 @@
   transition: color 140ms ease, background-color 140ms ease;
 }
 
-.article-toc__link::before {
-  position: absolute;
-  top: 0.86rem;
-  left: 0.2rem;
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: currentColor;
-  content: '';
-  opacity: 0.55;
+.article-toc__icon {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin-top: 0.25rem;
+  opacity: 0.75;
+}
+
+.article-toc__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .article-toc__link:hover {

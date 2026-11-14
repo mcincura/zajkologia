@@ -44,7 +44,7 @@ Blog post content is rendered by `src/components/MarkdownContent.jsx` using `rea
 Just write text as normal paragraphs:
 
 ```md
-Toto je odsek. Text sa na stránke zarovnáva do bloku (justify).
+Toto je odsek. Text sa na stránke zarovnáva doľava na počítači aj mobile.
 
 Toto je ďalší odsek.
 ```

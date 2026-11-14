@@ -6,6 +6,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Carrot } from 'lucide-react';
 import { rehypeMarkdownImages } from '../src/utils/markdownImages.js';
 import { products as frontendProducts } from '../src/data/products.js';
 import { aboutContent } from '../src/data/about.js';
@@ -333,7 +334,7 @@ function buildHead(
     .seo-fallback__muted { color: #6b5560; }
     .seo-fallback__toc { margin: 1.5rem 0 2rem; padding: 1rem 1.25rem; border: 1px solid #dec3bb; border-radius: 12px; background: #fffaf4; }
     .seo-fallback__toc h2 { margin: 0 0 0.65rem; font-size: 1.25rem; }
-    .seo-fallback__toc ul { margin: 0; padding-left: 1.2rem; }
+    .seo-fallback__toc ul { margin: 0; padding: 0; list-style: none; }
     .seo-fallback__toc li + li { margin-top: 0.35rem; }
   </style>
 ${assetTags}
@@ -526,11 +527,15 @@ function aboutBody() {
 function postBody(post) {
   const image = post.image ? `<img src="${escapeAttr(absoluteUrl(post.image))}" alt="${escapeAttr(post.title)}" loading="lazy" decoding="async" />` : '';
   const tocHeadings = selectTableOfContentsHeadings(extractMarkdownHeadings(post.content));
+  const tocIcon = renderToStaticMarkup(React.createElement(Carrot, {
+    className: 'article-toc__icon', size: 14, strokeWidth: 1.8,
+    'aria-hidden': true, focusable: 'false',
+  }));
   const tocHtml = tocHeadings.length
     ? `<nav class="seo-fallback__toc" aria-label="Obsah článku">
         <h2>Obsah článku</h2>
-        <ul>${tocHeadings
-          .map((heading) => `<li><a href="#${escapeAttr(heading.id)}">${escapeHtml(heading.text)}</a></li>`)
+        <ul class="article-toc__list">${tocHeadings
+          .map((heading) => `<li><a class="article-toc__link" href="#${escapeAttr(heading.id)}">${tocIcon}<span class="article-toc__text">${escapeHtml(heading.text)}</span></a></li>`)
           .join('')}</ul>
       </nav>`
     : '';

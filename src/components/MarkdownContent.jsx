@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Carrot } from 'lucide-react';
 import { rehypeMarkdownImages } from '../utils/markdownImages';
 import {
     extractMarkdownHeadings,
@@ -49,8 +50,6 @@ const markdownComponents = {
             style={{
                 margin: '0 0 0.75rem',
                 color: '#333',
-                textAlign: 'justify',
-                textJustify: 'inter-word',
             }}
             {...props}
         >
@@ -176,7 +175,8 @@ const ArticleTableOfContents = ({ headings }) => {
                 {headings.map((heading) => (
                     <li key={heading.id}>
                         <a className="article-toc__link" href={`#${heading.id}`}>
-                            {heading.text}
+                            <Carrot className="article-toc__icon" size={14} strokeWidth={1.8} aria-hidden="true" focusable="false" />
+                            <span className="article-toc__text">{heading.text}</span>
                         </a>
                     </li>
                 ))}
